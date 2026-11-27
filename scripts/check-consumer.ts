@@ -100,25 +100,28 @@ try {
       `import { readFileSync } from "node:fs"
 import * as Root from "effect-ui-extra"
 import { auditAccessibleNames, checkPattern } from "effect-ui-extra/a11y"
-import { checkServer, preferencesScript } from "effect-ui-extra/page"
-import { buildPaginationRange, ColorPicker, TimeInput } from "effect-ui-extra/widgets"
-import { computeAutoScroll, moveGridFocus } from "effect-ui-extra/direct"
+import { checkServer, cspLayer, preferencesScript, reduceIosTouchGuard } from "effect-ui-extra/page"
+import { buildPaginationRange, Carousel, ColorPicker, ImageCropper, TimeInput, Timeline, Waterfall } from "effect-ui-extra/widgets"
+import { computeAutoScroll, moveGridFocus, transferItem } from "effect-ui-extra/direct"
 import { auditThemeContrast, DEFAULT_LIGHT_TOKENS, themeContrastPairs } from "effect-ui-extra/theme"
-import { reduceCarousel, solveSpring, springLinearEasing } from "effect-ui-extra/motion"
+import { reduceCarousel, reduceScrollHandoff, solveSpring, springLinearEasing } from "effect-ui-extra/motion"
+import { generatePresetCss, listVisualPresets, REGISTRY_ITEMS, runCli } from "effect-ui-extra/registry"
 
 const cssPath = Bun.resolveSync("effect-ui-extra/theme/effect-ui.css", import.meta.dir)
 const css = readFileSync(cssPath, "utf8")
 if (!css.includes("@layer effect-ui")) throw new Error("CSS layer missing")
 
 if (typeof Root.A11y.checkPattern !== "function") throw new Error("Root.A11y missing")
+if (typeof Root.Registry.runCli !== "function") throw new Error("Root.Registry missing")
 if (typeof checkPattern !== "function" || typeof auditAccessibleNames !== "function") throw new Error("a11y missing")
-if (typeof checkServer !== "function" || typeof preferencesScript !== "function") throw new Error("page missing")
-if (typeof TimeInput !== "function" || typeof ColorPicker !== "function") throw new Error("widgets missing")
+if (typeof checkServer !== "function" || typeof preferencesScript !== "function" || typeof cspLayer !== "function" || typeof reduceIosTouchGuard !== "function") throw new Error("page missing")
+if (typeof TimeInput !== "function" || typeof ColorPicker !== "function" || typeof Carousel !== "function" || typeof ImageCropper !== "function" || typeof Timeline !== "function" || typeof Waterfall !== "function") throw new Error("widgets missing")
 if (buildPaginationRange({ page: 5, totalPages: 10 }).length === 0) throw new Error("pagination failed")
-if (typeof moveGridFocus !== "function" || typeof computeAutoScroll !== "function") throw new Error("direct missing")
+if (typeof moveGridFocus !== "function" || typeof computeAutoScroll !== "function" || typeof transferItem !== "function") throw new Error("direct missing")
 if (auditThemeContrast(themeContrastPairs(DEFAULT_LIGHT_TOKENS)).length !== 0) throw new Error("theme contrast failed")
 if (!springLinearEasing().easing.startsWith("linear(")) throw new Error("motion easing failed")
-if (solveSpring(0, 0, 1).position !== 0 || typeof reduceCarousel !== "function") throw new Error("motion failed")
+if (solveSpring(0, 0, 1).position !== 0 || typeof reduceCarousel !== "function" || typeof reduceScrollHandoff !== "function") throw new Error("motion failed")
+if (REGISTRY_ITEMS.length < 27 || listVisualPresets().length !== 5 || !generatePresetCss("nova").includes("@theme inline") || runCli(["--help"], ".").exitCode !== 0) throw new Error("registry failed")
 
 console.log("CONSUMER_OK:${mode}")
 `

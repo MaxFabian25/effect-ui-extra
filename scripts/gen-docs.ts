@@ -27,19 +27,19 @@ const SUBPATHS: ReadonlyArray<SubpathSpec> = [
     subpath: "effect-ui-extra/page",
     entry: "src/page/index.ts",
     summary:
-      "Zero-FOUC SSR preferences and color scheme, Deferred-backed overlays, LiveAnnouncer, scoped ShortcutRegistry, checkServer SSR purity guard, semantic PageObserver/PageHistory with undoAgent(), InputModalityTracker, hidden=\"until-found\" helpers, and theme-color dimming."
+      "Zero-FOUC SSR preferences and color scheme, CspContext nonce helpers, iOS modal touch jitter guard, Deferred-backed overlays, LiveAnnouncer, scoped ShortcutRegistry, checkServer SSR purity guard, semantic PageObserver/PageHistory with undoAgent(), InputModalityTracker, hidden=\"until-found\" helpers, and theme-color dimming."
   },
   {
     subpath: "effect-ui-extra/widgets",
     entry: "src/widgets/index.ts",
     summary:
-      "Headless application widgets and AI-chat primitives complementing @effect/ui-kit (Command, Tree, Resizable, Listbox, PasswordInput, TimeInput, TokenInput, Pagination, SegmentedControl, InlineEdit, Rating, ColorPicker, StickToBottom, TriggerMenu, InputHistory, inputHints, TreeChecked, AsyncOptions)."
+      "Headless application widgets and AI-chat controls complementing @effect/ui-kit (Command, Tree, Resizable, Listbox, PasswordInput, TimeInput, TokenInput, Pagination, SegmentedControl, InlineEdit, Rating, ColorPicker, Carousel, ImageCropper, Timeline, Waterfall, StickToBottom, TriggerMenu, InputHistory, inputHints, TreeChecked, AsyncOptions)."
   },
   {
     subpath: "effect-ui-extra/direct",
     entry: "src/direct/index.ts",
     summary:
-      "Pure 2D spatial/grid focus, CellRange and lasso selection, SwipeActions, TestClock-driven holdEffect/repeatStream, cycle-safe TreeReorder, infinite canvas Viewport/Connect, quadratic edge AutoScroll, and TimeSpan math."
+      "Pure 2D spatial/grid focus, CellRange and lasso selection, SwipeActions, TestClock-driven holdEffect/repeatStream, cycle-safe TreeReorder, cross-container Kanban transfer, infinite canvas Viewport/Connect, quadratic edge AutoScroll, and TimeSpan math."
   },
   {
     subpath: "effect-ui-extra/theme",
@@ -51,7 +51,13 @@ const SUBPATHS: ReadonlyArray<SubpathSpec> = [
     subpath: "effect-ui-extra/motion",
     entry: "src/motion/index.ts",
     summary:
-      "Closed-form analytical springs, compositor CSS linear() easing, pointer velocity tracker, momentum projection, rubber-band overscroll, snap points, draggable sheet reducer, Presence lifecycle, and Carousel reducer."
+      "Closed-form analytical springs, compositor CSS linear() easing, pointer velocity tracker, momentum projection, rubber-band overscroll, snap points, draggable sheet reducer, scroll-to-drag handoff, Presence lifecycle, and Carousel reducer."
+  },
+  {
+    subpath: "effect-ui-extra/registry",
+    entry: "src/registry/index.ts",
+    summary:
+      "shadcn-style copy-paste styled component registry, 5 WCAG-audited OKLCH visual presets (nova, vega, maia, lyra, mira), 27 Tailwind v4 + Effect UI app/AI blueprints and page blocks, and the effect-ui CLI (init, list, view, add, diff, preset)."
   }
 ]
 
@@ -116,7 +122,7 @@ const renderLlmsTxt = (): string => {
   lines.push("")
   lines.push("### `effect-ui-extra` (root namespace export)")
   lines.push("")
-  lines.push("Re-exports `A11y`, `Direct`, `Motion`, `Page`, `Theme`, and `Widgets` namespaces.")
+  lines.push("Re-exports `A11y`, `Direct`, `Motion`, `Page`, `Registry`, `Theme`, and `Widgets` namespaces.")
   lines.push("")
 
   return lines.join("\n")

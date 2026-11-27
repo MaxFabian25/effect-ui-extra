@@ -46,3 +46,16 @@ export {
   isCarouselAutoplayActive,
   reduceCarousel
 } from "./carousel.js"
+
+export {
+  initialScrollHandoffState,
+  isAtScrollBottom,
+  isAtScrollTop,
+  reduceScrollHandoff,
+  type ScrollBoundary,
+  type ScrollHandoffEdge,
+  type ScrollHandoffEvent,
+  type ScrollHandoffMode,
+  type ScrollHandoffState,
+  type ScrollHandoffTransition
+} from "./handoff.js"

@@ -17,7 +17,8 @@ const TARGETS: ReadonlyArray<SizeTarget> = [
   { key: "effect-ui-extra/direct", entry: "src/direct/index.ts", kind: "ts" },
   { key: "effect-ui-extra/theme", entry: "src/theme/index.ts", kind: "ts" },
   { key: "effect-ui-extra/theme/effect-ui.css", entry: "styles/effect-ui.css", kind: "css" },
-  { key: "effect-ui-extra/motion", entry: "src/motion/index.ts", kind: "ts" }
+  { key: "effect-ui-extra/motion", entry: "src/motion/index.ts", kind: "ts" },
+  { key: "effect-ui-extra/registry", entry: "src/registry/index.ts", kind: "ts" }
 ]
 
 const measureTarget = async (target: SizeTarget): Promise<{ readonly raw: number; readonly gzip: number }> => {
@@ -31,7 +32,7 @@ const measureTarget = async (target: SizeTarget): Promise<{ readonly raw: number
     target: "browser",
     format: "esm",
     minify: true,
-    external: ["effect", "effect/*", "@effect/ui", "@effect/ui/*", "@effect/ui-kit", "@effect/ui-kit/*"]
+    external: ["effect", "effect/*", "@effect/ui", "@effect/ui/*", "@effect/ui-kit", "@effect/ui-kit/*", "node:fs", "node:path"]
   })
   if (!built.success) {
     throw new Error(`Bundle failed for ${target.key}: ${built.logs.map((l) => l.message).join("\n")}`)

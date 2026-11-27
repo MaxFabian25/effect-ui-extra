@@ -82,3 +82,16 @@ export {
   type TimeSpan,
   type TimeSpanConstraints
 } from "./spans.js"
+
+export {
+  canTransferItem,
+  findTransferItem,
+  moveTransferItemByKey,
+  type TransferContainer,
+  type TransferItem,
+  transferItem,
+  type TransferLocation,
+  type TransferMoveKey,
+  type TransferOptions,
+  type TransferResult
+} from "./transfer.js"

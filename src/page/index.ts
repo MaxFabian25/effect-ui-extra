@@ -119,3 +119,26 @@ export {
   createThemeColorDimmer,
   type ThemeColorDimmer
 } from "./themeColor.js"
+
+export {
+  type CspConfig,
+  CspContext,
+  cspLayer,
+  cspScriptTag,
+  cspStyleTag,
+  getCspConfig,
+  getCspNonce,
+  preferencesScriptWithCsp
+} from "./csp.js"
+
+export {
+  bindIosModalTouchGuard,
+  initialIosTouchGuardState,
+  type IosTouchGuardConfig,
+  type IosTouchGuardDecision,
+  type IosTouchGuardEvent,
+  type IosTouchGuardState,
+  reduceIosTouchGuard,
+  resolveInteractiveTapTarget,
+  type TouchPoint
+} from "./iosTouchGuard.js"
