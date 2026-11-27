@@ -1,9 +1,12 @@
 {
   "name": "effect-ui-extra",
-  "version": "0.2.2",
-  "description": "Unified companion toolkit for @effect/ui: a11y (APG/RTL/names), page (zero-FOUC prefs/overlays/history/SSR/until-found), widgets, direct-manipulation gestures, OKLCH/WCAG theme + @layer CSS, and spring/sheet/carousel motion",
+  "version": "0.3.0",
+  "description": "Unified companion toolkit for @effect/ui: a11y (APG/RTL/names), page (zero-FOUC prefs/CSP/iOS guard/overlays/history/SSR), widgets (Command/Tree/Carousel/ImageCropper/Timeline/Waterfall), direct-manipulation/Kanban transfer, OKLCH/WCAG theme, spring/sheet/handoff motion, and shadcn-style copy-paste registry + CLI",
   "license": "MIT",
   "type": "module",
+  "bin": {
+    "effect-ui": "./src/cli/index.ts"
+  },
   "packageManager": "bun@1.4.5",
   "repository": {
     "type": "git",
@@ -45,9 +48,17 @@
       "types": "./src/motion/index.ts",
       "bun": "./src/motion/index.ts",
       "default": "./dist/motion/index.js"
+    },
+    "./registry": {
+      "types": "./src/registry/index.ts",
+      "bun": "./src/registry/index.ts",
+      "default": "./dist/registry/index.js"
     }
   },
   "publishConfig": {
+    "bin": {
+      "effect-ui": "./dist/cli/index.js"
+    },
     "exports": {
       ".": {
         "types": "./dist/index.d.ts",
@@ -77,6 +88,10 @@
       "./motion": {
         "types": "./dist/motion/index.d.ts",
         "import": "./dist/motion/index.js"
+      },
+      "./registry": {
+        "types": "./dist/registry/index.d.ts",
+        "import": "./dist/registry/index.js"
       }
     }
   },
