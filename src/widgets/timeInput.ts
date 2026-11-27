@@ -64,6 +64,7 @@ export const TimeInputProps = Schema.Struct({
   value: Schema.String,
   granularity: Schema.optional(Schema.Literals(["minute", "second"])),
   hourCycle: Schema.optional(Schema.Literals([12, 24])),
+  dir: Schema.optional(Schema.Literals(["ltr", "rtl"])),
   disabled: Schema.optional(Schema.Boolean),
   idPrefix: Schema.optional(Schema.String)
 })
@@ -76,6 +77,7 @@ export type TimeInputEvents = typeof TimeInputEvents.Type
 
 const TimeInputMsg = UiSchema.TaggedEnum({
   Stepped: { segment: Schema.Literals(["hour", "minute", "second", "period"]), delta: Schema.Number },
+  SetEdge: { segment: Schema.Literals(["hour", "minute", "second", "period"]), edge: Schema.Literals(["min", "max"]) },
   MovedSegment: { segment: Schema.Literals(["hour", "minute", "second", "period"]) },
   FocusDone: {}
 })
@@ -99,6 +101,32 @@ export const TimeInput = Html.component({
       if ($.props.disabled) return $.model
       const current = parseTimeString($.props.value) ?? { hours: 0, minutes: 0, seconds: 0 }
       const next = stepTimeSegment(current, segment, delta)
+      const formatted = formatTimeString(next, $.props.granularity ?? "minute")
+      return $.emit(TimeInputEvents.ValueChanged({ value: formatted }))
+    },
+    SetEdge: ($, { edge, segment }) => {
+      if ($.props.disabled) return $.model
+      const current = parseTimeString($.props.value) ?? { hours: 0, minutes: 0, seconds: 0 }
+      const isPm = current.hours >= 12
+      const hourCycle: HourCycle = $.props.hourCycle ?? 24
+      const next: ParsedTime =
+        segment === "hour"
+          ? {
+              ...current,
+              hours:
+                hourCycle === 12
+                  ? edge === "min"
+                    ? (isPm ? 13 : 1)
+                    : (isPm ? 12 : 0)
+                  : edge === "min"
+                  ? 0
+                  : 23
+            }
+          : segment === "minute"
+          ? { ...current, minutes: edge === "min" ? 0 : 59 }
+          : segment === "second"
+          ? { ...current, seconds: edge === "min" ? 0 : 59 }
+          : { ...current, hours: (current.hours % 12) + (edge === "min" ? 0 : 12) }
       const formatted = formatTimeString(next, $.props.granularity ?? "minute")
       return $.emit(TimeInputEvents.ValueChanged({ value: formatted }))
     },
@@ -169,18 +197,23 @@ export const TimeInput = Html.component({
           tabindex: p.disabled ? "-1" : "0",
           ...(p.disabled ? { "aria-disabled": "true", "data-disabled": "" } : {})
         })
-        .on(
+          .on(
           "keydown",
           ({ key }) => {
             if (p.disabled) return undefined
+            const isRtl = (p.dir ?? "ltr") === "rtl"
+            const nextKey = isRtl ? "ArrowLeft" : "ArrowRight"
+            const prevKey = isRtl ? "ArrowRight" : "ArrowLeft"
             if (key === "ArrowUp") return TimeInputMsg.Stepped({ segment: seg, delta: 1 })
             if (key === "ArrowDown") return TimeInputMsg.Stepped({ segment: seg, delta: -1 })
             if (key === "PageUp") return TimeInputMsg.Stepped({ segment: seg, delta: seg === "hour" ? 2 : 10 })
             if (key === "PageDown") return TimeInputMsg.Stepped({ segment: seg, delta: seg === "hour" ? -2 : -10 })
-            if (key === "ArrowRight" && idx < segments.length - 1) {
+            if (key === "Home") return TimeInputMsg.SetEdge({ segment: seg, edge: "min" })
+            if (key === "End") return TimeInputMsg.SetEdge({ segment: seg, edge: "max" })
+            if (key === nextKey && idx < segments.length - 1) {
               return TimeInputMsg.MovedSegment({ segment: segments[idx + 1]! })
             }
-            if (key === "ArrowLeft" && idx > 0) {
+            if (key === prevKey && idx > 0) {
               return TimeInputMsg.MovedSegment({ segment: segments[idx - 1]! })
             }
             return undefined

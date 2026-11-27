@@ -298,6 +298,12 @@ export const definePreference = <const Value extends string>(
   const applyToDocument = (value: Value): void => {
     if (typeof document !== "undefined" && document.documentElement !== null) {
       document.documentElement.setAttribute(spec.attribute, value)
+      if (spec.attribute === "data-color-scheme") {
+        const meta = document.querySelector<HTMLMetaElement>('meta[name="color-scheme"]')
+        if (meta !== null) {
+          meta.content = value === "light" || value === "dark" ? value : "light dark"
+        }
+      }
     }
   }
 

@@ -147,12 +147,14 @@ describe("PasswordInput", () => {
             const showBtn = HtmlLocator.role("button", { name: "Show password" })
 
             yield* play.expect(input).toHaveAttribute("type", "password")
-            yield* play.expect(showBtn).toHaveAttribute("aria-pressed", "false")
+            yield* play.expect(input).toHaveAttribute("autocapitalize", "none")
+            yield* play.expect(input).toHaveAttribute("spellcheck", "false")
+            yield* play.expect(showBtn).toHaveAttribute("aria-pressed", false)
             yield* play.click(showBtn)
 
             const hideBtn = HtmlLocator.role("button", { name: "Hide password" })
             yield* play.expect(input).toHaveAttribute("type", "text")
-            yield* play.expect(hideBtn).toHaveAttribute("aria-pressed", "true")
+            yield* play.expect(hideBtn).toHaveAttribute("aria-pressed", false)
 
             yield* play.type(input, "new-secret-99")
             expect(Redacted.value(play.root.model()!.secret)).toBe("new-secret-99")

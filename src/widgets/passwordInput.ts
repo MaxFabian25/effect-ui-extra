@@ -76,6 +76,9 @@ export const PasswordInput = Html.component({
             id: p.id,
             type: model.revealed ? "text" : "password",
             autocomplete: p.autocomplete ?? "current-password",
+            autocapitalize: "none",
+            autocorrect: "off",
+            spellcheck: "false",
             ...(p.name !== undefined ? { name: p.name } : {}),
             ...(p.placeholder !== undefined ? { placeholder: p.placeholder } : {}),
             ...(p.disabled ? { disabled: "" } : {}),
@@ -89,7 +92,6 @@ export const PasswordInput = Html.component({
           .attrs({
             type: "button",
             "aria-label": toggleLabel,
-            "aria-pressed": String(model.revealed),
             "aria-controls": p.id,
             ...(p.disabled ? { disabled: "" } : {})
           })

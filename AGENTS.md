@@ -1,6 +1,6 @@
 # effect-ui-extra (AGENTS.md)
 
-Version: `0.2.1` (generated from `src/` via `bun run gen:docs`; read `llms.txt` in this package for the full symbol index).
+Version: `0.2.2` (generated from `src/` via `bun run gen:docs`; read `llms.txt` in this package for the full symbol index).
 
 ## Rules for agents using this package
 

@@ -22,6 +22,7 @@ export const TreeProps = Schema.Struct({
   nodes: Schema.Array(TreeNodeSchema),
   expanded: Schema.Array(Schema.String),
   selected: Schema.NullOr(Schema.String),
+  dir: Schema.optional(Schema.Literals(["ltr", "rtl"])),
   idPrefix: Schema.optional(Schema.String)
 })
 export type TreeProps = typeof TreeProps.Type
@@ -282,7 +283,10 @@ export const Tree = Html.component({
                   value: visibleKeys[visibleKeys.length - 1]!
                 })
               }
-              if (key === "ArrowRight") {
+              const isRtl = (p.dir ?? "ltr") === "rtl"
+              const expandKey = isRtl ? "ArrowLeft" : "ArrowRight"
+              const collapseKey = isRtl ? "ArrowRight" : "ArrowLeft"
+              if (key === expandKey) {
                 if (isBranch && !isExpanded) {
                   return TreeMsg.ExpandedBranch({ value: node.value })
                 }
@@ -294,7 +298,7 @@ export const Tree = Html.component({
                 }
                 return undefined
               }
-              if (key === "ArrowLeft") {
+              if (key === collapseKey) {
                 if (isBranch && isExpanded) {
                   return TreeMsg.CollapsedBranch({ value: node.value })
                 }
