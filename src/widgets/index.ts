@@ -158,3 +158,48 @@ export {
   ColorPickerEvents,
   ColorPickerProps
 } from "./colorPicker.js"
+
+export {
+  Carousel,
+  CarouselEvents,
+  CarouselProps,
+  type CarouselSlide,
+  CarouselSlideSchema
+} from "./carousel.js"
+
+export {
+  clampCropRect,
+  type CropConstraints,
+  type CropRect,
+  CropRectSchema,
+  cropToPixels,
+  ImageCropper,
+  ImageCropperEvents,
+  ImageCropperProps,
+  moveCropRect,
+  type PixelCropRect,
+  resizeCropRect,
+  zoomCropRect
+} from "./imageCropper.js"
+
+export {
+  Timeline,
+  TimelineEvents,
+  type TimelineItem,
+  TimelineItemSchema,
+  TimelineProps,
+  type TimelineStatus,
+  TimelineStatusSchema
+} from "./timeline.js"
+
+export {
+  computeWaterfallLayout,
+  formatDurationMs,
+  Waterfall,
+  type WaterfallBarLayout,
+  WaterfallEvents,
+  type WaterfallLayout,
+  WaterfallProps,
+  type WaterfallSpan,
+  WaterfallSpanSchema
+} from "./waterfall.js"
