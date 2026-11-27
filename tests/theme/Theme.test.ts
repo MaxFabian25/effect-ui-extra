@@ -156,6 +156,13 @@ describe("Default OKLCH theme tokens and @layer effect-ui stylesheet", () => {
     expect(stylesheet).toContain(':root[data-color-scheme="light"]')
     expect(stylesheet).toContain(':root[data-color-scheme="dark"]')
     expect(stylesheet).toContain("@media (prefers-reduced-motion: reduce)")
+    expect(stylesheet).not.toContain("0.01ms !important")
+    expect(stylesheet).toContain("@media (prefers-color-scheme: dark)")
+    expect(stylesheet).toContain("@supports (color: light-dark(white, black))")
+    expect(stylesheet).toContain("@media (hover: hover)")
+    expect(stylesheet).toContain("@media (pointer: coarse)")
+    expect(stylesheet).toContain("overscroll-behavior: contain")
+    expect(stylesheet).toContain("[data-highlighted]")
     expect(stylesheet).toContain("@media (forced-colors: active)")
 
     // Zero ::before/::after icon-content hacks (universal box-sizing selector is allowed).
@@ -168,11 +175,15 @@ describe("Default OKLCH theme tokens and @layer effect-ui stylesheet", () => {
     }
   })
 
-  test("generateThemeCss outputs valid @layer light-dark CSS for custom tokens", () => {
+  test("generateThemeCss outputs valid @layer light-dark CSS with fallbacks for custom tokens", () => {
     const css = generateThemeCss(DEFAULT_LIGHT_TOKENS, DEFAULT_DARK_TOKENS, {
       layer: "brand-theme"
     })
     expect(css).toContain("@layer brand-theme {")
+    expect(css).toContain("@media (prefers-color-scheme: dark)")
+    expect(css).toContain("@supports (color: light-dark(white, black))")
+    expect(css).toContain(`--eui-primary: ${DEFAULT_LIGHT_TOKENS.primary};`)
+    expect(css).toContain(`--eui-primary: ${DEFAULT_DARK_TOKENS.primary};`)
     expect(css).toContain(`--eui-primary: light-dark(${DEFAULT_LIGHT_TOKENS.primary}, ${DEFAULT_DARK_TOKENS.primary});`)
   })
 })

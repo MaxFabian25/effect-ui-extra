@@ -172,26 +172,31 @@ export const TriggerMenu = Html.component({
         .on("input", ({ value }) =>
           TriggerMenuMsg.InputEdited({ value, caret: value.length })
         )
-        .on("keydown", ({ key }) => {
-          if (!isOpen || filtered.length === 0) return undefined
-          if (key === "ArrowDown") {
-            return TriggerMenuMsg.MovedActive({
-              index: (clampedIndex + 1) % filtered.length
-            })
-          }
-          if (key === "ArrowUp") {
-            return TriggerMenuMsg.MovedActive({
-              index: (clampedIndex - 1 + filtered.length) % filtered.length
-            })
-          }
-          if (key === "Enter" && activeItem !== undefined) {
-            return TriggerMenuMsg.PickedSuggestion({ value: activeItem.value })
-          }
-          if (key === "Escape") {
-            return TriggerMenuMsg.Dismissed()
-          }
-          return undefined
-        }),
+        .on(
+          "keydown",
+          ({ key, composing }) => {
+            if (composing) return undefined
+            if (!isOpen || filtered.length === 0) return undefined
+            if (key === "ArrowDown") {
+              return TriggerMenuMsg.MovedActive({
+                index: (clampedIndex + 1) % filtered.length
+              })
+            }
+            if (key === "ArrowUp") {
+              return TriggerMenuMsg.MovedActive({
+                index: (clampedIndex - 1 + filtered.length) % filtered.length
+              })
+            }
+            if (key === "Enter" && activeItem !== undefined) {
+              return TriggerMenuMsg.PickedSuggestion({ value: activeItem.value })
+            }
+            if (key === "Escape") {
+              return TriggerMenuMsg.Dismissed()
+            }
+            return undefined
+          },
+          { preventDefault: true }
+        ),
       isOpen && filtered.length > 0
         ? h.ul
             .attrs({ id: listId, role: "listbox", "aria-label": `${p.label} suggestions` })

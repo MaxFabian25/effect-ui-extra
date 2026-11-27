@@ -93,17 +93,31 @@ export const ColorPicker = Html.component({
       min: number,
       max: number,
       step: number
-    ) =>
-      h.div
+    ) => {
+      const rounded = Math.round(value * 1000) / 1000
+      return h.input
         .key(channel)
         .attrs({
           id: `${prefix}-${channel}`,
+          type: "range",
           role: "slider",
+          min: String(min),
+          max: String(max),
+          step: String(step),
           "aria-label": `${p.label} ${name}`,
           "aria-valuemin": String(min),
           "aria-valuemax": String(max),
-          "aria-valuenow": String(Math.round(value * 1000) / 1000),
-          tabindex: "0"
+          "aria-valuenow": String(rounded)
+        })
+        .value(String(rounded))
+        .on("input", ({ value: raw }) => {
+          const parsedNum = Number(raw)
+          return Number.isFinite(parsedNum)
+            ? ColorPickerMsg.ChannelChanged({
+                channel,
+                value: Math.min(max, Math.max(min, parsedNum))
+              })
+            : undefined
         })
         .on(
           "keydown",
@@ -130,6 +144,7 @@ export const ColorPicker = Html.component({
           },
           { preventDefault: true }
         )
+    }
 
     return h.div
       .attrs({ role: "group", "aria-label": p.label, "data-color-picker": "" })

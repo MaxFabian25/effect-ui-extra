@@ -162,7 +162,8 @@ export const TokenInput = Html.component({
           .on("input", ({ value }) => TokenInputMsg.InputChanged({ value }))
           .on(
             "keydown",
-            ({ key }) => {
+            ({ key, composing }) => {
+              if (composing) return undefined
               if (key === "Enter") {
                 return model.draft.trim() !== ""
                   ? TokenInputMsg.CommittedDraft()
@@ -189,7 +190,8 @@ export const TokenInput = Html.component({
                 return TokenInputMsg.HighlightedChip({ index: next })
               }
               return undefined
-            }
+            },
+            { preventDefault: true }
           )
       )
   }

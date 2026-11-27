@@ -354,9 +354,13 @@ export const OverlayHost = Html.component({
                     d.title(h.h2).children(active.title),
                     d.description(h.p).children(active.description),
                     h.div.attrs({ "data-overlay-actions": "" }).children(
-                      d.close(h.button).children(active.cancelLabel),
+                      d.initialFocus(d.close(h.button)).children(active.cancelLabel),
                       h.button
-                        .attrs({ type: "button", "data-overlay-confirm": "" })
+                        .attrs({
+                          type: "button",
+                          "data-overlay-confirm": "",
+                          ...(active.destructive ? { "data-variant": "destructive" } : {})
+                        })
                         .on("click", HostMsg.AcceptedConfirm({ id: active.id }))
                         .children(active.confirmLabel)
                     )
