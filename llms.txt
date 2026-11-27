@@ -1,4 +1,4 @@
-# effect-ui-extra v0.2.1
+# effect-ui-extra v0.2.2
 
 > Unified companion toolkit for @effect/ui: a11y (APG/RTL/names), page (zero-FOUC prefs/overlays/history/SSR/until-found), widgets, direct-manipulation gestures, OKLCH/WCAG theme + @layer CSS, and spring/sheet/carousel motion
 

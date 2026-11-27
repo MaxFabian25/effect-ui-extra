@@ -163,6 +163,11 @@ describe("Default OKLCH theme tokens and @layer effect-ui stylesheet", () => {
     expect(stylesheet).toContain("@media (pointer: coarse)")
     expect(stylesheet).toContain("overscroll-behavior: contain")
     expect(stylesheet).toContain("[data-highlighted]")
+    expect(stylesheet).toContain("[data-segmented-control]")
+    expect(stylesheet).toContain("[data-rating]")
+    expect(stylesheet).toContain("[data-resize-handle]")
+    expect(stylesheet).toContain("[data-time-input]")
+    expect(stylesheet).toContain('[aria-current="page"]')
     expect(stylesheet).toContain("@media (forced-colors: active)")
 
     // Zero ::before/::after icon-content hacks (universal box-sizing selector is allowed).

@@ -98,7 +98,7 @@ const LiveModel = Schema.Struct({
 })
 
 const srOnlyStyle =
-  "position:fixed;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0"
+  "position:fixed;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);clip-path:inset(50%);white-space:nowrap;border:0"
 
 /**
  * Mount once near your app root. Uses alternating dual slots per politeness

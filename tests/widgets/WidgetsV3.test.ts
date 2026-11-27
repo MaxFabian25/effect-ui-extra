@@ -84,6 +84,12 @@ describe("TimeInput", () => {
 
             yield* play.keydown(period, "ArrowUp")
             yield* play.expect(period).toHaveAttribute("aria-valuetext", "AM")
+
+            const minute = HtmlLocator.role("spinbutton", { name: "Minute" })
+            yield* play.keydown(minute, "Home")
+            yield* play.expect(minute).toHaveAttribute("aria-valuetext", "00")
+            yield* play.keydown(minute, "End")
+            yield* play.expect(minute).toHaveAttribute("aria-valuetext", "59")
           })
         )
       })

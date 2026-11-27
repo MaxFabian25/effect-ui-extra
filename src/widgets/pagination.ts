@@ -132,7 +132,7 @@ export const Pagination = Html.component({
             ? h.span
                 .key(`ellipsis-${idx}`)
                 .attrs({ "aria-hidden": "true", "data-ellipsis": "" })
-                .children("...")
+                .children("…")
             : h.button
                 .key(`page-${token}`)
                 .attrs({

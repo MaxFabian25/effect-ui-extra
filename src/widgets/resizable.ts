@@ -16,6 +16,7 @@ export const ResizableProps = Schema.Struct({
   panes: Schema.Array(PaneSpec),
   sizes: Schema.Array(Schema.Number),
   orientation: Schema.optional(Schema.Literals(["horizontal", "vertical"])),
+  dir: Schema.optional(Schema.Literals(["ltr", "rtl"])),
   step: Schema.optional(Schema.Number),
   largeStep: Schema.optional(Schema.Number),
   idPrefix: Schema.optional(Schema.String)
@@ -178,8 +179,19 @@ export const Resizable = Html.component({
           ? (pane.collapsedSize ?? 0)
           : (pane.minSize ?? 5)
         const max = pane.maxSize ?? 95
-        const incKey = orientation === "horizontal" ? "ArrowRight" : "ArrowDown"
-        const decKey = orientation === "horizontal" ? "ArrowLeft" : "ArrowUp"
+        const isRtl = (p.dir ?? "ltr") === "rtl"
+        const incKey =
+          orientation === "horizontal"
+            ? isRtl
+              ? "ArrowLeft"
+              : "ArrowRight"
+            : "ArrowDown"
+        const decKey =
+          orientation === "horizontal"
+            ? isRtl
+              ? "ArrowRight"
+              : "ArrowLeft"
+            : "ArrowUp"
 
         children.push(
           h.div
@@ -193,7 +205,8 @@ export const Resizable = Html.component({
               "aria-valuemin": String(min),
               "aria-valuemax": String(max),
               "aria-controls": paneId,
-              "data-resize-handle": String(i)
+              "data-resize-handle": String(i),
+              "data-resizable-handle": String(i)
             })
             .on(
               "keydown",
