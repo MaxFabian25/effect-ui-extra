@@ -14,6 +14,10 @@ import {
 import { checkServer } from "../../src/page/index.js"
 import {
   ColorPicker,
+  Command,
+  InlineEdit,
+  TokenInput,
+  TriggerMenu,
   formatTimeString,
   initialInputHistoryState,
   inputHints,
@@ -200,8 +204,179 @@ describe("ColorPicker (dogfooding effect-ui-theme)", () => {
             yield* play.keydown(lightness, "ArrowRight")
             yield* play.expect(lightness).toHaveAttribute("aria-valuenow", "0.51")
 
+            yield* play.type(lightness, "0.65")
+            yield* play.expect(lightness).toHaveAttribute("aria-valuenow", "0.65")
+
             yield* play.type(hexInput, "#000000")
             yield* play.expect(hexInput).toHaveValue("#000000")
+          })
+        )
+      })
+    ))
+})
+
+describe("IME-safe Enter handling across text-input widgets", () => {
+  it("ignores Enter while composing in InlineEdit, TokenInput, Command, and TriggerMenu", () =>
+    runPlay(
+      Effect.gen(function*() {
+        // 1. InlineEdit
+        let inlineCommitted: string | undefined
+        const InlineHost = Html.component({
+          name: "InlineImeHost",
+          model: Schema.Struct({ value: Schema.String }),
+          message: UiSchema.TaggedEnum({ Set: { value: Schema.String } })
+        }).make({
+          init: () => ({ value: "Initial" }),
+          update: {
+            Set: (_, { value }) => {
+              inlineCommitted = value
+              return { value }
+            }
+          },
+          view: (h, model) =>
+            InlineEdit(h, {
+              props: { label: "Title", value: model.value },
+              onEmit: {
+                Committed: ({ value }) => ({ _tag: "Set" as const, value }),
+                Cancelled: () => undefined
+              }
+            })
+        })
+        yield* Effect.scoped(
+          Effect.gen(function*() {
+            const play = yield* HtmlPlay.make(InlineHost, {})
+            yield* play.click(HtmlLocator.role("button", { name: "Title: Initial" }))
+            const input = HtmlLocator.role("textbox", { name: "Title" })
+            yield* play.type(input, "東京")
+            yield* play.keydown(input, "Enter", { composing: true })
+            yield* play.expectIgnored()
+            expect(inlineCommitted).toBeUndefined()
+            yield* play.keydown(input, "Enter", { composing: false })
+            expect(inlineCommitted).toBe("東京")
+          })
+        )
+
+        // 2. TokenInput
+        let tokens: ReadonlyArray<string> = []
+        const TokenHost = Html.component({
+          name: "TokenImeHost",
+          model: Schema.Struct({ tokens: Schema.Array(Schema.String) }),
+          message: UiSchema.TaggedEnum({ Set: { tokens: Schema.Array(Schema.String) } })
+        }).make({
+          init: () => ({ tokens: [] }),
+          update: {
+            Set: (_, { tokens: next }) => {
+              tokens = next
+              return { tokens: next }
+            }
+          },
+          view: (h, model) =>
+            TokenInput(h, {
+              props: { label: "Tags", tokens: [...model.tokens] },
+              onEmit: {
+                TokensChanged: ({ tokens: next }) => ({ _tag: "Set" as const, tokens: [...next] })
+              }
+            })
+        })
+        yield* Effect.scoped(
+          Effect.gen(function*() {
+            const play = yield* HtmlPlay.make(TokenHost, {})
+            const input = HtmlLocator.role("textbox", { name: "Tags" })
+            yield* play.type(input, "設計")
+            yield* play.keydown(input, "Enter", { composing: true })
+            yield* play.expectIgnored()
+            expect(tokens).toEqual([])
+            yield* play.keydown(input, "Enter", { composing: false })
+            expect(tokens).toEqual(["設計"])
+          })
+        )
+
+        // 3. Command
+        let commandPicked: string | undefined
+        const CommandHost = Html.component({
+          name: "CommandImeHost",
+          model: Schema.Struct({ open: Schema.Boolean }),
+          message: UiSchema.TaggedEnum({ Picked: { value: Schema.String } })
+        }).make({
+          init: () => ({ open: true }),
+          update: {
+            Picked: ($, { value }) => {
+              commandPicked = value
+              return $.evolve({ open: false })
+            }
+          },
+          view: (h, model) =>
+            Command(h, {
+              props: {
+                open: model.open,
+                label: "Commands",
+                items: [{ value: "deploy", label: "Deploy" }]
+              },
+              onEmit: {
+                Selected: ({ value }) => ({ _tag: "Picked" as const, value }),
+                RequestedOpen: () => undefined,
+                RequestedClose: () => undefined
+              }
+            })
+        })
+        yield* Effect.scoped(
+          Effect.gen(function*() {
+            const play = yield* HtmlPlay.make(CommandHost, {})
+            const combobox = HtmlLocator.role("combobox", { name: "Commands" })
+            yield* play.keydown(combobox, "Enter", { composing: true })
+            yield* play.expectIgnored()
+            expect(commandPicked).toBeUndefined()
+            yield* play.keydown(combobox, "Enter", { composing: false })
+            expect(commandPicked).toBe("deploy")
+          })
+        )
+
+        // 4. TriggerMenu
+        let triggerPicked: string | undefined
+        const TriggerHost = Html.component({
+          name: "TriggerImeHost",
+          model: Schema.Struct({ text: Schema.String, caret: Schema.Number }),
+          message: UiSchema.TaggedEnum({
+            Edited: { text: Schema.String, caret: Schema.Number },
+            Applied: { value: Schema.String, text: Schema.String, caret: Schema.Number }
+          })
+        }).make({
+          init: () => ({ text: "@al", caret: 3 }),
+          update: {
+            Edited: (_, { text, caret }) => ({ text, caret }),
+            Applied: (_, { value, text, caret }) => {
+              triggerPicked = value
+              return { text, caret }
+            }
+          },
+          view: (h, model) =>
+            TriggerMenu(h, {
+              props: {
+                label: "Message",
+                text: model.text,
+                caret: model.caret,
+                suggestions: [{ value: "alice", label: "Alice" }]
+              },
+              onEmit: {
+                TextChanged: ({ text, caret }) => ({ _tag: "Edited" as const, text, caret }),
+                SuggestionApplied: ({ value, text, caret }) => ({
+                  _tag: "Applied" as const,
+                  value,
+                  text,
+                  caret
+                })
+              }
+            })
+        })
+        yield* Effect.scoped(
+          Effect.gen(function*() {
+            const play = yield* HtmlPlay.make(TriggerHost, {})
+            const combobox = HtmlLocator.role("combobox", { name: "Message" })
+            yield* play.keydown(combobox, "Enter", { composing: true })
+            yield* play.expectIgnored()
+            expect(triggerPicked).toBeUndefined()
+            yield* play.keydown(combobox, "Enter", { composing: false })
+            expect(triggerPicked).toBe("alice")
           })
         )
       })

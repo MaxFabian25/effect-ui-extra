@@ -1,65 +1,102 @@
-/*
- * effect-ui-theme — Optional @layer effect-ui default stylesheet
- *
- * Wraps every rule inside `@layer effect-ui` so unlayered author CSS or
- * Tailwind utilities always win without `!important`. Uses native CSS
- * `light-dark()` and `[data-color-scheme="light"|"dark"]` to integrate
- * directly with `effect-ui-page`'s zero-FOUC `preferencesScript()`.
- *
- * Zero `::before` / `::after` icon hacks: icon glyphs belong in explicit
- * `aria-hidden="true"` elements, never CSS pseudo-element text.
- */
+/* effect-ui-theme — @layer effect-ui default stylesheet (zero ::before/::after icon hacks) */
 
 @layer effect-ui {
   :root {
     color-scheme: light dark;
-
-    /* Semantic OKLCH tokens (kept in exact sync with DEFAULT_LIGHT_TOKENS / DEFAULT_DARK_TOKENS) */
-    --eui-bg: light-dark(oklch(0.99 0.002 260), oklch(0.16 0.01 260));
-    --eui-surface: light-dark(oklch(0.965 0.004 260), oklch(0.21 0.012 260));
-    --eui-muted: light-dark(oklch(0.935 0.006 260), oklch(0.25 0.012 260));
-    --eui-fg: light-dark(oklch(0.18 0.014 260), oklch(0.95 0.006 260));
-    --eui-fg-muted: light-dark(oklch(0.45 0.015 260), oklch(0.75 0.012 260));
-    --eui-border: light-dark(oklch(0.84 0.01 260), oklch(0.32 0.012 260));
-    --eui-input-border: light-dark(oklch(0.57 0.014 260), oklch(0.6 0.015 260));
-    --eui-primary: light-dark(oklch(0.46 0.16 260), oklch(0.74 0.12 258));
-    --eui-primary-fg: light-dark(oklch(0.99 0.002 260), oklch(0.15 0.012 260));
-    --eui-accent: light-dark(oklch(0.92 0.035 260), oklch(0.29 0.04 258));
-    --eui-accent-fg: light-dark(oklch(0.24 0.08 260), oklch(0.93 0.02 258));
-    --eui-destructive: light-dark(oklch(0.5 0.19 27), oklch(0.7 0.16 25));
-    --eui-destructive-fg: light-dark(oklch(0.99 0.002 27), oklch(0.15 0.012 25));
-    --eui-ring: light-dark(oklch(0.5 0.17 260), oklch(0.74 0.12 258));
-
+    --eui-bg: oklch(0.99 0.002 260);
+    --eui-surface: oklch(0.965 0.004 260);
+    --eui-muted: oklch(0.935 0.006 260);
+    --eui-fg: oklch(0.18 0.014 260);
+    --eui-fg-muted: oklch(0.45 0.015 260);
+    --eui-border: oklch(0.84 0.01 260);
+    --eui-input-border: oklch(0.57 0.014 260);
+    --eui-primary: oklch(0.46 0.16 260);
+    --eui-primary-fg: oklch(0.99 0.002 260);
+    --eui-accent: oklch(0.92 0.035 260);
+    --eui-accent-fg: oklch(0.24 0.08 260);
+    --eui-destructive: oklch(0.5 0.19 27);
+    --eui-destructive-fg: oklch(0.99 0.002 27);
+    --eui-ring: oklch(0.5 0.17 260);
+    --eui-radius-xs: 0.25rem;
     --eui-radius-sm: 0.375rem;
     --eui-radius-md: 0.5rem;
     --eui-radius-lg: 0.75rem;
     --eui-radius-full: 9999px;
-
     --eui-shadow-sm: 0 1px 2px rgb(0 0 0 / 0.08);
     --eui-shadow-md: 0 8px 24px -6px rgb(0 0 0 / 0.16);
-
     --eui-duration-fast: 120ms;
     --eui-ease: cubic-bezier(0.2, 0, 0, 1);
+    --eui-font-sans: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    --eui-font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  }
 
-    --eui-font-sans: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
-      Roboto, sans-serif;
-    --eui-font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
-      monospace;
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-color-scheme="light"]) {
+      --eui-bg: oklch(0.16 0.01 260);
+      --eui-surface: oklch(0.21 0.012 260);
+      --eui-muted: oklch(0.25 0.012 260);
+      --eui-fg: oklch(0.95 0.006 260);
+      --eui-fg-muted: oklch(0.75 0.012 260);
+      --eui-border: oklch(0.32 0.012 260);
+      --eui-input-border: oklch(0.6 0.015 260);
+      --eui-primary: oklch(0.74 0.12 258);
+      --eui-primary-fg: oklch(0.15 0.012 260);
+      --eui-accent: oklch(0.29 0.04 258);
+      --eui-accent-fg: oklch(0.93 0.02 258);
+      --eui-destructive: oklch(0.7 0.16 25);
+      --eui-destructive-fg: oklch(0.15 0.012 25);
+      --eui-ring: oklch(0.74 0.12 258);
+      --eui-shadow-sm: 0 0 0 1px oklch(1 0 0 / 0.08);
+      --eui-shadow-md: 0 0 0 1px oklch(1 0 0 / 0.12), 0 8px 24px -6px rgb(0 0 0 / 0.45);
+    }
   }
 
   :root[data-color-scheme="light"] {
     color-scheme: light;
+    --eui-shadow-sm: 0 1px 2px rgb(0 0 0 / 0.08);
+    --eui-shadow-md: 0 8px 24px -6px rgb(0 0 0 / 0.16);
   }
 
   :root[data-color-scheme="dark"] {
     color-scheme: dark;
+    --eui-bg: oklch(0.16 0.01 260);
+    --eui-surface: oklch(0.21 0.012 260);
+    --eui-muted: oklch(0.25 0.012 260);
+    --eui-fg: oklch(0.95 0.006 260);
+    --eui-fg-muted: oklch(0.75 0.012 260);
+    --eui-border: oklch(0.32 0.012 260);
+    --eui-input-border: oklch(0.6 0.015 260);
+    --eui-primary: oklch(0.74 0.12 258);
+    --eui-primary-fg: oklch(0.15 0.012 260);
+    --eui-accent: oklch(0.29 0.04 258);
+    --eui-accent-fg: oklch(0.93 0.02 258);
+    --eui-destructive: oklch(0.7 0.16 25);
+    --eui-destructive-fg: oklch(0.15 0.012 25);
+    --eui-ring: oklch(0.74 0.12 258);
+    --eui-shadow-sm: 0 0 0 1px oklch(1 0 0 / 0.08);
+    --eui-shadow-md: 0 0 0 1px oklch(1 0 0 / 0.12), 0 8px 24px -6px rgb(0 0 0 / 0.45);
   }
 
-  *,
-  *::before,
-  *::after {
-    box-sizing: border-box;
+  @supports (color: light-dark(white, black)) {
+    :root {
+      --eui-bg: light-dark(oklch(0.99 0.002 260), oklch(0.16 0.01 260));
+      --eui-surface: light-dark(oklch(0.965 0.004 260), oklch(0.21 0.012 260));
+      --eui-muted: light-dark(oklch(0.935 0.006 260), oklch(0.25 0.012 260));
+      --eui-fg: light-dark(oklch(0.18 0.014 260), oklch(0.95 0.006 260));
+      --eui-fg-muted: light-dark(oklch(0.45 0.015 260), oklch(0.75 0.012 260));
+      --eui-border: light-dark(oklch(0.84 0.01 260), oklch(0.32 0.012 260));
+      --eui-input-border: light-dark(oklch(0.57 0.014 260), oklch(0.6 0.015 260));
+      --eui-primary: light-dark(oklch(0.46 0.16 260), oklch(0.74 0.12 258));
+      --eui-primary-fg: light-dark(oklch(0.99 0.002 260), oklch(0.15 0.012 260));
+      --eui-accent: light-dark(oklch(0.92 0.035 260), oklch(0.29 0.04 258));
+      --eui-accent-fg: light-dark(oklch(0.24 0.08 260), oklch(0.93 0.02 258));
+      --eui-destructive: light-dark(oklch(0.5 0.19 27), oklch(0.7 0.16 25));
+      --eui-destructive-fg: light-dark(oklch(0.99 0.002 27), oklch(0.15 0.012 25));
+      --eui-ring: light-dark(oklch(0.5 0.17 260), oklch(0.74 0.12 258));
+    }
   }
+
+  *, *::before, *::after { box-sizing: border-box; }
 
   body {
     margin: 0;
@@ -67,36 +104,29 @@
     color: var(--eui-fg);
     font-family: var(--eui-font-sans);
     line-height: 1.5;
+    text-wrap: pretty;
     -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
 
-  /* Focus ring for every interactive element */
-  :is(
-      a,
-      button,
-      input,
-      select,
-      textarea,
-      summary,
-      [tabindex]:not([tabindex="-1"]),
-      [role="button"],
-      [role="checkbox"],
-      [role="menuitem"],
-      [role="option"],
-      [role="radio"],
-      [role="separator"][aria-valuenow],
-      [role="slider"],
-      [role="switch"],
-      [role="tab"],
-      [role="treeitem"]
-    ):focus-visible {
+  h1, h2, h3, h4, h5, h6 { text-wrap: balance; }
+
+  ::selection {
+    background-color: var(--eui-accent);
+    color: var(--eui-accent-fg);
+  }
+
+  :is(a, button, input, select, textarea, summary, [tabindex]:not([tabindex="-1"]), [role="button"], [role="checkbox"], [role="menuitem"], [role="option"], [role="radio"], [role="separator"][aria-valuenow], [role="slider"], [role="switch"], [role="tab"], [role="treeitem"]):focus-visible {
     outline: 2px solid var(--eui-ring);
     outline-offset: 2px;
   }
 
-  /* Buttons */
-  button,
-  [role="button"] {
+  :is(a, button, input, select, textarea, [role="button"], [role="checkbox"], [role="menuitem"], [role="option"], [role="radio"], [role="switch"], [role="tab"]) {
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  button, [role="button"] {
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -113,55 +143,61 @@
     transition:
       background-color var(--eui-duration-fast) var(--eui-ease),
       border-color var(--eui-duration-fast) var(--eui-ease),
-      color var(--eui-duration-fast) var(--eui-ease);
+      color var(--eui-duration-fast) var(--eui-ease),
+      transform var(--eui-duration-fast) var(--eui-ease);
   }
 
-  button[data-variant="primary"],
-  [role="button"][data-variant="primary"] {
+  :is(button, [role="button"])[data-variant="primary"] {
     border-color: transparent;
     background-color: var(--eui-primary);
     color: var(--eui-primary-fg);
   }
 
-  button[data-variant="destructive"],
-  [role="button"][data-variant="destructive"] {
+  :is(button, [role="button"])[data-variant="destructive"] {
     border-color: transparent;
     background-color: var(--eui-destructive);
     color: var(--eui-destructive-fg);
   }
 
-  button[data-variant="ghost"],
-  [role="button"][data-variant="ghost"] {
+  :is(button, [role="button"])[data-variant="ghost"] {
     border-color: transparent;
     background-color: transparent;
   }
 
-  button:is(:hover, [data-hovered]):not(:disabled, [aria-disabled="true"]),
-  [role="button"]:is(:hover, [data-hovered]):not([aria-disabled="true"]) {
+  :is(button, [role="button"]):not(:disabled, [aria-disabled="true"]):active {
+    transform: scale(0.97);
+  }
+
+  :is(button, [role="button"])[data-hovered]:not(:disabled, [aria-disabled="true"]) {
     background-color: var(--eui-accent);
     color: var(--eui-accent-fg);
   }
 
-  button[data-variant="primary"]:is(:hover, [data-hovered]):not(
-      :disabled,
-      [aria-disabled="true"]
-    ) {
+  :is(button, [role="button"]):is([data-variant="primary"], [data-variant="destructive"])[data-hovered]:not(:disabled, [aria-disabled="true"]) {
     filter: brightness(1.06);
   }
 
-  :is(button, input, select, textarea, [aria-disabled="true"]):is(
-      :disabled,
-      [aria-disabled="true"],
-      [data-disabled]
-    ) {
+  @media (hover: hover) {
+    :is(button, [role="button"]):hover:not(:disabled, [aria-disabled="true"]) {
+      background-color: var(--eui-accent);
+      color: var(--eui-accent-fg);
+    }
+
+    :is(button, [role="button"]):is([data-variant="primary"], [data-variant="destructive"]):hover:not(:disabled, [aria-disabled="true"]) {
+      filter: brightness(1.06);
+    }
+
+    [role="separator"][data-resizable-handle]:hover {
+      background-color: var(--eui-primary);
+    }
+  }
+
+  :is(button, input, select, textarea, [aria-disabled="true"]):is(:disabled, [aria-disabled="true"], [data-disabled]) {
     opacity: 0.55;
     cursor: not-allowed;
   }
 
-  /* Text inputs & password inputs */
-  input:not([type="checkbox"], [type="radio"], [type="range"]),
-  textarea,
-  select {
+  input:not([type="checkbox"], [type="radio"], [type="range"]), textarea, select {
     min-height: 2.25rem;
     padding: 0.375rem 0.625rem;
     border: 1px solid var(--eui-input-border);
@@ -171,18 +207,12 @@
     font: inherit;
   }
 
-  input::placeholder,
-  textarea::placeholder {
-    color: var(--eui-fg-muted);
-  }
+  input::placeholder, textarea::placeholder { color: var(--eui-fg-muted); }
 
-  [data-password-input] {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.25rem;
-  }
+  [data-password-input] { display: inline-flex; align-items: center; gap: 0.25rem; }
 
-  /* Switch */
+  [data-color-picker] output, [data-contrast-ratio] { font-variant-numeric: tabular-nums; }
+
   [role="switch"] {
     display: inline-flex;
     align-items: center;
@@ -201,35 +231,27 @@
     background-color: var(--eui-primary);
   }
 
-  /* Checkbox & Radio */
-  [role="checkbox"],
-  [role="radio"] {
+  [role="checkbox"], [role="radio"] {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 1.125rem;
-    height: 1.125rem;
-    padding: 0;
+    min-width: 1.5rem;
+    min-height: 1.5rem;
+    padding: 0.1875rem;
     border: 1.5px solid var(--eui-input-border);
-    border-radius: var(--eui-radius-sm);
+    border-radius: var(--eui-radius-xs);
     background-color: var(--eui-bg);
     color: var(--eui-primary-fg);
     cursor: pointer;
   }
 
-  [role="radio"] {
-    border-radius: var(--eui-radius-full);
-  }
+  [role="radio"] { border-radius: var(--eui-radius-full); }
 
-  :is([role="checkbox"], [role="radio"]):is(
-      [aria-checked="true"],
-      [aria-checked="mixed"]
-    ) {
+  :is([role="checkbox"], [role="radio"]):is([aria-checked="true"], [aria-checked="mixed"]) {
     border-color: var(--eui-primary);
     background-color: var(--eui-primary);
   }
 
-  /* Tabs */
   [role="tablist"] {
     display: inline-flex;
     align-items: center;
@@ -243,7 +265,7 @@
     min-height: 2rem;
     padding: 0.25rem 0.75rem;
     border: 1px solid transparent;
-    border-radius: var(--eui-radius-sm);
+    border-radius: var(--eui-radius-xs);
     background-color: transparent;
     color: var(--eui-fg-muted);
     font-weight: 500;
@@ -257,15 +279,9 @@
     box-shadow: var(--eui-shadow-sm);
   }
 
-  [role="tabpanel"] {
-    padding-top: 0.75rem;
-  }
+  [role="tabpanel"] { padding-top: 0.75rem; }
 
-  /* Menus, Listboxes, Trees & Command palettes */
-  [role="menu"],
-  [role="listbox"],
-  [role="tree"],
-  [data-command] {
+  [role="menu"], [role="listbox"], [role="tree"], [data-command] {
     display: flex;
     flex-direction: column;
     gap: 0.125rem;
@@ -276,31 +292,28 @@
     border-radius: var(--eui-radius-md);
     background-color: var(--eui-surface);
     color: var(--eui-fg);
+    overscroll-behavior: contain;
   }
 
-  [role="tree"] [role="group"] {
-    margin: 0;
-    padding-inline-start: 1.25rem;
-    list-style: none;
-  }
+  [role="tree"] [role="group"] { margin: 0; padding-inline-start: 1.25rem; list-style: none; }
 
-  [role="menuitem"],
-  [role="option"],
-  [role="treeitem"] > span {
+  [role="menuitem"], [role="option"], [role="treeitem"] > span {
     display: flex;
     align-items: center;
     gap: 0.5rem;
     padding: 0.375rem 0.625rem;
-    border-radius: var(--eui-radius-sm);
+    border-radius: var(--eui-radius-xs);
     cursor: pointer;
   }
 
-  :is([role="menuitem"], [role="option"], [role="treeitem"]):is(
-      [aria-selected="true"],
-      [data-active="true"]
-    ) {
+  :is([role="menuitem"], [role="option"], [role="treeitem"]):is([aria-selected="true"], [data-active="true"], [data-highlighted]) {
     background-color: var(--eui-accent);
     color: var(--eui-accent-fg);
+  }
+
+  :is([role="menuitem"], [role="option"], [role="treeitem"])[data-highlighted] {
+    outline: 2px solid var(--eui-ring);
+    outline-offset: -2px;
   }
 
   [data-command] mark {
@@ -310,7 +323,6 @@
     border-radius: 0.125rem;
   }
 
-  /* Dialogs & OverlayHost popups */
   [data-overlay-backdrop] {
     position: fixed;
     inset: 0;
@@ -319,9 +331,7 @@
     background-color: rgb(0 0 0 / 0.45);
   }
 
-  [role="dialog"],
-  [role="alertdialog"],
-  [data-overlay-popup] {
+  [role="dialog"], [role="alertdialog"], [data-overlay-popup] {
     max-width: min(32rem, calc(100vw - 2rem));
     padding: 1.25rem;
     border: 1px solid var(--eui-border);
@@ -329,66 +339,68 @@
     background-color: var(--eui-surface);
     color: var(--eui-fg);
     box-shadow: var(--eui-shadow-md);
+    overscroll-behavior: contain;
   }
 
-  /* Resizable split handles */
   [role="separator"][data-resizable-handle] {
-    flex: 0 0 0.5rem;
+    flex: 0 0 0.75rem;
+    min-width: 0.75rem;
+    min-height: 0.75rem;
     background-color: var(--eui-border);
     cursor: col-resize;
+    touch-action: none;
     transition: background-color var(--eui-duration-fast) var(--eui-ease);
   }
 
-  [role="separator"][data-resizable-handle][aria-orientation="horizontal"] {
-    cursor: row-resize;
-  }
+  [role="separator"][data-resizable-handle][aria-orientation="horizontal"] { cursor: row-resize; }
+  [role="separator"][data-resizable-handle]:focus-visible { background-color: var(--eui-primary); }
 
-  [role="separator"][data-resizable-handle]:is(:hover, :focus-visible) {
-    background-color: var(--eui-primary);
-  }
-
-  /* Sliders */
   [role="slider"] {
     position: relative;
     display: inline-flex;
     align-items: center;
-    min-width: 1.25rem;
-    min-height: 1.25rem;
+    min-width: 1.5rem;
+    min-height: 1.5rem;
     border: 2px solid var(--eui-primary);
     border-radius: var(--eui-radius-full);
     background-color: var(--eui-bg);
+    accent-color: var(--eui-primary);
     cursor: grab;
+    touch-action: none;
   }
 
-  /* Reduced motion */
-  @media (prefers-reduced-motion: reduce) {
-    *,
-    *::before,
-    *::after {
-      animation-duration: 0.01ms !important;
-      animation-iteration-count: 1 !important;
-      transition-duration: 0.01ms !important;
-      scroll-behavior: auto !important;
+  @media (pointer: coarse) {
+    :is(button, [role="button"], input:not([type="checkbox"], [type="radio"], [type="range"]), textarea, select, [role="tab"], [role="menuitem"], [role="option"]) {
+      min-height: 2.75rem;
+    }
+
+    input:not([type="checkbox"], [type="radio"], [type="range"]), textarea, select {
+      font-size: max(1rem, 1em);
+    }
+
+    [role="checkbox"], [role="radio"], [role="slider"] {
+      min-width: 2.75rem;
+      min-height: 2.75rem;
+    }
+
+    [role="separator"][data-resizable-handle] {
+      flex: 0 0 1.5rem;
+      min-width: 1.5rem;
+      min-height: 1.5rem;
     }
   }
 
-  /* Windows High Contrast / Forced Colors */
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+    :is(button, [role="button"]):not(:disabled, [aria-disabled="true"]):active { transform: none; }
+  }
+
   @media (forced-colors: active) {
-    button,
-    [role="button"],
-    [role="switch"],
-    [role="checkbox"],
-    [role="radio"],
-    [role="tab"],
-    [role="dialog"],
-    [role="alertdialog"],
-    [role="menu"],
-    [role="listbox"],
-    [data-command] {
+    :is(button, [role="button"], [role="switch"], [role="checkbox"], [role="radio"], [role="tab"], [role="dialog"], [role="alertdialog"], [role="menu"], [role="listbox"], [data-command]) {
       border: 1px solid CanvasText;
     }
 
-    :is([aria-selected="true"], [aria-checked="true"], [data-active="true"]) {
+    :is([aria-selected="true"], [aria-checked="true"], [data-active="true"], [data-highlighted]) {
       outline: 2px solid Highlight;
     }
   }

@@ -53,6 +53,18 @@ describe("Analytical spring physics and CSS linear() easing", () => {
     }
   })
 
+  test("default spring config is critically damped with zero overshoot", () => {
+    const endMs = settleTime()
+    let prev = 0
+    for (let ms = 0; ms <= endMs; ms += 10) {
+      const s = solveSpring(ms / 1000, 0, 1)
+      expect(s.position).toBeGreaterThanOrEqual(prev - 1e-9)
+      expect(s.position).toBeLessThanOrEqual(1 + 1e-6)
+      prev = s.position
+    }
+    expect(solveSpring(endMs / 1000, 0, 1).position).toBeCloseTo(1, 3)
+  })
+
   test("springLinearEasing emits valid CSS linear(...) curve starting at 0 and ending at 1", () => {
     const css = springLinearEasing({ stiffness: 280, damping: 24 }, 16)
     expect(css.durationMs).toBeGreaterThan(100)

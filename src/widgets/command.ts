@@ -169,7 +169,8 @@ export const Command = Html.component({
         .on("input", ({ value }) => CommandMsg.TypedQuery({ query: value }))
         .on(
           "keydown",
-          ({ key }) => {
+          ({ key, composing }) => {
+            if (composing) return undefined
             if (!p.open) {
               if (key === "ArrowDown" || key === "ArrowUp") {
                 return CommandMsg.PressedOpen()

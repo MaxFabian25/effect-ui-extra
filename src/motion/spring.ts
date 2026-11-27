@@ -1,7 +1,11 @@
 export interface SpringConfig {
   /** Spring stiffness (tension). Defaults to `300`. */
   readonly stiffness?: number | undefined
-  /** Spring damping (friction). Defaults to `30`. */
+  /**
+   * Spring damping (friction). Defaults to critical damping
+   * (`2 * Math.sqrt(stiffness * mass)`, zero overshoot). Pass a smaller value
+   * to opt into underdamped bounce.
+   */
   readonly damping?: number | undefined
   /** Mass attached to the spring. Defaults to `1`. */
   readonly mass?: number | undefined
@@ -19,14 +23,18 @@ export interface SpringSample {
   readonly done: boolean
 }
 
-const resolveConfig = (config: SpringConfig = {}) => ({
-  stiffness: Math.max(1e-4, config.stiffness ?? 300),
-  damping: Math.max(0, config.damping ?? 30),
-  mass: Math.max(1e-4, config.mass ?? 1),
-  velocity: config.velocity ?? 0,
-  restDisplacement: Math.max(1e-6, config.restDisplacement ?? 0.001),
-  restVelocity: Math.max(1e-6, config.restVelocity ?? 0.001)
-})
+const resolveConfig = (config: SpringConfig = {}) => {
+  const stiffness = Math.max(1e-4, config.stiffness ?? 300)
+  const mass = Math.max(1e-4, config.mass ?? 1)
+  return {
+    stiffness,
+    damping: Math.max(0, config.damping ?? 2 * Math.sqrt(stiffness * mass)),
+    mass,
+    velocity: config.velocity ?? 0,
+    restDisplacement: Math.max(1e-6, config.restDisplacement ?? 0.001),
+    restVelocity: Math.max(1e-6, config.restVelocity ?? 0.001)
+  }
+}
 
 /**
  * Closed-form analytical spring evaluator moving from `from` to `to` at time

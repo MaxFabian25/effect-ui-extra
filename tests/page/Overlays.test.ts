@@ -31,6 +31,9 @@ describe("Deferred-backed Overlays and OverlayHost on TestHost", () => {
           yield* play
             .expect(HtmlLocator.role("alertdialog", { name: "Delete workspace?" }))
             .toExist()
+          yield* play
+            .expect(HtmlLocator.role("button", { name: "Delete" }))
+            .toHaveAttribute("data-variant", "destructive")
           yield* play.click(HtmlLocator.role("button", { name: "Delete" }))
           expect(yield* Fiber.join(f1)).toBe(true)
           yield* play.expect(HtmlLocator.role("alertdialog")).toBeAbsent()

@@ -169,8 +169,10 @@ export const themeContrastPairs = (
 ]
 
 /**
- * Generates an `@layer effect-ui` CSS token block using native `light-dark()`
- * and `[data-color-scheme]` overrides compatible with `effect-ui-page`.
+ * Generates an `@layer effect-ui` CSS token block with concrete light/dark
+ * fallbacks for browsers without `light-dark()` plus progressive enhancement
+ * via `@supports (color: light-dark(white, black))` and `[data-color-scheme]`
+ * overrides compatible with `effect-ui-page`.
  */
 export const generateThemeCss = (
   light: ThemeTokens = DEFAULT_LIGHT_TOKENS,
@@ -179,25 +181,45 @@ export const generateThemeCss = (
 ): string => {
   const layer = options.layer ?? "effect-ui"
   const keys = Object.keys(TOKEN_CSS_NAMES) as ReadonlyArray<keyof ThemeTokens>
-  const declarations = keys
+  const lightDecls = keys
+    .map((key) => `    ${TOKEN_CSS_NAMES[key]}: ${light[key]};`)
+    .join("\n")
+  const darkDecls = keys
+    .map((key) => `    ${TOKEN_CSS_NAMES[key]}: ${dark[key]};`)
+    .join("\n")
+  const lightDarkDecls = keys
     .map(
       (key) =>
-        `    ${TOKEN_CSS_NAMES[key]}: light-dark(${light[key]}, ${dark[key]});`
+        `      ${TOKEN_CSS_NAMES[key]}: light-dark(${light[key]}, ${dark[key]});`
     )
     .join("\n")
 
   return `@layer ${layer} {
   :root {
     color-scheme: light dark;
-${declarations}
+${lightDecls}
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-color-scheme="light"]) {
+${darkDecls}
+    }
   }
 
   :root[data-color-scheme="light"] {
     color-scheme: light;
+${lightDecls}
   }
 
   :root[data-color-scheme="dark"] {
     color-scheme: dark;
+${darkDecls}
+  }
+
+  @supports (color: light-dark(white, black)) {
+    :root {
+${lightDarkDecls}
+    }
   }
 }
 `

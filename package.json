@@ -1,6 +1,6 @@
 {
   "name": "effect-ui-extra",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Unified companion toolkit for @effect/ui: a11y (APG/RTL/names), page (zero-FOUC prefs/overlays/history/SSR/until-found), widgets, direct-manipulation gestures, OKLCH/WCAG theme + @layer CSS, and spring/sheet/carousel motion",
   "license": "MIT",
   "type": "module",

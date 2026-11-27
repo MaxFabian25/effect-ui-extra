@@ -85,11 +85,16 @@ export const InlineEdit = Html.component({
           .value(model.draft)
           .on("input", ({ value }) => InlineEditMsg.DraftChanged({ value }))
           .on("blur", () => InlineEditMsg.Confirmed())
-          .on("keydown", ({ key }) => {
-            if (key === "Enter") return InlineEditMsg.Confirmed()
-            if (key === "Escape") return InlineEditMsg.Reverted()
-            return undefined
-          })
+          .on(
+            "keydown",
+            ({ key, composing }) => {
+              if (composing) return undefined
+              if (key === "Enter") return InlineEditMsg.Confirmed()
+              if (key === "Escape") return InlineEditMsg.Reverted()
+              return undefined
+            },
+            { preventDefault: true }
+          )
       )
     }
 
