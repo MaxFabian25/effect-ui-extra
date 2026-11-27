@@ -1,0 +1,223 @@
+export interface FuzzyRange {
+  readonly start: number
+  readonly end: number
+}
+
+export interface FuzzyMatch {
+  /** Normalized relevance score in `(0, 1]` where `1` is an exact match. */
+  readonly score: number
+  /** Merged `[start, end)` character spans in the original text for highlighting. */
+  readonly ranges: ReadonlyArray<FuzzyRange>
+}
+
+interface NormalizedMap {
+  readonly text: string
+  /** Maps each normalized character index back to its original UTF-16 index. */
+  readonly indexMap: ReadonlyArray<number>
+}
+
+const COMBINING_RE = /[\u0300-\u036f]/g
+
+const normalizeWithMap = (input: string): NormalizedMap => {
+  let text = ""
+  const indexMap: Array<number> = []
+  for (let i = 0; i < input.length; i++) {
+    const stripped = input[i]!.normalize("NFD").replace(COMBINING_RE, "").toLowerCase()
+    for (let j = 0; j < stripped.length; j++) {
+      text += stripped[j]
+      indexMap.push(i)
+    }
+  }
+  return { text, indexMap }
+}
+
+/**
+ * Lowercases and strips accents for accent-insensitive search matching.
+ */
+export const normalizeText = (input: string): string =>
+  input.normalize("NFD").replace(COMBINING_RE, "").toLowerCase()
+
+const isWordBoundary = (text: string, index: number): boolean => {
+  if (index <= 0) return true
+  const prev = text[index - 1]!
+  return /[\s\-_/.:]/.test(prev)
+}
+
+const mergeIndices = (
+  indices: ReadonlyArray<number>
+): ReadonlyArray<FuzzyRange> => {
+  if (indices.length === 0) return []
+  const ranges: Array<FuzzyRange> = []
+  let start = indices[0]!
+  let end = start + 1
+  for (let i = 1; i < indices.length; i++) {
+    const idx = indices[i]!
+    if (idx === end) {
+      end = idx + 1
+    } else if (idx > end) {
+      ranges.push({ start, end })
+      start = idx
+      end = idx + 1
+    }
+  }
+  ranges.push({ start, end })
+  return ranges
+}
+
+const coverageBonus = (needleLen: number, haystackLen: number): number =>
+  haystackLen === 0 ? 0 : (0.09 * needleLen) / haystackLen
+
+/**
+ * Accent-insensitive fuzzy scorer returning both a `0..1` score and highlight
+ * character ranges in the original text, or `undefined` when there is no match.
+ *
+ * Ranking order: exact match > prefix > word-start substring > substring >
+ * ordered subsequence (with word-start and consecutive-run bonuses).
+ */
+export const fuzzyMatch = (
+  query: string,
+  candidate: string
+): FuzzyMatch | undefined => {
+  const needle = normalizeText(query).trim()
+  if (needle.length === 0) {
+    return { score: 1, ranges: [] }
+  }
+  const { indexMap, text: haystack } = normalizeWithMap(candidate)
+  if (haystack.length === 0) return undefined
+
+  // 1. Exact match
+  if (haystack === needle) {
+    return {
+      score: 1,
+      ranges: [{ start: 0, end: candidate.length }]
+    }
+  }
+
+  // 2. Prefix match
+  if (haystack.startsWith(needle)) {
+    const origIndices = Array.from({ length: needle.length }, (_, i) => indexMap[i]!)
+    return {
+      score: Math.min(0.99, 0.9 + coverageBonus(needle.length, haystack.length)),
+      ranges: mergeIndices(origIndices)
+    }
+  }
+
+  // 3. Word-start substring match
+  for (
+    let idx = haystack.indexOf(needle);
+    idx !== -1;
+    idx = haystack.indexOf(needle, idx + 1)
+  ) {
+    if (isWordBoundary(haystack, idx)) {
+      const origIndices = Array.from(
+        { length: needle.length },
+        (_, i) => indexMap[idx + i]!
+      )
+      return {
+        score: Math.min(0.89, 0.8 + coverageBonus(needle.length, haystack.length)),
+        ranges: mergeIndices(origIndices)
+      }
+    }
+  }
+
+  // 4. Any contiguous substring match
+  const subIdx = haystack.indexOf(needle)
+  if (subIdx !== -1) {
+    const origIndices = Array.from(
+      { length: needle.length },
+      (_, i) => indexMap[subIdx + i]!
+    )
+    return {
+      score: Math.min(0.79, 0.7 + coverageBonus(needle.length, haystack.length)),
+      ranges: mergeIndices(origIndices)
+    }
+  }
+
+  // 5. Ordered subsequence match (spaces separate tokens)
+  let pos = 0
+  let prev = -2
+  let bonus = 0
+  const matchedNorm: Array<number> = []
+  for (const ch of needle) {
+    if (ch === " ") continue
+    // Prefer a word-start match when available from pos
+    let found = -1
+    for (let i = haystack.indexOf(ch, pos); i !== -1; i = haystack.indexOf(ch, i + 1)) {
+      if (found === -1) found = i
+      if (isWordBoundary(haystack, i) || i === prev + 1) {
+        found = i
+        break
+      }
+    }
+    if (found === -1) return undefined
+    matchedNorm.push(found)
+    if (isWordBoundary(haystack, found)) bonus += 1
+    if (found === prev + 1) bonus += 1
+    prev = found
+    pos = found + 1
+  }
+
+  if (matchedNorm.length === 0) return undefined
+  const maxBonus = matchedNorm.length * 2
+  const quality = bonus / maxBonus
+  const score = Math.min(
+    0.69,
+    0.25 + quality * 0.35 + coverageBonus(matchedNorm.length, haystack.length)
+  )
+  return {
+    score,
+    ranges: mergeIndices(matchedNorm.map((i) => indexMap[i]!))
+  }
+}
+
+export interface FuzzyFiltered<A> {
+  readonly item: A
+  readonly match: FuzzyMatch
+}
+
+/**
+ * Filters and stably ranks `items` against `query` using primary text plus
+ * optional keywords (keywords participate in scoring without polluting primary
+ * text highlight ranges).
+ */
+export const fuzzyFilter = <A>(
+  items: ReadonlyArray<A>,
+  query: string,
+  getText: (item: A) => string,
+  getKeywords?: (item: A) => ReadonlyArray<string> | undefined
+): ReadonlyArray<FuzzyFiltered<A>> => {
+  const trimmed = query.trim()
+  if (trimmed.length === 0) {
+    return items.map((item) => ({ item, match: { score: 1, ranges: [] } }))
+  }
+  const scored: Array<{ readonly item: A; readonly match: FuzzyMatch; readonly index: number }> = []
+  for (let i = 0; i < items.length; i++) {
+    const item = items[i]!
+    const primary = fuzzyMatch(trimmed, getText(item))
+    let best = primary
+    const keywords = getKeywords?.(item)
+    if (keywords !== undefined) {
+      for (const kw of keywords) {
+        const kwMatch = fuzzyMatch(trimmed, kw)
+        if (
+          kwMatch !== undefined &&
+          (best === undefined || kwMatch.score * 0.85 > best.score)
+        ) {
+          best = {
+            score: kwMatch.score * 0.85,
+            ranges: primary?.ranges ?? []
+          }
+        }
+      }
+    }
+    if (best !== undefined) {
+      scored.push({ item, match: best, index: i })
+    }
+  }
+  scored.sort((a, b) =>
+    b.match.score !== a.match.score
+      ? b.match.score - a.match.score
+      : a.index - b.index
+  )
+  return scored.map(({ item, match }) => ({ item, match }))
+}

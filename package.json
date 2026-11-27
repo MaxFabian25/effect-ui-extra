@@ -1,0 +1,107 @@
+{
+  "name": "effect-ui-extra",
+  "version": "0.1.0",
+  "description": "Unified companion toolkit for @effect/ui: a11y (APG/RTL/names), page (zero-FOUC prefs/overlays/history/SSR/until-found), widgets, direct-manipulation gestures, OKLCH/WCAG theme + @layer CSS, and spring/sheet/carousel motion",
+  "license": "MIT",
+  "type": "module",
+  "packageManager": "bun@1.4.5",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/MaxFabian25/effect-ui-extra.git"
+  },
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "bun": "./src/index.ts",
+      "default": "./dist/index.js"
+    },
+    "./a11y": {
+      "types": "./src/a11y/index.ts",
+      "bun": "./src/a11y/index.ts",
+      "default": "./dist/a11y/index.js"
+    },
+    "./page": {
+      "types": "./src/page/index.ts",
+      "bun": "./src/page/index.ts",
+      "default": "./dist/page/index.js"
+    },
+    "./widgets": {
+      "types": "./src/widgets/index.ts",
+      "bun": "./src/widgets/index.ts",
+      "default": "./dist/widgets/index.js"
+    },
+    "./direct": {
+      "types": "./src/direct/index.ts",
+      "bun": "./src/direct/index.ts",
+      "default": "./dist/direct/index.js"
+    },
+    "./theme": {
+      "types": "./src/theme/index.ts",
+      "bun": "./src/theme/index.ts",
+      "default": "./dist/theme/index.js"
+    },
+    "./theme/effect-ui.css": "./styles/effect-ui.css",
+    "./motion": {
+      "types": "./src/motion/index.ts",
+      "bun": "./src/motion/index.ts",
+      "default": "./dist/motion/index.js"
+    }
+  },
+  "publishConfig": {
+    "exports": {
+      ".": {
+        "types": "./dist/index.d.ts",
+        "import": "./dist/index.js"
+      },
+      "./a11y": {
+        "types": "./dist/a11y/index.d.ts",
+        "import": "./dist/a11y/index.js"
+      },
+      "./page": {
+        "types": "./dist/page/index.d.ts",
+        "import": "./dist/page/index.js"
+      },
+      "./widgets": {
+        "types": "./dist/widgets/index.d.ts",
+        "import": "./dist/widgets/index.js"
+      },
+      "./direct": {
+        "types": "./dist/direct/index.d.ts",
+        "import": "./dist/direct/index.js"
+      },
+      "./theme": {
+        "types": "./dist/theme/index.d.ts",
+        "import": "./dist/theme/index.js"
+      },
+      "./theme/effect-ui.css": "./styles/effect-ui.css",
+      "./motion": {
+        "types": "./dist/motion/index.d.ts",
+        "import": "./dist/motion/index.js"
+      }
+    }
+  },
+  "files": [
+    "dist",
+    "styles",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "check": "tsc --noEmit",
+    "build": "rm -rf dist && tsc -p tsconfig.build.json",
+    "test": "bun test"
+  },
+  "peerDependencies": {
+    "@effect/ui": "*",
+    "@effect/ui-kit": "*",
+    "effect": "^4.1.4"
+  },
+  "devDependencies": {
+    "@effect/ui": "https://pkg.pr.new/Effect-TS/ui/@effect/ui@22128c6",
+    "@effect/ui-kit": "https://pkg.pr.new/Effect-TS/ui/@effect/ui-kit@22128c6",
+    "@types/bun": "1.4.5",
+    "effect": "4.1.6",
+    "happy-dom": "21.0.4",
+    "typescript": "5.9.3"
+  }
+}

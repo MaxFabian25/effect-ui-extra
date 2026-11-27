@@ -1,0 +1,395 @@
+/*
+ * effect-ui-theme — Optional @layer effect-ui default stylesheet
+ *
+ * Wraps every rule inside `@layer effect-ui` so unlayered author CSS or
+ * Tailwind utilities always win without `!important`. Uses native CSS
+ * `light-dark()` and `[data-color-scheme="light"|"dark"]` to integrate
+ * directly with `effect-ui-page`'s zero-FOUC `preferencesScript()`.
+ *
+ * Zero `::before` / `::after` icon hacks: icon glyphs belong in explicit
+ * `aria-hidden="true"` elements, never CSS pseudo-element text.
+ */
+
+@layer effect-ui {
+  :root {
+    color-scheme: light dark;
+
+    /* Semantic OKLCH tokens (kept in exact sync with DEFAULT_LIGHT_TOKENS / DEFAULT_DARK_TOKENS) */
+    --eui-bg: light-dark(oklch(0.99 0.002 260), oklch(0.16 0.01 260));
+    --eui-surface: light-dark(oklch(0.965 0.004 260), oklch(0.21 0.012 260));
+    --eui-muted: light-dark(oklch(0.935 0.006 260), oklch(0.25 0.012 260));
+    --eui-fg: light-dark(oklch(0.18 0.014 260), oklch(0.95 0.006 260));
+    --eui-fg-muted: light-dark(oklch(0.45 0.015 260), oklch(0.75 0.012 260));
+    --eui-border: light-dark(oklch(0.84 0.01 260), oklch(0.32 0.012 260));
+    --eui-input-border: light-dark(oklch(0.57 0.014 260), oklch(0.6 0.015 260));
+    --eui-primary: light-dark(oklch(0.46 0.16 260), oklch(0.74 0.12 258));
+    --eui-primary-fg: light-dark(oklch(0.99 0.002 260), oklch(0.15 0.012 260));
+    --eui-accent: light-dark(oklch(0.92 0.035 260), oklch(0.29 0.04 258));
+    --eui-accent-fg: light-dark(oklch(0.24 0.08 260), oklch(0.93 0.02 258));
+    --eui-destructive: light-dark(oklch(0.5 0.19 27), oklch(0.7 0.16 25));
+    --eui-destructive-fg: light-dark(oklch(0.99 0.002 27), oklch(0.15 0.012 25));
+    --eui-ring: light-dark(oklch(0.5 0.17 260), oklch(0.74 0.12 258));
+
+    --eui-radius-sm: 0.375rem;
+    --eui-radius-md: 0.5rem;
+    --eui-radius-lg: 0.75rem;
+    --eui-radius-full: 9999px;
+
+    --eui-shadow-sm: 0 1px 2px rgb(0 0 0 / 0.08);
+    --eui-shadow-md: 0 8px 24px -6px rgb(0 0 0 / 0.16);
+
+    --eui-duration-fast: 120ms;
+    --eui-ease: cubic-bezier(0.2, 0, 0, 1);
+
+    --eui-font-sans: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+      Roboto, sans-serif;
+    --eui-font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+      monospace;
+  }
+
+  :root[data-color-scheme="light"] {
+    color-scheme: light;
+  }
+
+  :root[data-color-scheme="dark"] {
+    color-scheme: dark;
+  }
+
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+  }
+
+  body {
+    margin: 0;
+    background-color: var(--eui-bg);
+    color: var(--eui-fg);
+    font-family: var(--eui-font-sans);
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* Focus ring for every interactive element */
+  :is(
+      a,
+      button,
+      input,
+      select,
+      textarea,
+      summary,
+      [tabindex]:not([tabindex="-1"]),
+      [role="button"],
+      [role="checkbox"],
+      [role="menuitem"],
+      [role="option"],
+      [role="radio"],
+      [role="separator"][aria-valuenow],
+      [role="slider"],
+      [role="switch"],
+      [role="tab"],
+      [role="treeitem"]
+    ):focus-visible {
+    outline: 2px solid var(--eui-ring);
+    outline-offset: 2px;
+  }
+
+  /* Buttons */
+  button,
+  [role="button"] {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    min-height: 2.25rem;
+    padding: 0.375rem 0.875rem;
+    border: 1px solid var(--eui-input-border);
+    border-radius: var(--eui-radius-md);
+    background-color: var(--eui-surface);
+    color: var(--eui-fg);
+    font: inherit;
+    font-weight: 500;
+    cursor: pointer;
+    transition:
+      background-color var(--eui-duration-fast) var(--eui-ease),
+      border-color var(--eui-duration-fast) var(--eui-ease),
+      color var(--eui-duration-fast) var(--eui-ease);
+  }
+
+  button[data-variant="primary"],
+  [role="button"][data-variant="primary"] {
+    border-color: transparent;
+    background-color: var(--eui-primary);
+    color: var(--eui-primary-fg);
+  }
+
+  button[data-variant="destructive"],
+  [role="button"][data-variant="destructive"] {
+    border-color: transparent;
+    background-color: var(--eui-destructive);
+    color: var(--eui-destructive-fg);
+  }
+
+  button[data-variant="ghost"],
+  [role="button"][data-variant="ghost"] {
+    border-color: transparent;
+    background-color: transparent;
+  }
+
+  button:is(:hover, [data-hovered]):not(:disabled, [aria-disabled="true"]),
+  [role="button"]:is(:hover, [data-hovered]):not([aria-disabled="true"]) {
+    background-color: var(--eui-accent);
+    color: var(--eui-accent-fg);
+  }
+
+  button[data-variant="primary"]:is(:hover, [data-hovered]):not(
+      :disabled,
+      [aria-disabled="true"]
+    ) {
+    filter: brightness(1.06);
+  }
+
+  :is(button, input, select, textarea, [aria-disabled="true"]):is(
+      :disabled,
+      [aria-disabled="true"],
+      [data-disabled]
+    ) {
+    opacity: 0.55;
+    cursor: not-allowed;
+  }
+
+  /* Text inputs & password inputs */
+  input:not([type="checkbox"], [type="radio"], [type="range"]),
+  textarea,
+  select {
+    min-height: 2.25rem;
+    padding: 0.375rem 0.625rem;
+    border: 1px solid var(--eui-input-border);
+    border-radius: var(--eui-radius-md);
+    background-color: var(--eui-bg);
+    color: var(--eui-fg);
+    font: inherit;
+  }
+
+  input::placeholder,
+  textarea::placeholder {
+    color: var(--eui-fg-muted);
+  }
+
+  [data-password-input] {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+  }
+
+  /* Switch */
+  [role="switch"] {
+    display: inline-flex;
+    align-items: center;
+    width: 2.5rem;
+    height: 1.5rem;
+    padding: 0.125rem;
+    border: 1px solid var(--eui-input-border);
+    border-radius: var(--eui-radius-full);
+    background-color: var(--eui-muted);
+    cursor: pointer;
+    transition: background-color var(--eui-duration-fast) var(--eui-ease);
+  }
+
+  [role="switch"][aria-checked="true"] {
+    border-color: var(--eui-primary);
+    background-color: var(--eui-primary);
+  }
+
+  /* Checkbox & Radio */
+  [role="checkbox"],
+  [role="radio"] {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.125rem;
+    height: 1.125rem;
+    padding: 0;
+    border: 1.5px solid var(--eui-input-border);
+    border-radius: var(--eui-radius-sm);
+    background-color: var(--eui-bg);
+    color: var(--eui-primary-fg);
+    cursor: pointer;
+  }
+
+  [role="radio"] {
+    border-radius: var(--eui-radius-full);
+  }
+
+  :is([role="checkbox"], [role="radio"]):is(
+      [aria-checked="true"],
+      [aria-checked="mixed"]
+    ) {
+    border-color: var(--eui-primary);
+    background-color: var(--eui-primary);
+  }
+
+  /* Tabs */
+  [role="tablist"] {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.25rem;
+    border-radius: var(--eui-radius-md);
+    background-color: var(--eui-muted);
+  }
+
+  [role="tab"] {
+    min-height: 2rem;
+    padding: 0.25rem 0.75rem;
+    border: 1px solid transparent;
+    border-radius: var(--eui-radius-sm);
+    background-color: transparent;
+    color: var(--eui-fg-muted);
+    font-weight: 500;
+    cursor: pointer;
+  }
+
+  [role="tab"][aria-selected="true"] {
+    border-color: var(--eui-border);
+    background-color: var(--eui-bg);
+    color: var(--eui-fg);
+    box-shadow: var(--eui-shadow-sm);
+  }
+
+  [role="tabpanel"] {
+    padding-top: 0.75rem;
+  }
+
+  /* Menus, Listboxes, Trees & Command palettes */
+  [role="menu"],
+  [role="listbox"],
+  [role="tree"],
+  [data-command] {
+    display: flex;
+    flex-direction: column;
+    gap: 0.125rem;
+    margin: 0;
+    padding: 0.25rem;
+    list-style: none;
+    border: 1px solid var(--eui-border);
+    border-radius: var(--eui-radius-md);
+    background-color: var(--eui-surface);
+    color: var(--eui-fg);
+  }
+
+  [role="tree"] [role="group"] {
+    margin: 0;
+    padding-inline-start: 1.25rem;
+    list-style: none;
+  }
+
+  [role="menuitem"],
+  [role="option"],
+  [role="treeitem"] > span {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.375rem 0.625rem;
+    border-radius: var(--eui-radius-sm);
+    cursor: pointer;
+  }
+
+  :is([role="menuitem"], [role="option"], [role="treeitem"]):is(
+      [aria-selected="true"],
+      [data-active="true"]
+    ) {
+    background-color: var(--eui-accent);
+    color: var(--eui-accent-fg);
+  }
+
+  [data-command] mark {
+    background-color: var(--eui-accent);
+    color: var(--eui-accent-fg);
+    font-weight: 600;
+    border-radius: 0.125rem;
+  }
+
+  /* Dialogs & OverlayHost popups */
+  [data-overlay-backdrop] {
+    position: fixed;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    background-color: rgb(0 0 0 / 0.45);
+  }
+
+  [role="dialog"],
+  [role="alertdialog"],
+  [data-overlay-popup] {
+    max-width: min(32rem, calc(100vw - 2rem));
+    padding: 1.25rem;
+    border: 1px solid var(--eui-border);
+    border-radius: var(--eui-radius-lg);
+    background-color: var(--eui-surface);
+    color: var(--eui-fg);
+    box-shadow: var(--eui-shadow-md);
+  }
+
+  /* Resizable split handles */
+  [role="separator"][data-resizable-handle] {
+    flex: 0 0 0.5rem;
+    background-color: var(--eui-border);
+    cursor: col-resize;
+    transition: background-color var(--eui-duration-fast) var(--eui-ease);
+  }
+
+  [role="separator"][data-resizable-handle][aria-orientation="horizontal"] {
+    cursor: row-resize;
+  }
+
+  [role="separator"][data-resizable-handle]:is(:hover, :focus-visible) {
+    background-color: var(--eui-primary);
+  }
+
+  /* Sliders */
+  [role="slider"] {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    min-width: 1.25rem;
+    min-height: 1.25rem;
+    border: 2px solid var(--eui-primary);
+    border-radius: var(--eui-radius-full);
+    background-color: var(--eui-bg);
+    cursor: grab;
+  }
+
+  /* Reduced motion */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+
+  /* Windows High Contrast / Forced Colors */
+  @media (forced-colors: active) {
+    button,
+    [role="button"],
+    [role="switch"],
+    [role="checkbox"],
+    [role="radio"],
+    [role="tab"],
+    [role="dialog"],
+    [role="alertdialog"],
+    [role="menu"],
+    [role="listbox"],
+    [data-command] {
+      border: 1px solid CanvasText;
+    }
+
+    :is([aria-selected="true"], [aria-checked="true"], [data-active="true"]) {
+      outline: 2px solid Highlight;
+    }
+  }
+}
