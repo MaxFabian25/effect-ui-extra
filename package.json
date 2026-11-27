@@ -1,6 +1,6 @@
 {
   "name": "effect-ui-extra",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Unified companion toolkit for @effect/ui: a11y (APG/RTL/names), page (zero-FOUC prefs/overlays/history/SSR/until-found), widgets, direct-manipulation gestures, OKLCH/WCAG theme + @layer CSS, and spring/sheet/carousel motion",
   "license": "MIT",
   "type": "module",
@@ -83,13 +83,20 @@
   "files": [
     "dist",
     "styles",
+    "AGENTS.md",
+    "llms.txt",
     "README.md",
     "LICENSE"
   ],
   "scripts": {
     "check": "tsc --noEmit",
     "build": "rm -rf dist && tsc -p tsconfig.build.json",
-    "test": "bun test"
+    "test": "bun test",
+    "gen:docs": "bun scripts/gen-docs.ts",
+    "check:docs": "bun scripts/gen-docs.ts --check",
+    "check:consumer": "bun scripts/check-consumer.ts",
+    "check:size": "bun scripts/check-size.ts",
+    "verify": "bun run check && bun run build && bun test && bun run check:docs && bun run check:consumer && bun run check:size"
   },
   "peerDependencies": {
     "@effect/ui": "*",

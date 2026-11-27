@@ -1,0 +1,58 @@
+# effect-ui-extra v0.2.0
+
+> Unified companion toolkit for @effect/ui: a11y (APG/RTL/names), page (zero-FOUC prefs/overlays/history/SSR/until-found), widgets, direct-manipulation gestures, OKLCH/WCAG theme + @layer CSS, and spring/sheet/carousel motion
+
+Install pinned to a commit SHA: `github:MaxFabian25/effect-ui-extra#<sha>`.
+Import by subpath so bundlers tree-shake unused modules.
+
+## Subpath Exports
+
+### `effect-ui-extra/a11y`
+
+15 WAI-ARIA APG pattern verifiers, LTR/RTL direction checks, accessible-name checks, and zero-DOM TestHost focus tracking.
+
+- **Values (9):** `auditPattern`, `checkPattern`, `auditDirection`, `checkDirection`, `AccessibleNameError`, `auditAccessibleNames`, `checkAccessibleNames`, `NAMABLE_ROLES`, `PatternViolationError`
+- **Types (14):** `DirectionAuditResult`, `AccessibleNameViolation`, `CheckAccessibleNamesOptions`, `A11yDriver`, `A11yTarget`, `AnyHtmlPlay`, `ApgPattern`, `CheckPatternOptions`, `Direction`, `DomTarget`, `KeyModifiers`, `NodeLike`, `Orientation`, `PatternViolation`
+
+### `effect-ui-extra/page`
+
+Zero-FOUC SSR preferences and color scheme, Deferred-backed overlays, LiveAnnouncer, scoped ShortcutRegistry, checkServer SSR purity guard, semantic PageObserver/PageHistory with undoAgent(), InputModalityTracker, hidden="until-found" helpers, and theme-color dimming.
+
+- **Values (53):** `browserStorageLayer`, `ColorScheme`, `colorSchemeFromHeaders`, `cookieStorageLayer`, `definePreference`, `makeMemoryStorage`, `memoryStorageLayer`, `preferencesScript`, `preferencesScriptBody`, `PreferenceStorage`, `resolveColorScheme`, `ConfirmOverlayEntry`, `makeOverlays`, `OverlayEntry`, `OverlayHost`, `Overlays`, `overlaysLayer`, `PromptOverlayEntry`, `ResolveOverlay`, `Announcement`, `LiveAnnouncer`, `liveAnnouncerLayer`, `LiveRegion`, `makeLiveAnnouncer`, `Politeness`, `ariaKeyshortcuts`, `createShortcutTable`, `formatShortcut`, `makeShortcutRegistry`, `ShortcutRegistry`, `shortcutRegistryLayer`, `auditServer`, `checkServer`, `ServerPurityError`, `makePageObserver`, `PageObserver`, `pageObserverLayer`, `REDACTED_PLACEHOLDER`, `makePageHistory`, `PageHistory`, `pageHistoryLayer`, `inputModalityLayer`, `InputModalityTracker`, `makeInputModality`, `modalityFromKey`, `modalityFromPointer`, `resolvePointerKind`, `bindBeforeMatch`, `chunkFindableRows`, `panelHiddenAttr`, `supportsHiddenUntilFound`, `blendThemeColor`, `createThemeColorDimmer`
+- **Types (39):** `ColorSchemeValue`, `MemoryStorageHandle`, `Preference`, `PreferenceSpec`, `PreferenceStorageService`, `StorageChange`, `StorageKind`, `SystemColorScheme`, `ConfirmOptions`, `OverlayResult`, `OverlaysService`, `PromptOptions`, `LiveAnnouncerService`, `DocumentedShortcut`, `ShortcutBinding`, `ShortcutConflict`, `ShortcutMetadata`, `ShortcutPlatform`, `ShortcutRegistryService`, `CheckServerOptions`, `ServerPurityViolation`, `ChangeSource`, `ObservedChange`, `PageObserverService`, `RecordChangeInput`, `RestoreHandler`, `HistoryActionResult`, `HistoryEntry`, `HistorySnapshot`, `PageHistoryOptions`, `PageHistoryService`, `UndoSourceResult`, `InputModality`, `InputModalityService`, `ModalityState`, `PointerKind`, `FindableStandInGroup`, `PanelHiddenOptions`, `ThemeColorDimmer`
+
+### `effect-ui-extra/widgets`
+
+Headless application widgets and AI-chat primitives complementing @effect/ui-kit (Command, Tree, Resizable, Listbox, PasswordInput, TimeInput, TokenInput, Pagination, SegmentedControl, InlineEdit, Rating, ColorPicker, StickToBottom, TriggerMenu, InputHistory, inputHints, TreeChecked, AsyncOptions).
+
+- **Values (76):** `fuzzyFilter`, `fuzzyMatch`, `normalizeText`, `recoverFocusKey`, `PasswordInput`, `PasswordInputEvents`, `PasswordInputProps`, `computeListboxRange`, `Listbox`, `ListboxEvents`, `ListboxItem`, `ListboxProps`, `PaneSpec`, `Resizable`, `ResizableEvents`, `ResizableProps`, `resizePanes`, `Tree`, `TreeEvents`, `TreeNodeSchema`, `TreeProps`, `Command`, `CommandEvents`, `CommandItem`, `CommandProps`, `distanceFromBottom`, `initialStickToBottomState`, `isAtBottom`, `jumpToBottom`, `onStickContentGrowth`, `onStickScroll`, `computeTreeCheckStates`, `getCheckedByStrategy`, `toggleTreeNodeCheck`, `makeAsyncOptionsLoader`, `buildPaginationRange`, `Pagination`, `PaginationEvents`, `PaginationProps`, `addTokens`, `parseTokenText`, `removeTokenAt`, `TokenInput`, `TokenInputEvents`, `TokenInputProps`, `computeIndicatorGeometry`, `SegmentedControl`, `SegmentedControlEvents`, `SegmentedControlProps`, `SegmentedOption`, `InlineEdit`, `InlineEditEvents`, `InlineEditProps`, `applyTriggerSelection`, `detectTrigger`, `TriggerMenu`, `TriggerMenuEvents`, `TriggerMenuProps`, `TriggerSuggestion`, `formatTimeString`, `parseTimeString`, `stepTimeSegment`, `TimeInput`, `TimeInputEvents`, `TimeInputProps`, `initialInputHistoryState`, `recallHistoryNext`, `recallHistoryPrevious`, `syncInputHistory`, `inputHints`, `Rating`, `RatingEvents`, `RatingProps`, `ColorPicker`, `ColorPickerEvents`, `ColorPickerProps`
+- **Types (28):** `FuzzyFiltered`, `FuzzyMatch`, `FuzzyRange`, `FocusRecoveryInput`, `TreeNode`, `ScrollMetrics`, `StickToBottomState`, `StickToBottomTransition`, `TreeCheckState`, `TreeCheckStrategy`, `AsyncOptionsConfig`, `AsyncOptionsLoader`, `AsyncOptionsState`, `AsyncOptionsStatus`, `PaginationRangeInput`, `PaginationToken`, `IndicatorGeometry`, `IndicatorRect`, `TriggerMatch`, `HourCycle`, `ParsedTime`, `TimeGranularity`, `TimeSegment`, `InputHistoryState`, `InputHistoryStep`, `EnterKeyHint`, `InputHintAttrs`, `InputHintKind`
+
+### `effect-ui-extra/direct`
+
+Pure 2D spatial/grid focus, CellRange and lasso selection, SwipeActions, TestClock-driven holdEffect/repeatStream, cycle-safe TreeReorder, infinite canvas Viewport/Connect, quadratic edge AutoScroll, and TimeSpan math.
+
+- **Values (31):** `moveGridFocus`, `nearestInDirection`, `cellsInRange`, `computeLassoSelection`, `isCellInRange`, `normalizeCellRange`, `rectFromPoints`, `rectsIntersect`, `evaluateSwipeDrag`, `handleSwipeKey`, `resolveSwipeRelease`, `rubberBand`, `holdEffect`, `repeatStream`, `canMoveTreeNode`, `moveTreeNode`, `canConnectPorts`, `canvasToScreen`, `findSnapPort`, `fitBounds`, `nextPortInDirection`, `panViewport`, `screenToCanvas`, `viewportTransformCss`, `zoomAtPoint`, `computeAutoScroll`, `detectSpanOverlaps`, `moveTimeSpan`, `resizeTimeSpanEnd`, `resizeTimeSpanStart`, `snapTimeValue`
+- **Types (30):** `GridCoord`, `GridFocusOptions`, `GridMoveKey`, `Rect`, `SpatialCandidate`, `SpatialDirection`, `CellRange`, `LassoItem`, `LassoMode`, `NormalizedCellRange`, `Point`, `SwipeConfig`, `SwipeDraft`, `SwipeOpen`, `SwipeReleaseOutcome`, `SwipeSide`, `HoldOptions`, `RepeatOptions`, `DropPlacement`, `ReorderTreeNode`, `CanvasPort`, `ConnectDraft`, `Viewport`, `ZoomBounds`, `AutoScrollLimits`, `AutoScrollOptions`, `AutoScrollVelocity`, `SpanOverlap`, `TimeSpan`, `TimeSpanConstraints`
+
+### `effect-ui-extra/theme`
+
+OKLCH/sRGB/Display-P3 color engine, hue-preserving gamut clamping, WCAG 2.1 and APCA contrast auditing, theme CSS generation, and opt-in @layer effect-ui stylesheet (effect-ui-extra/theme/effect-ui.css).
+
+- **Values (28):** `SCALE_STEPS`, `srgbToLinear`, `linearToSrgb`, `oklchToLinearSrgb`, `isInSrgbGamut`, `oklchToLinearP3`, `isInP3Gamut`, `clampToGamut`, `oklchToSrgb`, `srgbToOklch`, `parseColor`, `formatOklch`, `formatHex`, `mixOklch`, `generateScale`, `relativeLuminance`, `compositeOver`, `wcagContrast`, `meetsWcagAA`, `meetsWcagAAA`, `meetsUiControlContrast`, `apcaContrast`, `auditThemeContrast`, `TOKEN_CSS_NAMES`, `DEFAULT_LIGHT_TOKENS`, `DEFAULT_DARK_TOKENS`, `themeContrastPairs`, `generateThemeCss`
+- **Types (6):** `OklchColor`, `SrgbColor`, `ScaleStep`, `ContrastPair`, `ContrastFailure`, `ThemeTokens`
+
+### `effect-ui-extra/motion`
+
+Closed-form analytical springs, compositor CSS linear() easing, pointer velocity tracker, momentum projection, rubber-band overscroll, snap points, draggable sheet reducer, Presence lifecycle, and Carousel reducer.
+
+- **Values (18):** `settleTime`, `solveSpring`, `springLinearEasing`, `createVelocityTracker`, `findSnapIndex`, `nearestIndex`, `projectDistance`, `resolveSnapPoints`, `rubberBand`, `initialSheetState`, `reduceSheet`, `sheetBackdropProgress`, `initialPresenceState`, `reducePresence`, `carouselPageCount`, `initialCarouselState`, `isCarouselAutoplayActive`, `reduceCarousel`
+- **Types (16):** `SpringConfig`, `SpringCssEasing`, `SpringSample`, `SnapPoint`, `VelocitySample`, `VelocityTracker`, `SheetConfig`, `SheetEvent`, `SheetPhase`, `SheetState`, `PresenceEvent`, `PresencePhase`, `PresenceState`, `CarouselConfig`, `CarouselEvent`, `CarouselState`
+
+### `effect-ui-extra/theme/effect-ui.css`
+
+Optional `@layer effect-ui` default stylesheet with native `light-dark()` OKLCH tokens, `[data-color-scheme="light"|"dark"]` overrides for `effect-ui-extra/page`, `prefers-reduced-motion`, `forced-colors`, and zero CSS `content:` icon hacks.
+
+### `effect-ui-extra` (root namespace export)
+
+Re-exports `A11y`, `Direct`, `Motion`, `Page`, `Theme`, and `Widgets` namespaces.

@@ -19,10 +19,10 @@ Namespace imports are also available from the root entry (`import { A11y, Page, 
 
 ```bash
 bun install
-bun run check
-bun run build
-bun test
+bun run verify
 ```
+
+`bun run verify` runs `tsc --noEmit`, `tsc -p tsconfig.build.json`, `bun test`, `check:docs` (verifies `AGENTS.md` and `llms.txt` match `src/`), `check:consumer` (tests all 8 exports from an external consumer in both git-source and published-dist modes), and `check:size` (enforces per-subpath gzipped budgets in `size-budget.json`).
 
 ## License
 
