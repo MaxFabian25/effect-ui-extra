@@ -99,13 +99,13 @@ try {
       join(dir, "smoke.ts"),
       `import { readFileSync } from "node:fs"
 import * as Root from "effect-ui-extra"
-import { auditAccessibleNames, checkPattern } from "effect-ui-extra/a11y"
-import { checkServer, cspLayer, getTabbables, preferencesScript, reduceFormValidation, reduceIosTouchGuard } from "effect-ui-extra/page"
+import { auditAccessibleNames, auditMarkup, checkPattern } from "effect-ui-extra/a11y"
+import { checkServer, createHistoryStage, createMarkRegistry, cspLayer, getTabbables, preferencesScript, reduceFormValidation, reduceIosTouchGuard } from "effect-ui-extra/page"
 import { AreaPicker, buildPaginationRange, Carousel, ColorPicker, DateTimePicker, ImageCropper, ScrollPicker, TimeInput, Timeline, Waterfall } from "effect-ui-extra/widgets"
-import { computeAutoScroll, computeVirtualGrid, firstDayOfWeek, moveGridFocus, transferItem, valueToRatio } from "effect-ui-extra/direct"
+import { computeAutoScroll, computeVirtualGrid, firstDayOfWeek, moveGridFocus, replaceTextRange, stepMove2D, stepResizeBox, transferItem, valueToRatio } from "effect-ui-extra/direct"
 import { auditThemeContrast, DEFAULT_LIGHT_TOKENS, deltaEOK, resolveCssNamedColor, themeContrastPairs } from "effect-ui-extra/theme"
-import { reduceCarousel, reduceScrollHandoff, sectorOf, solveSpring, springLinearEasing } from "effect-ui-extra/motion"
-import { generateIconModule, generatePresetCss, handleMcpRequest, listVisualPresets, REGISTRY_ITEMS, runCli, validateCustomRegistry } from "effect-ui-extra/registry"
+import { isPointInSafePolygon, reduceCarousel, reduceScrollHandoff, sectorOf, solveSpring, springLinearEasing } from "effect-ui-extra/motion"
+import { decodePresetCode, encodePresetCode, generateIconModule, generatePresetCss, handleMcpRequest, listVisualPresets, parseNamespacedItem, REGISTRY_ITEMS, runCli, validateCustomRegistry } from "effect-ui-extra/registry"
 
 const cssPath = Bun.resolveSync("effect-ui-extra/theme/effect-ui.css", import.meta.dir)
 const css = readFileSync(cssPath, "utf8")
@@ -113,15 +113,15 @@ if (!css.includes("@layer effect-ui")) throw new Error("CSS layer missing")
 
 if (typeof Root.A11y.checkPattern !== "function") throw new Error("Root.A11y missing")
 if (typeof Root.Registry.runCli !== "function") throw new Error("Root.Registry missing")
-if (typeof checkPattern !== "function" || typeof auditAccessibleNames !== "function") throw new Error("a11y missing")
-if (typeof checkServer !== "function" || typeof preferencesScript !== "function" || typeof cspLayer !== "function" || typeof reduceIosTouchGuard !== "function" || typeof getTabbables !== "function" || typeof reduceFormValidation !== "function") throw new Error("page missing")
+if (typeof checkPattern !== "function" || typeof auditAccessibleNames !== "function" || auditMarkup("<div id='a'></div>").length !== 0) throw new Error("a11y missing")
+if (typeof checkServer !== "function" || typeof preferencesScript !== "function" || typeof cspLayer !== "function" || typeof reduceIosTouchGuard !== "function" || typeof getTabbables !== "function" || typeof reduceFormValidation !== "function" || typeof createHistoryStage !== "function" || typeof createMarkRegistry !== "function") throw new Error("page missing")
 if (typeof TimeInput !== "function" || typeof ColorPicker !== "function" || typeof Carousel !== "function" || typeof ImageCropper !== "function" || typeof Timeline !== "function" || typeof Waterfall !== "function" || typeof AreaPicker !== "function" || typeof ScrollPicker !== "function" || typeof DateTimePicker !== "function") throw new Error("widgets missing")
 if (buildPaginationRange({ page: 5, totalPages: 10 }).length === 0) throw new Error("pagination failed")
-if (typeof moveGridFocus !== "function" || typeof computeAutoScroll !== "function" || typeof transferItem !== "function" || firstDayOfWeek("da-DK") !== 1 || computeVirtualGrid({ rowCount: 10, columnCount: 4, rowHeight: 40, columnWidth: 100 }, { scrollTop: 0, scrollLeft: 0, height: 200, width: 400 }).cells.length === 0 || valueToRatio(10, 1, 100, "log") <= 0) throw new Error("direct missing")
+if (typeof moveGridFocus !== "function" || typeof computeAutoScroll !== "function" || typeof transferItem !== "function" || firstDayOfWeek("da-DK") !== 1 || computeVirtualGrid({ rowCount: 10, columnCount: 4, rowHeight: 40, columnWidth: 100 }, { scrollTop: 0, scrollLeft: 0, height: 200, width: 400 }).cells.length === 0 || valueToRatio(10, 1, 100, "log") <= 0 || stepMove2D({ x: 0, y: 0, width: 10, height: 10 }, 5, 0).x !== 5 || stepResizeBox({ x: 0, y: 0, width: 20, height: 20 }, "se", 10, 10).width !== 30 || replaceTextRange("ab", 1, 2, "c").value !== "ac") throw new Error("direct missing")
 if (auditThemeContrast(themeContrastPairs(DEFAULT_LIGHT_TOKENS)).length !== 0 || resolveCssNamedColor("rebeccapurple") === undefined || deltaEOK("#663399", "rebeccapurple") !== 0) throw new Error("theme failed")
 if (!springLinearEasing().easing.startsWith("linear(")) throw new Error("motion easing failed")
-if (solveSpring(0, 0, 1).position !== 0 || typeof reduceCarousel !== "function" || typeof reduceScrollHandoff !== "function" || sectorOf(40, 0, 4) !== 1) throw new Error("motion failed")
-if (REGISTRY_ITEMS.length < 70 || listVisualPresets().length !== 5 || !generatePresetCss("nova").includes("@theme inline") || !generateIconModule("lucide").includes("lucide:check") || runCli(["--help"], ".").exitCode !== 0 || typeof validateCustomRegistry !== "function" || handleMcpRequest({ jsonrpc: "2.0", id: 1, method: "ping" })?.error !== undefined) throw new Error("registry failed")
+if (solveSpring(0, 0, 1).position !== 0 || typeof reduceCarousel !== "function" || typeof reduceScrollHandoff !== "function" || sectorOf(40, 0, 4) !== 1 || !isPointInSafePolygon({ x: 150, y: 120 }, { x: 100, y: 100 }, { left: 200, top: 40, right: 300, bottom: 200 })) throw new Error("motion failed")
+if (REGISTRY_ITEMS.length < 82 || listVisualPresets().length !== 8 || decodePresetCode(encodePresetCode({ style: "luma", baseColor: "slate", accent: "blue", radius: "md" })).style !== "luma" || parseNamespacedItem("@acme/banner")?.namespace !== "@acme" || !generatePresetCss("luma").includes("@theme inline") || !generateIconModule("lucide").includes("lucide:check") || runCli(["--help"], ".").exitCode !== 0 || typeof validateCustomRegistry !== "function" || handleMcpRequest({ jsonrpc: "2.0", id: 1, method: "ping" })?.error !== undefined) throw new Error("registry failed")
 
 console.log("CONSUMER_OK:${mode}")
 `

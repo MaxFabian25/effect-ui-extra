@@ -21,13 +21,13 @@ const SUBPATHS: ReadonlyArray<SubpathSpec> = [
     subpath: "effect-ui-extra/a11y",
     entry: "src/a11y/index.ts",
     summary:
-      "15 WAI-ARIA APG pattern verifiers, LTR/RTL direction checks, accessible-name checks, and zero-DOM TestHost focus tracking."
+      "15 WAI-ARIA APG pattern verifiers, LTR/RTL direction checks, accessible-name checks, checkMarkup DOM-integrity auditor, and zero-DOM TestHost focus tracking."
   },
   {
     subpath: "effect-ui-extra/page",
     entry: "src/page/index.ts",
     summary:
-      "Zero-FOUC SSR preferences and color scheme, CspContext nonce helpers, iOS modal touch jitter guard, Deferred-backed overlays, LiveAnnouncer, scoped ShortcutRegistry, checkServer SSR purity guard, semantic PageObserver/PageHistory with undoAgent(), InputModalityTracker, hidden=\"until-found\" helpers, theme-color dimming, DOM tabbable walker, and Form validationMode + server-error focus helper."
+      "Zero-FOUC SSR preferences and color scheme, CspContext nonce helpers, iOS modal touch jitter guard, Deferred-backed overlays, LiveAnnouncer, scoped ShortcutRegistry, checkServer SSR purity guard, semantic PageObserver/PageHistory with undoAgent(), transactional history staging and observe marks, InputModalityTracker, hidden=\"until-found\" helpers, theme-color dimming, DOM tabbable walker, and Form validationMode + server-error focus helper."
   },
   {
     subpath: "effect-ui-extra/widgets",
@@ -39,7 +39,7 @@ const SUBPATHS: ReadonlyArray<SubpathSpec> = [
     subpath: "effect-ui-extra/direct",
     entry: "src/direct/index.ts",
     summary:
-      "Pure 2D spatial/grid focus, CellRange and lasso selection, SwipeActions, TestClock-driven holdEffect/repeatStream, cycle-safe TreeReorder, cross-container Kanban transfer, infinite canvas Viewport/Connect, quadratic edge AutoScroll, TimeSpan math, NumberScale (log/custom + locale parsing), draftMove controller, 2D VirtualGrid math, and CLDR firstDayOfWeek + PlainDate helpers."
+      "Pure 2D spatial/grid focus, CellRange and lasso selection, SwipeActions, TestClock-driven holdEffect/repeatStream, cycle-safe TreeReorder, cross-container Kanban transfer, infinite canvas Viewport/Connect, quadratic edge AutoScroll, TimeSpan math, NumberScale (log/custom + locale parsing), draftMove controller, 2D VirtualGrid math, CLDR firstDayOfWeek + PlainDate helpers, 2D move/8-handle resize/dragPreview, and textEditor caret-preserving helpers."
   },
   {
     subpath: "effect-ui-extra/theme",
@@ -51,13 +51,13 @@ const SUBPATHS: ReadonlyArray<SubpathSpec> = [
     subpath: "effect-ui-extra/motion",
     entry: "src/motion/index.ts",
     summary:
-      "Closed-form analytical springs, compositor CSS linear() easing, pointer velocity tracker, momentum projection, rubber-band overscroll, snap points, draggable sheet reducer, scroll-to-drag handoff, radial sectorOf math, Presence lifecycle, and Carousel reducer."
+      "Closed-form analytical springs, compositor CSS linear() easing, pointer velocity tracker, momentum projection, rubber-band overscroll, snap points, draggable sheet reducer, scroll-to-drag handoff, radial sectorOf math, popup safePolygon corridor geometry, Presence lifecycle, and Carousel reducer."
   },
   {
     subpath: "effect-ui-extra/registry",
     entry: "src/registry/index.ts",
     summary:
-      "shadcn-style copy-paste styled component registry with 64/64 shadcn base/ui parity (70 total items including cn, dialog-card, data-table, and 3 page blocks), 5 WCAG-audited OKLCH visual presets, icon-pack switching (inline-svg, lucide, tabler), custom registry validate/build, JSON-RPC 2.0 effect-ui mcp server, and effect-ui CLI."
+      "shadcn-style copy-paste styled component registry with 82 wired items (64/64 shadcn base/ui wired blueprints, 6 interactive SVG charts, 9 page blocks, cn, dialog-card, data-table), 8 WCAG-audited OKLCH styles plus composable v1 preset codes, icon-pack switching, namespaced @org/item local/HTTPS registry consumption, custom registry validate/build, 8-tool JSON-RPC 2.0 effect-ui mcp server, and effect-ui CLI (init, list, search, view, docs, info, add, apply, diff, preset, icon-pack, registry, mcp)."
   }
 ]
 
