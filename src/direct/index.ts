@@ -135,3 +135,22 @@ export {
   type PlainDate,
   type WeekdayIndex
 } from "./dateLocale.js"
+
+export {
+  type Box2D,
+  computeDragPreview,
+  type DragPreviewGeometry,
+  type Move2DOptions,
+  type ResizeBoxOptions,
+  type ResizeHandle,
+  stepMove2D,
+  stepResizeBox
+} from "./moveResize.js"
+
+export {
+  findWordBoundary,
+  replaceTextRange,
+  type TextEditResult,
+  toggleLinePrefix,
+  wrapSelection
+} from "./textEditor.js"

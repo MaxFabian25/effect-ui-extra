@@ -65,3 +65,12 @@ export {
   sectorOf,
   type SectorOptions
 } from "./sector.js"
+
+export {
+  computeSafePolygon,
+  isPointInPolygon,
+  isPointInSafePolygon,
+  type PolygonPoint,
+  type SafePolygonSide,
+  type SafeRect
+} from "./safePolygon.js"
