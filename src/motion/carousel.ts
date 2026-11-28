@@ -25,6 +25,7 @@ export type CarouselEvent =
   | { readonly _tag: "DragStart" }
   | { readonly _tag: "DragMove"; readonly deltaPx: number; readonly viewportPx: number }
   | { readonly _tag: "DragEnd"; readonly velocityPxPerSec: number; readonly viewportPx: number }
+  | { readonly _tag: "DragCancel" }
   | { readonly _tag: "SetHovered"; readonly hovered: boolean }
   | { readonly _tag: "SetFocused"; readonly focused: boolean }
   | { readonly _tag: "TogglePause" }
@@ -160,6 +161,9 @@ export const reduceCarousel = (
         index: clampIndex(nextIdx, pageCount, loop)
       }
     }
+    case "DragCancel":
+      if (!base.dragging) return base
+      return { ...base, dragging: false, dragOffsetPx: 0 }
     case "SetHovered":
       return { ...base, hovered: event.hovered }
     case "SetFocused":

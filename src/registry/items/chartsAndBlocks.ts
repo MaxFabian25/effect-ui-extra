@@ -34,37 +34,90 @@ export const areaChart = <Msg>(
 ) => {
   const width = options.width ?? 480
   const height = options.height ?? 180
-  const pad = 20
+  const pad = 24
   const scale = computeChartScale(options.series)
   const range = Math.max(1e-6, scale.max - scale.min)
+  const dashes = ["", "6 3", "2 3", "8 3 2 3"] as const
+  const summary = options.series
+    .map((s) => \`\${s.label}: \${s.points.map((p) => \`\${p.label} \${p.value}\`).join(", ")}\`)
+    .join("; ")
 
   return h.figure
     .attrs({ role: "group", "aria-label": options.title, "data-chart-area": "" })
     .class(cn("rounded-lg border border-border bg-surface p-4", options.className))
     .children(
-      h.figcaption.class("mb-2 flex items-center justify-between text-sm font-semibold text-foreground").children(options.title),
-      h.svg
-        .attrs({ viewBox: \`0 0 \${width} \${height}\`, role: "img", "aria-label": options.title })
-        .class("h-44 w-full overflow-visible")
-        .children(
-          ...options.series.map((s, sIdx) => {
-            const count = Math.max(1, s.points.length - 1)
-            const coords = s.points.map((p, idx) => {
-              const x = pad + (idx / count) * (width - pad * 2)
-              const y = height - pad - ((p.value - scale.min) / range) * (height - pad * 2)
-              return { x, y }
-            })
-            const line = coords.map((c, i) => \`\${i === 0 ? "M" : "L"}\${c.x.toFixed(1)},\${c.y.toFixed(1)}\`).join(" ")
-            const area = coords.length > 0
-              ? \`\${line} L\${coords[coords.length - 1]!.x.toFixed(1)},\${height - pad} L\${coords[0]!.x.toFixed(1)},\${height - pad} Z\`
-              : ""
-            const color = \`var(\${s.colorVar ?? \`--eui-chart-\${(sIdx % 6) + 1}\`})\`
-            return h.g.key(s.id).children(
-              h.path.attrs({ d: area, fill: color, "fill-opacity": "0.18" }),
-              h.path.attrs({ d: line, fill: "none", stroke: color, "stroke-width": "2" })
+      h.figcaption.class("mb-2 flex flex-wrap items-center justify-between gap-2").children(
+        h.span.class("text-sm font-semibold text-foreground").children(options.title),
+        h.div.class("flex flex-wrap items-center gap-3 text-xs text-muted-foreground").children(
+          ...options.series.map((s, idx) =>
+            h.span.key(s.id).class("inline-flex items-center gap-1.5").children(
+              h.span
+                .attrs({ "aria-hidden": "true" })
+                .class("inline-block h-2.5 w-2.5 rounded-xs")
+                .style({
+                  backgroundColor: \`var(\${s.colorVar ?? \`--eui-chart-\${(idx % 6) + 1}\`}, var(--eui-primary))\`,
+                  forcedColorAdjust: "none"
+                }),
+              s.label
             )
-          })
+          )
         )
+      ),
+      options.series.length === 0
+        ? h.p.class("py-8 text-center text-xs text-muted-foreground").children("No data available")
+        : h.svg
+            .attrs({ viewBox: \`0 0 \${width} \${height}\`, role: "img", "aria-label": \`\${options.title}: \${summary}\` })
+            .class("h-44 w-full overflow-visible")
+            .children(
+              h.defs.children(
+                ...options.series.map((s, sIdx) => {
+                  const color = \`var(\${s.colorVar ?? \`--eui-chart-\${(sIdx % 6) + 1}\`}, var(--eui-primary))\`
+                  return h.linearGradient
+                    .key(\`grad-\${s.id}\`)
+                    .attrs({ id: \`eui-area-\${s.id}-\${sIdx}\`, x1: "0", y1: "0", x2: "0", y2: "1" })
+                    .children(
+                      h.stop.attrs({ offset: "0%", "stop-color": color, "stop-opacity": "0.32" }),
+                      h.stop.attrs({ offset: "100%", "stop-color": color, "stop-opacity": "0.02" })
+                    )
+                })
+              ),
+              ...[0, 0.5, 1].map((frac, gi) => {
+                const gy = pad + frac * (height - pad * 2)
+                return h.line.key(\`grid-\${gi}\`).attrs({
+                  x1: String(pad),
+                  x2: String(width - pad),
+                  y1: gy.toFixed(1),
+                  y2: gy.toFixed(1),
+                  stroke: "var(--eui-border)",
+                  "stroke-dasharray": "2 3",
+                  "stroke-width": "1"
+                })
+              }),
+              ...options.series.map((s, sIdx) => {
+                const count = Math.max(1, s.points.length - 1)
+                const coords = s.points.map((p, idx) => {
+                  const x = pad + (idx / count) * (width - pad * 2)
+                  const y = height - pad - ((p.value - scale.min) / range) * (height - pad * 2)
+                  return { x, y }
+                })
+                const line = coords.map((c, i) => \`\${i === 0 ? "M" : "L"}\${c.x.toFixed(1)},\${c.y.toFixed(1)}\`).join(" ")
+                const area = coords.length > 0
+                  ? \`\${line} L\${coords[coords.length - 1]!.x.toFixed(1)},\${height - pad} L\${coords[0]!.x.toFixed(1)},\${height - pad} Z\`
+                  : ""
+                const color = \`var(\${s.colorVar ?? \`--eui-chart-\${(sIdx % 6) + 1}\`}, var(--eui-primary))\`
+                const dash = dashes[sIdx % dashes.length]
+                return h.g.key(s.id).children(
+                  h.path.attrs({ d: area, fill: \`url(#eui-area-\${s.id}-\${sIdx})\` }),
+                  h.path.attrs({
+                    d: line,
+                    fill: "none",
+                    stroke: color,
+                    "stroke-width": "2",
+                    ...(dash ? { "stroke-dasharray": dash } : {})
+                  })
+                )
+              })
+            )
     )
 }
 `
@@ -104,32 +157,65 @@ export const svgBarChart = <Msg>(
   const groupW = (width - pad * 2) / colCount
   const barW = Math.max(4, (groupW - 8) / Math.max(1, options.series.length))
 
+  const summary = options.series
+    .map((s) => \`\${s.label}: \${s.points.map((p) => \`\${p.label} \${p.value}\`).join(", ")}\`)
+    .join("; ")
+
   return h.figure
     .attrs({ role: "group", "aria-label": options.title, "data-chart-bar": "" })
     .class(cn("rounded-lg border border-border bg-surface p-4", options.className))
     .children(
-      h.figcaption.class("mb-2 text-sm font-semibold text-foreground").children(options.title),
-      h.svg
-        .attrs({ viewBox: \`0 0 \${width} \${height}\`, role: "img", "aria-label": options.title })
-        .class("h-44 w-full")
-        .children(
-          ...options.series.flatMap((s, sIdx) =>
-            s.points.map((p, colIdx) => {
-              const bh = Math.max(2, ((p.value - scale.min) / range) * (height - pad * 2))
-              const x = pad + colIdx * groupW + 4 + sIdx * barW
-              const y = height - pad - bh
-              const color = \`var(\${s.colorVar ?? \`--eui-chart-\${(sIdx % 6) + 1}\`})\`
-              return h.rect.key(\`\${s.id}-\${colIdx}\`).attrs({
-                x: x.toFixed(1),
-                y: y.toFixed(1),
-                width: Math.max(2, barW - 2).toFixed(1),
-                height: bh.toFixed(1),
-                rx: "3",
-                fill: color
-              })
-            })
+      h.figcaption.class("mb-2 flex flex-wrap items-center justify-between gap-2").children(
+        h.span.class("text-sm font-semibold text-foreground").children(options.title),
+        h.div.class("flex flex-wrap items-center gap-3 text-xs text-muted-foreground").children(
+          ...options.series.map((s, idx) =>
+            h.span.key(s.id).class("inline-flex items-center gap-1.5").children(
+              h.span
+                .attrs({ "aria-hidden": "true" })
+                .class("inline-block h-2.5 w-2.5 rounded-xs")
+                .style({
+                  backgroundColor: \`var(\${s.colorVar ?? \`--eui-chart-\${(idx % 6) + 1}\`}, var(--eui-primary))\`,
+                  forcedColorAdjust: "none"
+                }),
+              s.label
+            )
           )
         )
+      ),
+      options.series.length === 0
+        ? h.p.class("py-8 text-center text-xs text-muted-foreground").children("No data available")
+        : h.div.class("flex flex-col gap-1.5").children(
+            h.svg
+              .attrs({ viewBox: \`0 0 \${width} \${height}\`, role: "img", "aria-label": \`\${options.title}: \${summary}\` })
+              .class("h-44 w-full")
+              .children(
+                ...options.series.flatMap((s, sIdx) =>
+                  s.points.map((p, colIdx) => {
+                    const bh = Math.max(2, ((p.value - scale.min) / range) * (height - pad * 2))
+                    const x = pad + colIdx * groupW + 4 + sIdx * barW
+                    const y = height - pad - bh
+                    const color = \`var(\${s.colorVar ?? \`--eui-chart-\${(sIdx % 6) + 1}\`}, var(--eui-primary))\`
+                    return h.rect.key(\`\${s.id}-\${colIdx}\`).attrs({
+                      x: x.toFixed(1),
+                      y: y.toFixed(1),
+                      width: Math.max(2, barW - 2).toFixed(1),
+                      height: bh.toFixed(1),
+                      rx: "3",
+                      fill: color
+                    })
+                  })
+                )
+              ),
+            h.div
+              .attrs({ "aria-hidden": "true" })
+              .class("grid gap-1 text-center text-xs tabular-nums text-muted-foreground")
+              .style({ gridTemplateColumns: \`repeat(\${colCount}, minmax(0, 1fr))\` })
+              .children(
+                ...(options.series[0]?.points ?? []).map((p, colIdx) =>
+                  h.span.key(\`lbl-\${colIdx}\`).attrs({ title: p.label }).class("truncate").children(p.label)
+                )
+              )
+          )
     )
 }
 `
@@ -166,31 +252,61 @@ export const lineChart = <Msg>(
   const scale = computeChartScale(options.series)
   const range = Math.max(1e-6, scale.max - scale.min)
 
+  const dashes = ["", "6 3", "2 3", "8 3 2 3"] as const
+  const summary = options.series
+    .map((s) => \`\${s.label}: \${s.points.map((p) => \`\${p.label} \${p.value}\`).join(", ")}\`)
+    .join("; ")
+
   return h.figure
     .attrs({ role: "group", "aria-label": options.title, "data-chart-line": "" })
     .class(cn("rounded-lg border border-border bg-surface p-4", options.className))
     .children(
-      h.figcaption.class("mb-2 text-sm font-semibold text-foreground").children(options.title),
-      h.svg
-        .attrs({ viewBox: \`0 0 \${width} \${height}\`, role: "img", "aria-label": options.title })
-        .class("h-44 w-full")
-        .children(
-          ...options.series.map((s, sIdx) => {
-            const count = Math.max(1, s.points.length - 1)
-            const coords = s.points.map((p, idx) => ({
-              x: pad + (idx / count) * (width - pad * 2),
-              y: height - pad - ((p.value - scale.min) / range) * (height - pad * 2)
-            }))
-            const d = coords.map((c, i) => \`\${i === 0 ? "M" : "L"}\${c.x.toFixed(1)},\${c.y.toFixed(1)}\`).join(" ")
-            const color = \`var(\${s.colorVar ?? \`--eui-chart-\${(sIdx % 6) + 1}\`})\`
-            return h.g.key(s.id).children(
-              h.path.attrs({ d, fill: "none", stroke: color, "stroke-width": "2" }),
-              ...coords.map((c, i) =>
-                h.circle.key(String(i)).attrs({ cx: c.x.toFixed(1), cy: c.y.toFixed(1), r: "3", fill: color })
-              )
+      h.figcaption.class("mb-2 flex flex-wrap items-center justify-between gap-2").children(
+        h.span.class("text-sm font-semibold text-foreground").children(options.title),
+        h.div.class("flex flex-wrap items-center gap-3 text-xs text-muted-foreground").children(
+          ...options.series.map((s, idx) =>
+            h.span.key(s.id).class("inline-flex items-center gap-1.5").children(
+              h.span
+                .attrs({ "aria-hidden": "true" })
+                .class("inline-block h-2.5 w-2.5 rounded-xs")
+                .style({
+                  backgroundColor: \`var(\${s.colorVar ?? \`--eui-chart-\${(idx % 6) + 1}\`}, var(--eui-primary))\`,
+                  forcedColorAdjust: "none"
+                }),
+              s.label
             )
-          })
+          )
         )
+      ),
+      options.series.length === 0
+        ? h.p.class("py-8 text-center text-xs text-muted-foreground").children("No data available")
+        : h.svg
+            .attrs({ viewBox: \`0 0 \${width} \${height}\`, role: "img", "aria-label": \`\${options.title}: \${summary}\` })
+            .class("h-44 w-full")
+            .children(
+              ...options.series.map((s, sIdx) => {
+                const count = Math.max(1, s.points.length - 1)
+                const coords = s.points.map((p, idx) => ({
+                  x: pad + (idx / count) * (width - pad * 2),
+                  y: height - pad - ((p.value - scale.min) / range) * (height - pad * 2)
+                }))
+                const d = coords.map((c, i) => \`\${i === 0 ? "M" : "L"}\${c.x.toFixed(1)},\${c.y.toFixed(1)}\`).join(" ")
+                const color = \`var(\${s.colorVar ?? \`--eui-chart-\${(sIdx % 6) + 1}\`}, var(--eui-primary))\`
+                const dash = dashes[sIdx % dashes.length]
+                return h.g.key(s.id).children(
+                  h.path.attrs({
+                    d,
+                    fill: "none",
+                    stroke: color,
+                    "stroke-width": "2",
+                    ...(dash ? { "stroke-dasharray": dash } : {})
+                  }),
+                  ...coords.map((c, i) =>
+                    h.circle.key(String(i)).attrs({ cx: c.x.toFixed(1), cy: c.y.toFixed(1), r: "3", fill: color })
+                  )
+                )
+              })
+            )
     )
 }
 `
@@ -247,7 +363,7 @@ export const pieChart = <Msg>(
               const dash = frac * circumference
               const currentOffset = offset
               offset += dash
-              const color = \`var(\${slice.colorVar ?? \`--eui-chart-\${(idx % 6) + 1}\`})\`
+              const color = \`var(\${slice.colorVar ?? \`--eui-chart-\${(idx % 6) + 1}\`}, var(--eui-primary))\`
               return h.circle.key(slice.id).attrs({
                 cx: "60",
                 cy: "60",
@@ -260,12 +376,16 @@ export const pieChart = <Msg>(
               })
             })
           ),
-        h.ul.class("flex flex-col gap-1.5 text-xs text-muted-foreground").children(
+        h.ul.class("flex flex-col gap-1.5 text-xs tabular-nums text-muted-foreground").children(
           ...options.slices.map((slice, idx) =>
             h.li.key(slice.id).class("flex items-center gap-2").children(
               h.span
+                .attrs({ "aria-hidden": "true" })
                 .class("inline-block h-2.5 w-2.5 rounded-xs")
-                .style({ backgroundColor: \`var(\${slice.colorVar ?? \`--eui-chart-\${(idx % 6) + 1}\`})\` }),
+                .style({
+                  backgroundColor: \`var(\${slice.colorVar ?? \`--eui-chart-\${(idx % 6) + 1}\`}, var(--eui-primary))\`,
+                  forcedColorAdjust: "none"
+                }),
               \`\${slice.label}: \${Math.round((Math.max(0, slice.value) / total) * 100)}%\`
             )
           )
@@ -307,9 +427,9 @@ export const radarChart = <Msg>(
 ) => {
   const cx = 100
   const cy = 100
-  const radius = 72
+  const radius = 64
   const n = Math.max(3, options.data.length)
-  const color = \`var(\${options.colorVar ?? "--eui-chart-1"})\`
+  const color = \`var(\${options.colorVar ?? "--eui-chart-1"}, var(--eui-primary))\`
   const points = options.data
     .map((d, i) => {
       const angle = (Math.PI * 2 * i) / n - Math.PI / 2
@@ -317,20 +437,30 @@ export const radarChart = <Msg>(
       return \`\${(cx + Math.cos(angle) * radius * ratio).toFixed(1)},\${(cy + Math.sin(angle) * radius * ratio).toFixed(1)}\`
     })
     .join(" ")
+  const summary = options.data.map((d) => \`\${d.axis} \${d.value}\`).join(", ")
 
   return h.figure
     .attrs({ role: "group", "aria-label": options.title, "data-chart-radar": "" })
     .class(cn("rounded-lg border border-border bg-surface p-4", options.className))
     .children(
       h.figcaption.class("mb-2 text-sm font-semibold text-foreground").children(options.title),
-      h.svg
-        .attrs({ viewBox: "0 0 200 200", role: "img", "aria-label": options.title })
-        .class("mx-auto h-44 w-44")
-        .children(
-          h.circle.attrs({ cx: String(cx), cy: String(cy), r: String(radius), fill: "none", stroke: "var(--eui-border)", "stroke-width": "1" }),
-          h.circle.attrs({ cx: String(cx), cy: String(cy), r: String(radius / 2), fill: "none", stroke: "var(--eui-border)", "stroke-dasharray": "3 3" }),
-          h.polygon.attrs({ points, fill: color, "fill-opacity": "0.25", stroke: color, "stroke-width": "2" })
-        )
+      options.data.length === 0
+        ? h.p.class("py-8 text-center text-xs text-muted-foreground").children("No data available")
+        : h.div.class("flex flex-col items-center gap-3").children(
+            h.svg
+              .attrs({ viewBox: "0 0 200 200", role: "img", "aria-label": \`\${options.title}: \${summary}\` })
+              .class("mx-auto h-44 w-44")
+              .children(
+                h.circle.attrs({ cx: String(cx), cy: String(cy), r: String(radius), fill: "none", stroke: "var(--eui-border)", "stroke-width": "1" }),
+                h.circle.attrs({ cx: String(cx), cy: String(cy), r: String(radius / 2), fill: "none", stroke: "var(--eui-border)", "stroke-dasharray": "3 3" }),
+                h.polygon.attrs({ points, fill: color, "fill-opacity": "0.25", stroke: color, "stroke-width": "2" })
+              ),
+            h.ul.class("flex flex-wrap justify-center gap-x-4 gap-y-1 text-xs tabular-nums text-muted-foreground").children(
+              ...options.data.map((d) =>
+                h.li.key(d.axis).children(\`\${d.axis}: \${d.value}\`)
+              )
+            )
+          )
     )
 }
 `
@@ -365,7 +495,7 @@ export const radialChart = <Msg>(
   const pct = Math.max(0, Math.min(1, options.value / max))
   const r = 44
   const c = 2 * Math.PI * r
-  const color = \`var(\${options.colorVar ?? "--eui-chart-1"})\`
+  const color = \`var(\${options.colorVar ?? "--eui-chart-1"}, var(--eui-primary))\`
 
   return h.figure
     .attrs({ role: "group", "aria-label": options.title, "data-chart-radial": "" })
@@ -374,7 +504,7 @@ export const radialChart = <Msg>(
       h.figcaption.class("mb-2 text-sm font-semibold text-foreground").children(options.title),
       h.div.class("relative inline-flex items-center justify-center").children(
         h.svg
-          .attrs({ viewBox: "0 0 120 120", role: "img", "aria-label": \`\${options.title}: \${options.value}\${options.unit ?? "%"}\` })
+          .attrs({ viewBox: "0 0 120 120", "aria-hidden": "true" })
           .class("h-28 w-28")
           .children(
             h.circle.attrs({ cx: "60", cy: "60", r: String(r), fill: "none", stroke: "var(--eui-muted)", "stroke-width": "10" }),
@@ -432,38 +562,43 @@ export const SettingsBlock = Html.component({
   }),
   message: SettingsMsg
 }).make({
-  init: () => ({ workspaceName: "Acme Corp", emailAlerts: true, saved: false }),
+  init: () => ({ workspaceName: "Kestrel Labs", emailAlerts: true, saved: false }),
   update: {
     NameChanged: ($, { value }) => $.evolve({ workspaceName: value, saved: false }),
     ToggleAlerts: ($) => $.evolve({ emailAlerts: !$.model.emailAlerts, saved: false }),
     Save: ($) => $.evolve({ saved: true })
   },
   view: (h, model) =>
-    h.section.attrs({ "aria-label": "Workspace settings" }).class("mx-auto max-w-xl p-6").children(
+    h.section.attrs({ "aria-label": "Workspace settings" }).class("mx-auto max-w-xl p-4 sm:p-6").children(
       card(h).children(
         cardHeader(h).children(
-          cardTitle(h, "Workspace settings"),
-          cardDescription(h, "Manage organization identity and alert preferences.")
+          cardTitle(h, "Workspace settings", { as: "h2" }),
+          cardDescription(h, "Manage organization identity and alert preferences")
         ),
-        cardContent(h, "flex flex-col gap-4").children(
-          h.div.class("flex flex-col gap-1.5").children(
-            h.label.attrs({ for: "ws-name" }).class("text-sm font-medium").children("Workspace name"),
-            styledInput(h, { id: "ws-name" })
-              .value(model.workspaceName)
-              .on("input", ({ value }) => SettingsMsg.NameChanged({ value }))
-          ),
-          h.div.class("flex items-center justify-between").children(
-            h.span.class("text-sm text-foreground").children("Email alerts"),
-            styledSwitch(h, {
-              label: "Email alerts",
-              checked: model.emailAlerts,
-              onToggle: SettingsMsg.ToggleAlerts()
-            })
-          ),
-          h.div.class("flex items-center justify-between pt-2").children(
-            h.span.attrs({ role: "status" }).class("text-xs text-muted-foreground").children(model.saved ? "Saved." : ""),
-            h.button.attrs({ type: "button" }).class(buttonClass({ variant: "default" })).on("click", () => SettingsMsg.Save()).children("Save changes")
-          )
+        cardContent(h).children(
+          h.form
+            .class("flex flex-col gap-4")
+            .on("submit", () => SettingsMsg.Save(), { preventDefault: true })
+            .children(
+              h.div.class("flex flex-col gap-1.5").children(
+                h.label.attrs({ for: "ws-name" }).class("text-sm font-medium").children("Workspace name"),
+                styledInput(h, { id: "ws-name", autocomplete: "organization", enterkeyhint: "done" })
+                  .value(model.workspaceName)
+                  .on("input", ({ value }) => SettingsMsg.NameChanged({ value }))
+              ),
+              h.div.class("flex items-center justify-between gap-3").children(
+                h.span.class("text-sm text-foreground").children("Email alerts"),
+                styledSwitch(h, {
+                  label: "Email alerts",
+                  checked: model.emailAlerts,
+                  onToggle: SettingsMsg.ToggleAlerts()
+                })
+              ),
+              h.div.class("flex items-center justify-between pt-2").children(
+                h.span.attrs({ role: "status" }).class("text-xs text-muted-foreground").children(model.saved ? "Saved" : ""),
+                h.button.attrs({ type: "submit" }).class(buttonClass({ variant: "default" })).children("Save changes")
+              )
+            )
         )
       )
     )
@@ -503,42 +638,71 @@ export const SignupBlock = Html.component({
   model: Schema.Struct({
     email: Schema.String,
     password: Schema.Redacted(Schema.String),
-    created: Schema.Boolean
+    created: Schema.Boolean,
+    error: Schema.NullOr(Schema.String)
   }),
   message: SignupMsg
 }).make({
-  init: () => ({ email: "", password: Redacted.make(""), created: false }),
+  init: () => ({ email: "", password: Redacted.make(""), created: false, error: null }),
   update: {
-    EmailChanged: ($, { value }) => $.evolve({ email: value }),
-    PasswordChanged: ($, { value }) => $.evolve({ password: value }),
-    Submitted: ($) => $.evolve({ created: true })
+    EmailChanged: ($, { value }) => $.evolve({ email: value, error: null, created: false }),
+    PasswordChanged: ($, { value }) => $.evolve({ password: value, error: null, created: false }),
+    Submitted: ($) => {
+      if (!$.model.email.includes("@")) {
+        return $.evolve({ error: "Enter an email address with an @ symbol", created: false })
+      }
+      if (Redacted.value($.model.password).length < 8) {
+        return $.evolve({ error: "Use at least 8 characters for your password", created: false })
+      }
+      return $.evolve({ created: true, error: null })
+    }
   },
   view: (h, model) =>
-    h.main.class("mx-auto max-w-md p-6").children(
+    h.section.attrs({ "aria-label": "Create account" }).class("mx-auto max-w-md p-4 sm:p-6").children(
       card(h).children(
         cardHeader(h).children(
-          cardTitle(h, "Create account"),
-          cardDescription(h, "Start building with Effect UI.")
+          cardTitle(h, "Create account", { as: "h2" }),
+          cardDescription(h, "Start building with Effect UI")
         ),
-        cardContent(h, "flex flex-col gap-3").children(
-          h.label.attrs({ for: "signup-email" }).class("text-sm font-medium").children("Email"),
-          styledInput(h, {
-            id: "signup-email",
-            type: "email",
-            placeholder: "you@example.com"
-          })
-            .value(model.email)
-            .on("input", ({ value }) => SignupMsg.EmailChanged({ value })),
-          PasswordInput(h, {
-            key: "signup-pw",
-            props: { id: "signup-pw", label: "Password", value: model.password },
-            onEmit: {
-              Changed: ({ value }) => SignupMsg.PasswordChanged({ value }),
-              ToggledVisibility: () => undefined
-            }
-          }),
-          h.button.attrs({ type: "button" }).class(buttonClass({ variant: "default" })).on("click", () => SignupMsg.Submitted()).children("Create account"),
-          ...(model.created ? [h.p.attrs({ role: "status" }).class("text-xs text-muted-foreground").children("Account created.")] : [])
+        cardContent(h).children(
+          h.form
+            .class("flex flex-col gap-3")
+            .on("submit", () => SignupMsg.Submitted(), { preventDefault: true })
+            .children(
+              h.label.attrs({ for: "signup-email" }).class("text-sm font-medium").children("Email"),
+              styledInput(h, {
+                id: "signup-email",
+                name: "email",
+                type: "email",
+                autocomplete: "username",
+                spellcheck: "false",
+                enterkeyhint: "next",
+                required: true,
+                placeholder: "you@example.com",
+                invalid: model.error !== null && !model.email.includes("@"),
+                describedBy: model.error !== null ? "signup-error" : undefined
+              })
+                .value(model.email)
+                .on("input", ({ value }) => SignupMsg.EmailChanged({ value })),
+              PasswordInput(h, {
+                key: "signup-pw",
+                props: {
+                  id: "signup-pw",
+                  label: "Password",
+                  value: model.password,
+                  autocomplete: "new-password"
+                },
+                onEmit: {
+                  Changed: ({ value }) => SignupMsg.PasswordChanged({ value }),
+                  ToggledVisibility: () => undefined
+                }
+              }),
+              ...(model.error !== null
+                ? [h.p.attrs({ id: "signup-error", role: "alert" }).class("text-xs text-destructive").children(model.error)]
+                : []),
+              h.button.attrs({ type: "submit" }).class(buttonClass({ variant: "default" })).children("Create account"),
+              h.p.attrs({ role: "status" }).class("min-h-4 text-xs text-muted-foreground").children(model.created ? "Account created" : "")
+            )
         )
       )
     )
@@ -567,7 +731,8 @@ import { styledInputOtp } from "../inputOtp.js"
 
 const OtpMsg = UiSchema.TaggedEnum({
   Updated: { value: Schema.Redacted(Schema.String) },
-  Verified: {}
+  Verified: {},
+  Resent: {}
 })
 
 export const OtpBlock = Html.component({
@@ -575,31 +740,56 @@ export const OtpBlock = Html.component({
   props: Schema.Struct({}),
   model: Schema.Struct({
     code: Schema.Redacted(Schema.String),
-    verified: Schema.Boolean
+    verified: Schema.Boolean,
+    resentCount: Schema.Number,
+    error: Schema.NullOr(Schema.String)
   }),
   message: OtpMsg
 }).make({
-  init: () => ({ code: Redacted.make(""), verified: false }),
+  init: () => ({ code: Redacted.make(""), verified: false, resentCount: 0, error: null }),
   update: {
-    Updated: ($, { value }) => $.evolve({ code: value, verified: false }),
-    Verified: ($) => $.evolve({ verified: true })
+    Updated: ($, { value }) => $.evolve({ code: value, verified: false, error: null }),
+    Verified: ($) => {
+      if (Redacted.value($.model.code).trim().length < 6) {
+        return $.evolve({ error: "Enter all 6 digits to verify", verified: false })
+      }
+      return $.evolve({ verified: true, error: null })
+    },
+    Resent: ($) => $.evolve({ resentCount: $.model.resentCount + 1, error: null })
   },
   view: (h, model) =>
-    h.main.class("mx-auto max-w-md p-6").children(
+    h.section.attrs({ "aria-label": "Verify code" }).class("mx-auto max-w-md p-4 sm:p-6").children(
       card(h).children(
         cardHeader(h).children(
-          cardTitle(h, "Verify your code"),
-          cardDescription(h, "Enter the 6-digit code sent to your device.")
+          cardTitle(h, "Verify your code", { as: "h2" }),
+          cardDescription(h, "Enter the 6-digit code sent to your device")
         ),
-        cardContent(h, "flex flex-col items-center gap-4").children(
-          styledInputOtp(h, {
-            value: model.code,
-            length: 6,
-            onUpdate: (value) => OtpMsg.Updated({ value }),
-            onComplete: () => OtpMsg.Verified()
-          }),
-          h.button.attrs({ type: "button" }).class(buttonClass({ variant: "default" })).on("click", () => OtpMsg.Verified()).children("Verify"),
-          ...(model.verified ? [h.p.attrs({ role: "status" }).class("text-xs text-muted-foreground").children("Code verified.")] : [])
+        cardContent(h).children(
+          h.form
+            .class("flex flex-col items-center gap-4")
+            .on("submit", () => OtpMsg.Verified(), { preventDefault: true })
+            .children(
+              styledInputOtp(h, {
+                value: model.code,
+                length: 6,
+                onUpdate: (value) => OtpMsg.Updated({ value }),
+                onComplete: () => OtpMsg.Verified()
+              }),
+              ...(model.error !== null
+                ? [h.p.attrs({ role: "alert" }).class("text-xs text-destructive").children(model.error)]
+                : []),
+              h.div.class("flex flex-wrap items-center justify-center gap-2").children(
+                h.button.attrs({ type: "submit" }).class(buttonClass({ variant: "default" })).children("Verify"),
+                h.button.attrs({ type: "button" }).class(buttonClass({ variant: "outline" })).on("click", () => OtpMsg.Resent()).children("Resend code")
+              ),
+              h.p.attrs({ role: "status" }).class("min-h-4 text-xs text-muted-foreground").children(
+                model.verified
+                  ? "Code verified"
+                  : model.resentCount > 0
+                    ? "New verification code sent"
+                    : ""
+              )
+            )
         )
       )
     )
@@ -613,7 +803,7 @@ export const OtpBlock = Html.component({
     title: "Inset Sidebar Shell Block",
     category: "blocks",
     description: "Application shell with recessed inset main canvas and collapsible navigation rail.",
-    registryDependencies: ["cn", "sidebar", "card"],
+    registryDependencies: ["cn", "sidebar"],
     dependencies: ["effect", "@effect/ui"],
     files: [
       {
@@ -621,7 +811,6 @@ export const OtpBlock = Html.component({
         content: `import { UiSchema } from "@effect/ui"
 import { Html } from "@effect/ui/html"
 import * as Schema from "effect/Schema"
-import { card, cardContent, cardHeader, cardTitle } from "../card.js"
 import { Sidebar } from "../sidebar.js"
 
 const InsetMsg = UiSchema.TaggedEnum({
@@ -639,7 +828,7 @@ export const SidebarInsetBlock = Html.component({
     Navigate: ($, { id }) => $.evolve({ activeId: id })
   },
   view: (h, model) =>
-    h.div.class("flex min-h-screen bg-muted p-2 gap-2").children(
+    h.div.class("flex min-h-dvh flex-col md:flex-row bg-muted p-2 gap-2").children(
       Sidebar(h, {
         key: "inset-sidebar",
         props: {
@@ -661,10 +850,10 @@ export const SidebarInsetBlock = Html.component({
           Toggled: () => undefined
         }
       }),
-      h.main.class("flex-1 rounded-xl border border-border bg-background p-6 shadow-sm").children(
-        card(h).children(
-          cardHeader(h).children(cardTitle(h, \`Section: \${model.activeId}\`)),
-          cardContent(h).children("Inset workspace canvas content.")
+      h.main.class("flex-1 min-w-0 rounded-xl border border-border bg-background p-4 sm:p-6 shadow-sm dark:shadow-none").children(
+        h.h2.class("text-lg font-semibold text-balance text-foreground").children(\`Section: \${model.activeId}\`),
+        h.p.class("mt-2 text-sm text-muted-foreground text-pretty").children(
+          "Select a workspace view from the navigation rail to inspect deployments, metrics, and billing"
         )
       )
     )
@@ -703,7 +892,7 @@ export const SidebarIconsBlock = Html.component({
     Select: ($, { id }) => $.evolve({ activeId: id })
   },
   view: (h, model) =>
-    h.div.class("flex min-h-screen bg-background").children(
+    h.div.class("flex min-h-dvh flex-col md:flex-row bg-background").children(
       Sidebar(h, {
         key: "icon-sidebar",
         props: {
@@ -726,7 +915,9 @@ export const SidebarIconsBlock = Html.component({
           Toggled: () => undefined
         }
       }),
-      h.main.class("flex-1 p-6 text-sm text-foreground").children(\`Active folder: \${model.activeId}\`)
+      h.main.class("flex-1 min-w-0 p-4 sm:p-6 text-sm text-foreground").children(
+        h.h2.class("text-base font-semibold text-foreground").children(\`Active folder: \${model.activeId}\`)
+      )
     )
 })
 `
@@ -751,7 +942,7 @@ import { buttonClass } from "../button.js"
 import { styledCalendar } from "../calendar.js"
 import { card, cardContent, cardHeader, cardTitle } from "../card.js"
 
-const BASE_UTC = DateTime.makeUnsafe("2026-11-28T00:00:00.000Z")
+const DEFAULT_TODAY_ISO = "2026-11-28T00:00:00.000Z"
 
 const CalPresetMsg = UiSchema.TaggedEnum({
   PickDaysOffset: { days: Schema.Number },
@@ -761,17 +952,24 @@ const CalPresetMsg = UiSchema.TaggedEnum({
 
 export const CalendarPresetsBlock = Html.component({
   name: "CalendarPresetsBlock",
-  props: Schema.Struct({}),
+  props: Schema.Struct({
+    todayIso: Schema.optional(Schema.String),
+    firstDayOfWeek: Schema.optional(Schema.Literals([0, 1, 2, 3, 4, 5, 6]))
+  }),
   model: Schema.Struct({
     monthIso: Schema.String,
     selectedIso: Schema.String
   }),
   message: CalPresetMsg
 }).make({
-  init: () => ({ monthIso: "2026-11-28T00:00:00.000Z", selectedIso: "2026-11-28T00:00:00.000Z" }),
+  init: ($) => {
+    const base = $.props.todayIso ?? DEFAULT_TODAY_ISO
+    return { monthIso: base, selectedIso: base }
+  },
   update: {
     PickDaysOffset: ($, { days }) => {
-      const target = DateTime.add(BASE_UTC, { days })
+      const base = DateTime.makeUnsafe($.props.todayIso ?? DEFAULT_TODAY_ISO)
+      const target = DateTime.add(base, { days })
       const iso = DateTime.formatIso(target)
       return $.evolve({ monthIso: iso, selectedIso: iso })
     },
@@ -779,24 +977,28 @@ export const CalendarPresetsBlock = Html.component({
     ChangeMonth: ($, { iso }) => $.evolve({ monthIso: iso })
   },
   view: (h, model) => {
+    const today = DateTime.makeUnsafe(h.props.todayIso ?? DEFAULT_TODAY_ISO)
     const month = DateTime.makeUnsafe(model.monthIso)
     const selected = DateTime.makeUnsafe(model.selectedIso)
-    return card(h, "max-w-md").children(
-      cardHeader(h).children(cardTitle(h, "Schedule date")),
+    return card(h, "w-full max-w-md").children(
+      cardHeader(h).children(cardTitle(h, "Schedule date", { as: "h2" })),
       cardContent(h, "flex flex-col gap-3").children(
         h.div.class("flex flex-wrap gap-2").children(
           h.button.attrs({ type: "button" }).class(buttonClass({ variant: "outline", size: "sm" })).on("click", () => CalPresetMsg.PickDaysOffset({ days: 0 })).children("Today"),
           h.button.attrs({ type: "button" }).class(buttonClass({ variant: "outline", size: "sm" })).on("click", () => CalPresetMsg.PickDaysOffset({ days: 1 })).children("Tomorrow"),
           h.button.attrs({ type: "button" }).class(buttonClass({ variant: "outline", size: "sm" })).on("click", () => CalPresetMsg.PickDaysOffset({ days: 7 })).children("In 1 week")
         ),
-        styledCalendar(h, {
-          month,
-          today: BASE_UTC,
-          value: selected,
-          firstDayOfWeek: 1,
-          onPick: (date) => CalPresetMsg.PickDate({ iso: DateTime.formatIso(date) }),
-          onMonthChange: (m) => CalPresetMsg.ChangeMonth({ iso: DateTime.formatIso(m) })
-        })
+        h.div.class("overflow-x-auto").children(
+          styledCalendar(h, {
+            month,
+            today,
+            value: selected,
+            firstDayOfWeek: h.props.firstDayOfWeek ?? 1,
+            className: "border-0 bg-transparent p-0",
+            onPick: (date) => CalPresetMsg.PickDate({ iso: DateTime.formatIso(date) }),
+            onMonthChange: (m) => CalPresetMsg.ChangeMonth({ iso: DateTime.formatIso(m) })
+          })
+        )
       )
     )
   }

@@ -40,6 +40,15 @@ describe("Carousel reducer", () => {
     expect(s.dragging).toBe(false)
     expect(s.dragOffsetPx).toBe(0)
     expect(s.index).toBeGreaterThan(0)
+
+    // DragCancel aborts drag with zero offset and preserves current index
+    const idxBefore = s.index
+    s = reduceCarousel(s, { _tag: "DragStart" }, cfg)
+    s = reduceCarousel(s, { _tag: "DragMove", deltaPx: -180, viewportPx: 400 }, cfg)
+    s = reduceCarousel(s, { _tag: "DragCancel" }, cfg)
+    expect(s.dragging).toBe(false)
+    expect(s.dragOffsetPx).toBe(0)
+    expect(s.index).toBe(idxBefore)
   })
 
   test("suspends autoplay on hover, focus, user pause, and reducedMotion", () => {

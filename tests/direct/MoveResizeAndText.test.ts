@@ -52,6 +52,14 @@ describe("2D move, 8-handle resize, and drag preview", () => {
     expect(ghost.x).toBe(380)
     expect(ghost.y).toBe(0)
     expect(ghost.transform).toBe("translate3d(380px, 0px, 0)")
+
+    const subpixel = computeDragPreview({
+      pointer: { x: 120.756, y: 45.254 },
+      grabOffset: { x: 10.5, y: 5.1 },
+      width: 100,
+      height: 40
+    })
+    expect(subpixel.transform).toBe("translate3d(110.26px, 40.15px, 0)")
   })
 })
 

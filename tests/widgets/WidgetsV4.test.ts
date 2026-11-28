@@ -146,14 +146,14 @@ describe("Carousel widget", () => {
             yield* play.expect(region).toHaveAttribute("data-index", "1")
 
             // Pause autoplay, advance clock, confirm index does not move
-            const pauseBtn = HtmlLocator.role("button", { name: "Stop automatic slide show" })
+            const pauseBtn = HtmlLocator.role("button", { name: "Pause slide show" })
             yield* play.click(pauseBtn)
             yield* TestClock.adjust(Duration.millis(2500))
             yield* TestHost.settle
             yield* play.expect(region).toHaveAttribute("data-index", "1")
 
             // Resume autoplay and verify TestClock advances the slide
-            const playBtn = HtmlLocator.role("button", { name: "Start automatic slide show" })
+            const playBtn = HtmlLocator.role("button", { name: "Play slide show" })
             yield* play.click(playBtn)
             yield* TestClock.adjust(Duration.millis(1100))
             yield* TestHost.settle
@@ -208,6 +208,8 @@ describe("ImageCropper widget and pure crop math", () => {
 
             const app = HtmlLocator.role("application")
             yield* play.expect(app).toHaveAttribute("data-crop-x", "0.1")
+            yield* play.expect(app).toHaveAttribute("aria-describedby", "cropper-instructions")
+            yield* play.expect(app).toHaveText("500\u00d7500")
             yield* play.keydown(app, "ArrowRight")
             yield* play.expect(app).toHaveAttribute("data-crop-x", "0.15")
 
@@ -232,9 +234,11 @@ describe("Timeline widget", () => {
             yield* checkAccessibleNames(play)
 
             const buildBtn = HtmlLocator.role("button", { name: "Build (09:02)" })
+            yield* play.expect(buildBtn).toHaveAttribute("aria-current", "step")
             yield* play.keydown(buildBtn, "ArrowDown")
             const shipBtn = HtmlLocator.role("button", { name: "Ship (09:05)" })
             yield* play.expect(shipBtn).toHaveAttribute("tabindex", "0")
+            yield* play.expect(shipBtn).toHaveAttribute("aria-current", "step")
           })
         )
       })
@@ -265,6 +269,9 @@ describe("Waterfall widget and layout math", () => {
             const play = yield* HtmlPlay.make(WaterfallHost, {})
             yield* checkAccessibleNames(play)
 
+            const grid = HtmlLocator.role("grid", { name: "Agent trace" })
+            yield* play.expect(grid).toHaveAttribute("aria-rowcount", "4")
+            yield* play.expect(grid).toHaveAttribute("aria-colcount", "2")
             const firstBtn = HtmlLocator.role("button", { name: "request, 200ms" })
             yield* play.keydown(firstBtn, "ArrowDown")
             const secondBtn = HtmlLocator.role("button", { name: "postgres.query, 80ms" })

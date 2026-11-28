@@ -1,5 +1,5 @@
 import { UiSchema } from "@effect/ui"
-import { Html } from "@effect/ui/html"
+import { Html, HtmlSubscription } from "@effect/ui/html"
 import * as Schema from "effect/Schema"
 import { projectDistance } from "../motion/kinematics.js"
 
@@ -49,8 +49,17 @@ export const ScrollPickerEvents = UiSchema.TaggedEnum({
 })
 export type ScrollPickerEvents = typeof ScrollPickerEvents.Type
 
+const ScrollDragSchema = Schema.Struct({
+  pointerId: Schema.Number,
+  startY: Schema.Number,
+  startIndex: Schema.Number
+})
+
 const ScrollPickerMsg = UiSchema.TaggedEnum({
-  SelectIndex: { index: Schema.Number }
+  SelectIndex: { index: Schema.Number },
+  DragStart: { pointerId: Schema.Number, y: Schema.Number, startIndex: Schema.Number },
+  DragMove: { pointerId: Schema.Number, y: Schema.Number },
+  DragEnd: { pointerId: Schema.optional(Schema.Number) }
 })
 
 const nextEnabledIndex = (
@@ -64,27 +73,82 @@ const nextEnabledIndex = (
   return from
 }
 
+const jumpEnabledIndex = (
+  options: ReadonlyArray<ScrollPickerOption>,
+  from: number,
+  delta: number
+): number => {
+  if (options.length === 0) return from
+  const clamped = Math.max(0, Math.min(options.length - 1, from + delta))
+  if (options[clamped]?.disabled !== true) return clamped
+  const dir: 1 | -1 = delta >= 0 ? 1 : -1
+  const forward = nextEnabledIndex(options, clamped, dir)
+  if (forward !== clamped) return forward
+  const backward = nextEnabledIndex(options, clamped, (dir * -1) as 1 | -1)
+  return backward !== clamped ? backward : from
+}
+
 /**
  * Accessible drum/wheel scroll picker (`role="listbox"` with
  * `aria-activedescendant`) paired with `projectScrollPickerIndex` for touch
- * momentum flick projection.
+ * momentum flick projection and pointer drag.
  */
 export const ScrollPicker = Html.component({
   name: "ScrollPicker",
   props: ScrollPickerProps,
-  model: Schema.Struct({ value: Schema.NullOr(Schema.String) }),
+  model: Schema.Struct({
+    value: Schema.NullOr(Schema.String),
+    drag: Schema.NullOr(ScrollDragSchema)
+  }),
   message: ScrollPickerMsg,
   events: ScrollPickerEvents
 }).make({
   init: ($) => ({
-    value: $.props.value ?? $.props.options.find((o) => o.disabled !== true)?.value ?? null
+    value: $.props.value ?? $.props.options.find((o) => o.disabled !== true)?.value ?? null,
+    drag: null
   }),
+  subscriptions: ($) =>
+    $.model.drag === null
+      ? []
+      : [
+          HtmlSubscription.onDocument("pointerup", ({ pointerId }) =>
+            ScrollPickerMsg.DragEnd({ pointerId })
+          ),
+          HtmlSubscription.onDocument("pointercancel", ({ pointerId }) =>
+            ScrollPickerMsg.DragEnd({ pointerId })
+          ),
+          HtmlSubscription.onWindow("blur", () => ScrollPickerMsg.DragEnd({}))
+        ],
   update: {
     SelectIndex: ($, { index }) => {
       const opt = $.props.options[index]
       if (opt === undefined || opt.disabled === true) return $.model
-      return $.evolve({ value: opt.value }).emit(ScrollPickerEvents.ValueChanged({ value: opt.value }))
-    }
+      return $.evolve({ value: opt.value }).emit(
+        ScrollPickerEvents.ValueChanged({ value: opt.value })
+      )
+    },
+    DragStart: ($, { pointerId, startIndex, y }) =>
+      $.evolve({ drag: { pointerId, startY: y, startIndex } }),
+    DragMove: ($, { pointerId, y }) => {
+      const drag = $.model.drag
+      if (drag === null || drag.pointerId !== pointerId) return $.model
+      const dy = drag.startY - y
+      if (Math.abs(dy) < 18) return $.model
+      const deltaItems = Math.round(dy / 36)
+      const targetIdx = jumpEnabledIndex($.props.options, drag.startIndex, deltaItems)
+      const opt = $.props.options[targetIdx]
+      if (opt === undefined || opt.disabled === true || opt.value === ($.props.value ?? $.model.value)) {
+        return $.model
+      }
+      return $.evolve({ value: opt.value }).emit(
+        ScrollPickerEvents.ValueChanged({ value: opt.value })
+      )
+    },
+    DragEnd: ($, { pointerId }) =>
+      $.model.drag !== null &&
+      (pointerId === undefined || $.model.drag.pointerId === pointerId)
+        ? $.evolve({ drag: null })
+        : $.model
   },
   view: (h, model) => {
     const p = h.props
@@ -103,8 +167,32 @@ export const ScrollPicker = Html.component({
         "aria-label": p.label,
         ...(activeOpt !== undefined ? { "aria-activedescendant": `${prefix}-opt-${activeIdx}` } : {}),
         "data-scroll-picker": "",
-        "data-active-index": String(activeIdx)
+        "data-active-index": String(activeIdx),
+        ...(model.drag !== null ? { "data-dragging": "true" } : {})
       })
+      .on(
+        "pointerdown",
+        ({ button, pointerId, y }) =>
+          button === 0
+            ? ScrollPickerMsg.DragStart({ pointerId, y, startIndex: activeIdx })
+            : undefined,
+        { capturePointer: true }
+      )
+      .on("pointermove", ({ pointerId, y }) =>
+        model.drag !== null && model.drag.pointerId === pointerId
+          ? ScrollPickerMsg.DragMove({ pointerId, y })
+          : undefined
+      )
+      .on("pointerup", ({ pointerId }) =>
+        model.drag !== null && model.drag.pointerId === pointerId
+          ? ScrollPickerMsg.DragEnd({ pointerId })
+          : undefined
+      )
+      .on("pointercancel", ({ pointerId }) =>
+        model.drag !== null && model.drag.pointerId === pointerId
+          ? ScrollPickerMsg.DragEnd({ pointerId })
+          : undefined
+      )
       .on(
         "keydown",
         ({ key }) => {
@@ -115,12 +203,10 @@ export const ScrollPicker = Html.component({
             return ScrollPickerMsg.SelectIndex({ index: nextEnabledIndex(p.options, activeIdx, -1) })
           }
           if (key === "PageDown") {
-            const target = Math.min(p.options.length - 1, activeIdx + 5)
-            return ScrollPickerMsg.SelectIndex({ index: target })
+            return ScrollPickerMsg.SelectIndex({ index: jumpEnabledIndex(p.options, activeIdx, 5) })
           }
           if (key === "PageUp") {
-            const target = Math.max(0, activeIdx - 5)
-            return ScrollPickerMsg.SelectIndex({ index: target })
+            return ScrollPickerMsg.SelectIndex({ index: jumpEnabledIndex(p.options, activeIdx, -5) })
           }
           if (key === "Home") {
             const first = p.options.findIndex((o) => o.disabled !== true)

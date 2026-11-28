@@ -41,28 +41,31 @@ export type ButtonVariant = "default" | "secondary" | "outline" | "ghost" | "des
 export type ButtonSize = "sm" | "md" | "lg" | "icon"
 
 const VARIANT_CLASSES: Readonly<Record<ButtonVariant, string>> = {
-  default: "bg-primary text-primary-foreground hover:opacity-90",
-  secondary: "bg-muted text-foreground hover:opacity-90",
+  default: "border border-transparent bg-primary text-primary-foreground hover:opacity-90",
+  secondary: "border border-transparent bg-muted text-foreground hover:opacity-90",
   outline: "border border-input bg-background text-foreground hover:bg-muted",
-  ghost: "bg-transparent text-foreground hover:bg-muted",
-  destructive: "bg-destructive text-destructive-foreground hover:opacity-90",
+  ghost: "border border-transparent bg-transparent text-foreground hover:bg-muted",
+  destructive: "border border-transparent bg-destructive text-destructive-foreground hover:opacity-90",
   link: "bg-transparent text-primary underline-offset-4 hover:underline"
 }
 
 const SIZE_CLASSES: Readonly<Record<ButtonSize, string>> = {
-  sm: "h-8 px-3 text-xs rounded-sm",
-  md: "h-9 px-4 text-sm rounded-md",
-  lg: "h-10 px-5 text-sm rounded-md",
-  icon: "h-9 w-9 p-0 rounded-md"
+  sm: "min-h-8 px-3 py-1.5 text-xs rounded-sm",
+  md: "min-h-9 px-4 py-2 text-sm rounded-md",
+  lg: "min-h-10 px-5 py-2.5 text-sm rounded-md",
+  icon: "min-h-9 min-w-9 p-0 rounded-md"
 }
 
 export const buttonClass = (options?: {
   readonly variant?: ButtonVariant | undefined
   readonly size?: ButtonSize | undefined
+  readonly still?: boolean | undefined
   readonly className?: string | undefined
 }): string =>
   cn(
-    "inline-flex items-center justify-center gap-2 font-medium transition-colors",
+    "inline-flex items-center justify-center gap-2 font-medium touch-manipulation select-none",
+    "transition-[background-color,border-color,color,opacity,transform] duration-150 ease-[var(--ease-eui,ease-out)]",
+    options?.still === true ? "" : "enabled:active:scale-[0.97] motion-reduce:active:scale-100",
     "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
     "disabled:pointer-events-none disabled:opacity-50",
     VARIANT_CLASSES[options?.variant ?? "default"],
@@ -149,6 +152,7 @@ export const badge = <Msg>(
         path: "alert.ts",
         content: `import type { Html } from "@effect/ui/html"
 import { cn } from "./cn.js"
+import { uiIcon } from "./icons.js"
 
 export type AlertVariant = "default" | "destructive"
 
@@ -165,7 +169,7 @@ export const alertBox = <Msg>(
   return h.div
     .class(
       cn(
-        "rounded-md border p-4 text-sm",
+        "flex items-start gap-2.5 rounded-md border p-4 text-sm",
         destructive
           ? "border-destructive/50 bg-destructive/10 text-foreground"
           : "border-border bg-surface text-foreground",
@@ -174,10 +178,13 @@ export const alertBox = <Msg>(
     )
     .attrs({ role: destructive ? "alert" : "status" })
     .children(
-      h.div.class("font-semibold leading-snug").children(options.title),
-      ...(options.description !== undefined
-        ? [h.p.class("mt-1 text-muted-foreground").children(options.description)]
-        : [])
+      ...(destructive ? [h.span.class("mt-0.5 shrink-0 text-destructive").children(uiIcon(h, "alertCircle", 16))] : []),
+      h.div.class("min-w-0 flex-1").children(
+        h.div.class("font-semibold leading-snug text-balance").children(options.title),
+        ...(options.description !== undefined
+          ? [h.p.class("mt-1 text-muted-foreground text-pretty").children(options.description)]
+          : [])
+      )
     )
 }
 `
@@ -199,17 +206,27 @@ import { cn } from "./cn.js"
 
 export const card = <Msg>(h: Html.H<Msg>, className?: string) =>
   h.section.class(
-    cn("rounded-lg border border-border bg-surface text-foreground shadow-sm", className)
+    cn("rounded-lg border border-border bg-surface text-foreground shadow-sm dark:shadow-none", className)
   )
 
 export const cardHeader = <Msg>(h: Html.H<Msg>, className?: string) =>
   h.div.class(cn("flex flex-col gap-1 p-5 pb-3", className))
 
-export const cardTitle = <Msg>(h: Html.H<Msg>, text: string, className?: string) =>
-  h.h3.class(cn("text-base font-semibold leading-tight tracking-tight", className)).children(text)
+export const cardTitle = <Msg>(
+  h: Html.H<Msg>,
+  text: string,
+  options?: string | { readonly as?: "h1" | "h2" | "h3" | undefined; readonly className?: string | undefined }
+) => {
+  const className = typeof options === "string" ? options : options?.className
+  const level = typeof options === "string" ? "h3" : (options?.as ?? "h3")
+  const cls = cn("text-base font-semibold leading-tight text-balance", className)
+  if (level === "h1") return h.h1.class(cls).children(text)
+  if (level === "h2") return h.h2.class(cls).children(text)
+  return h.h3.class(cls).children(text)
+}
 
 export const cardDescription = <Msg>(h: Html.H<Msg>, text: string, className?: string) =>
-  h.p.class(cn("text-sm text-muted-foreground", className)).children(text)
+  h.p.class(cn("text-sm text-muted-foreground text-pretty", className)).children(text)
 
 export const cardContent = <Msg>(h: Html.H<Msg>, className?: string) =>
   h.div.class(cn("p-5 pt-2", className))
@@ -230,7 +247,8 @@ export const cardFooter = <Msg>(h: Html.H<Msg>, className?: string) =>
     files: [
       {
         path: "empty.ts",
-        content: `import type { Html } from "@effect/ui/html"
+        content: `import type { View } from "@effect/ui"
+import type { Html } from "@effect/ui/html"
 import { cn } from "./cn.js"
 
 export const emptyState = <Msg>(
@@ -238,6 +256,7 @@ export const emptyState = <Msg>(
   options: {
     readonly title: string
     readonly description: string
+    readonly action?: View.Content<Msg> | undefined
     readonly className?: string | undefined
   }
 ) =>
@@ -249,8 +268,9 @@ export const emptyState = <Msg>(
       )
     )
     .children(
-      h.h3.class("text-sm font-semibold text-foreground").children(options.title),
-      h.p.class("mt-1 max-w-sm text-sm text-muted-foreground").children(options.description)
+      h.h3.class("text-sm font-semibold text-foreground text-balance").children(options.title),
+      h.p.class("mt-1 max-w-sm text-sm text-muted-foreground text-pretty").children(options.description),
+      ...(options.action !== undefined ? [h.div.class("mt-4").children(options.action)] : [])
     )
 `
       }
@@ -287,13 +307,13 @@ export const itemRow = <Msg>(
       h.div
         .class("min-w-0 flex-1")
         .children(
-          h.div.class("truncate font-medium text-foreground").children(options.title),
+          h.div.attrs({ title: options.title }).class("truncate font-medium text-foreground").children(options.title),
           ...(options.description !== undefined
-            ? [h.div.class("truncate text-xs text-muted-foreground").children(options.description)]
+            ? [h.div.attrs({ title: options.description }).class("truncate text-xs text-muted-foreground").children(options.description)]
             : [])
         ),
       ...(options.meta !== undefined
-        ? [h.span.class("shrink-0 text-xs text-muted-foreground").children(options.meta)]
+        ? [h.span.class("shrink-0 text-xs tabular-nums text-muted-foreground").children(options.meta)]
         : [])
     )
 `
@@ -321,7 +341,7 @@ export const kbd = <Msg>(
   h.kbd
     .class(
       cn(
-        "inline-flex h-5 min-w-5 items-center justify-center rounded-sm border border-border bg-muted px-1.5 font-mono text-[11px] font-medium text-muted-foreground",
+        "inline-flex min-h-5 min-w-5 items-center justify-center rounded-sm border border-border bg-muted px-1.5 font-mono text-xs font-medium text-muted-foreground",
         className
       )
     )
@@ -380,7 +400,7 @@ export const spinner = <Msg>(
   h.span
     .class(
       cn(
-        "inline-block h-4 w-4 rounded-full border-2 border-muted-foreground/30 border-t-foreground motion-safe:animate-spin",
+        "inline-block h-4 w-4 rounded-full border-2 border-muted-foreground/30 border-t-foreground motion-safe:animate-spin motion-reduce:border-dashed motion-reduce:border-foreground",
         options?.className
       )
     )
@@ -488,7 +508,7 @@ export const buttonGroup = <Msg>(
         "inline-flex",
         vertical
           ? "flex-col [&>*:not(:first-child)]:-mt-px [&>*:not(:first-child)]:rounded-t-none [&>*:not(:last-child)]:rounded-b-none"
-          : "flex-row [&>*:not(:first-child)]:-ml-px [&>*:not(:first-child)]:rounded-l-none [&>*:not(:last-child)]:rounded-r-none",
+          : "flex-row [&>*:not(:first-child)]:-ms-px [&>*:not(:first-child)]:rounded-s-none [&>*:not(:last-child)]:rounded-e-none",
         options?.className
       )
     )
@@ -513,7 +533,7 @@ import { cn } from "./cn.js"
 export const inputGroup = <Msg>(h: Html.H<Msg>, className?: string) =>
   h.div.class(
     cn(
-      "flex h-9 w-full items-center overflow-hidden rounded-md border border-input bg-background text-sm",
+      "flex min-h-9 w-full items-center overflow-hidden rounded-md border border-input bg-background text-base md:text-sm",
       "focus-within:outline-2 focus-within:outline-offset-1 focus-within:outline-ring",
       className
     )
@@ -525,7 +545,7 @@ export const inputGroupAddon = <Msg>(
   className?: string
 ) =>
   h.span
-    .class(cn("flex h-full items-center bg-muted px-3 text-xs text-muted-foreground select-none", className))
+    .class(cn("flex h-full items-center bg-muted px-3 text-xs text-muted-foreground", className))
     .children(text)
 
 export const inputGroupField = <Msg>(
@@ -539,7 +559,7 @@ export const inputGroupField = <Msg>(
   }
 ) =>
   h.input
-    .class(cn("h-full min-w-0 flex-1 bg-transparent px-3 text-foreground outline-none", options?.className))
+    .class(cn("h-full min-h-9 min-w-0 flex-1 bg-transparent px-3 text-base md:text-sm text-foreground outline-none", options?.className))
     .attrs({
       type: "text",
       ...(options?.name !== undefined ? { name: options.name } : {}),

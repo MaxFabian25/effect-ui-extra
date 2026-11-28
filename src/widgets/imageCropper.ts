@@ -1,5 +1,6 @@
 import { UiSchema } from "@effect/ui"
-import { Html } from "@effect/ui/html"
+import { Html, HtmlCommand, HtmlSubscription } from "@effect/ui/html"
+import * as Option from "effect/Option"
 import * as Schema from "effect/Schema"
 
 export const CropRectSchema = Schema.Struct({
@@ -139,7 +140,8 @@ export const ImageCropperProps = Schema.Struct({
   aspectRatio: Schema.optional(Schema.Number),
   step: Schema.optional(Schema.Number),
   minWidth: Schema.optional(Schema.Number),
-  minHeight: Schema.optional(Schema.Number)
+  minHeight: Schema.optional(Schema.Number),
+  idPrefix: Schema.optional(Schema.String)
 })
 export type ImageCropperProps = typeof ImageCropperProps.Type
 
@@ -148,14 +150,37 @@ export const ImageCropperEvents = UiSchema.TaggedEnum({
 })
 export type ImageCropperEvents = typeof ImageCropperEvents.Type
 
+const CropperDragSchema = Schema.Struct({
+  pointerId: Schema.Number,
+  startX: Schema.Number,
+  startY: Schema.Number,
+  startCrop: CropRectSchema,
+  width: Schema.Number,
+  height: Schema.Number
+})
+
+const ImageCropperModel = Schema.Struct({
+  crop: CropRectSchema,
+  drag: Schema.NullOr(CropperDragSchema)
+})
+
 const ImageCropperMsg = UiSchema.TaggedEnum({
   Move: { dx: Schema.Number, dy: Schema.Number },
   Resize: { dw: Schema.Number, dh: Schema.Number },
   Zoom: { factor: Schema.Number },
-  Reset: {}
+  Reset: {},
+  DragStart: { pointerId: Schema.Number, x: Schema.Number, y: Schema.Number },
+  ContainerMeasured: { width: Schema.Number, height: Schema.Number },
+  DragMove: { pointerId: Schema.Number, x: Schema.Number, y: Schema.Number },
+  DragEnd: { pointerId: Schema.optional(Schema.Number) }
 })
 
+const containerRef = Html.ref("ImageCropperRoot", "div")
+
 const DEFAULT_CROP: CropRect = { x: 0.1, y: 0.1, width: 0.8, height: 0.8 }
+
+const SR_ONLY_STYLE =
+  "position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0"
 
 const constraintsOf = (props: ImageCropperProps): CropConstraints => ({
   minWidth: props.minWidth,
@@ -166,52 +191,118 @@ const constraintsOf = (props: ImageCropperProps): CropConstraints => ({
 })
 
 /**
- * Headless accessible ImageCropper widget with keyboard pan (Arrow keys),
- * keyboard resize (Shift+Arrow), zoom (`+`/`-`), reset (`0`), aspect-ratio
- * locking, and pixel-space conversion (`cropToPixels`).
+ * Headless accessible ImageCropper widget with pointer drag, keyboard pan
+ * (Arrow keys), keyboard resize (Shift+Arrow), zoom (`+`/`-`), reset (`0`),
+ * aspect-ratio locking, and pixel-space conversion (`cropToPixels`).
  */
 export const ImageCropper = Html.component({
   name: "ImageCropper",
   props: ImageCropperProps,
-  model: CropRectSchema,
+  model: ImageCropperModel,
   message: ImageCropperMsg,
   events: ImageCropperEvents
 }).make({
-  init: ($) => clampCropRect($.props.crop ?? DEFAULT_CROP, constraintsOf($.props)),
+  init: ($) => ({
+    crop: clampCropRect($.props.crop ?? DEFAULT_CROP, constraintsOf($.props)),
+    drag: null
+  }),
+  subscriptions: ($) =>
+    $.model.drag === null
+      ? []
+      : [
+          HtmlSubscription.onDocument("pointerup", ({ pointerId }) =>
+            ImageCropperMsg.DragEnd({ pointerId })
+          ),
+          HtmlSubscription.onDocument("pointercancel", ({ pointerId }) =>
+            ImageCropperMsg.DragEnd({ pointerId })
+          ),
+          HtmlSubscription.onWindow("blur", () => ImageCropperMsg.DragEnd({}))
+        ],
   update: {
     Move: ($, { dx, dy }) => {
-      const current = $.props.crop ?? $.model
+      const current = $.props.crop ?? $.model.crop
       const next = moveCropRect(current, dx, dy, constraintsOf($.props))
-      return $.evolve(next).emit(ImageCropperEvents.CropChanged({ crop: next }))
+      return $.evolve({ crop: next }).emit(ImageCropperEvents.CropChanged({ crop: next }))
     },
     Resize: ($, { dw, dh }) => {
-      const current = $.props.crop ?? $.model
+      const current = $.props.crop ?? $.model.crop
       const next = resizeCropRect(current, dw, dh, constraintsOf($.props))
-      return $.evolve(next).emit(ImageCropperEvents.CropChanged({ crop: next }))
+      return $.evolve({ crop: next }).emit(ImageCropperEvents.CropChanged({ crop: next }))
     },
     Zoom: ($, { factor }) => {
-      const current = $.props.crop ?? $.model
+      const current = $.props.crop ?? $.model.crop
       const next = zoomCropRect(current, factor, constraintsOf($.props))
-      return $.evolve(next).emit(ImageCropperEvents.CropChanged({ crop: next }))
+      return $.evolve({ crop: next }).emit(ImageCropperEvents.CropChanged({ crop: next }))
     },
     Reset: ($) => {
       const next = clampCropRect(DEFAULT_CROP, constraintsOf($.props))
-      return $.evolve(next).emit(ImageCropperEvents.CropChanged({ crop: next }))
-    }
+      return $.evolve({ crop: next }).emit(ImageCropperEvents.CropChanged({ crop: next }))
+    },
+    DragStart: ($, { pointerId, x, y }) => {
+      const startCrop = clampCropRect($.props.crop ?? $.model.crop, constraintsOf($.props))
+      return $.evolve({
+        drag: {
+          pointerId,
+          startX: x,
+          startY: y,
+          startCrop,
+          width: Math.max(1, $.props.imageWidth),
+          height: Math.max(1, $.props.imageHeight)
+        }
+      }).run(
+        HtmlCommand.measure(containerRef, (rect) =>
+          ImageCropperMsg.ContainerMeasured({
+            width: Option.isSome(rect) && rect.value.width > 0 ? rect.value.width : $.props.imageWidth,
+            height: Option.isSome(rect) && rect.value.height > 0 ? rect.value.height : $.props.imageHeight
+          })
+        )
+      )
+    },
+    ContainerMeasured: ($, { height, width }) =>
+      $.model.drag === null
+        ? $.model
+        : $.evolve({
+            drag: {
+              ...$.model.drag,
+              width: Math.max(1, width),
+              height: Math.max(1, height)
+            }
+          }),
+    DragMove: ($, { pointerId, x, y }) => {
+      const drag = $.model.drag
+      if (drag === null || drag.pointerId !== pointerId) return $.model
+      const dx = (x - drag.startX) / drag.width
+      const dy = (y - drag.startY) / drag.height
+      const next = moveCropRect(drag.startCrop, dx, dy, constraintsOf($.props))
+      return $.evolve({ crop: next }).emit(ImageCropperEvents.CropChanged({ crop: next }))
+    },
+    DragEnd: ($, { pointerId }) =>
+      $.model.drag !== null &&
+      (pointerId === undefined || $.model.drag.pointerId === pointerId)
+        ? $.evolve({ drag: null })
+        : $.model
   },
   view: (h, model) => {
     const p = h.props
-    const crop = clampCropRect(p.crop ?? model, constraintsOf(p))
+    const crop = clampCropRect(p.crop ?? model.crop, constraintsOf(p))
     const px = cropToPixels(crop, p.imageWidth, p.imageHeight)
     const step = p.step ?? 0.05
+    const prefix = p.idPrefix ?? "cropper"
+    const instructionsId = `${prefix}-instructions`
 
     return h.div
+      .ref(containerRef)
       .attrs({
         role: "group",
         "aria-label": p.label,
         "data-image-cropper": ""
       })
       .children(
+        h.span
+          .attrs({ id: instructionsId, style: SR_ONLY_STYLE })
+          .children(
+            "Use arrow keys to move crop region, Shift plus arrow keys to resize, plus and minus to zoom, 0 to reset."
+          ),
         h.img.attrs({
           src: p.src,
           alt: p.alt,
@@ -222,12 +313,14 @@ export const ImageCropper = Html.component({
             role: "application",
             tabindex: "0",
             "aria-label": `${p.label} crop selection: ${px.width} by ${px.height} pixels at ${px.x}, ${px.y}`,
+            "aria-describedby": instructionsId,
             "aria-roledescription": "crop region",
             "data-cropper-region": "",
             "data-crop-x": String(crop.x),
             "data-crop-y": String(crop.y),
             "data-crop-width": String(crop.width),
-            "data-crop-height": String(crop.height)
+            "data-crop-height": String(crop.height),
+            ...(model.drag !== null ? { "data-dragging": "true" } : {})
           })
           .style({
             left: `${crop.x * 100}%`,
@@ -235,6 +328,29 @@ export const ImageCropper = Html.component({
             width: `${crop.width * 100}%`,
             height: `${crop.height * 100}%`
           })
+          .on(
+            "pointerdown",
+            ({ button, pointerId, x, y }) =>
+              button === 0
+                ? ImageCropperMsg.DragStart({ pointerId, x, y })
+                : undefined,
+            { capturePointer: true, preventDefault: true }
+          )
+          .on("pointermove", ({ pointerId, x, y }) =>
+            model.drag !== null && model.drag.pointerId === pointerId
+              ? ImageCropperMsg.DragMove({ pointerId, x, y })
+              : undefined
+          )
+          .on("pointerup", ({ pointerId }) =>
+            model.drag !== null && model.drag.pointerId === pointerId
+              ? ImageCropperMsg.DragEnd({ pointerId })
+              : undefined
+          )
+          .on("pointercancel", ({ pointerId }) =>
+            model.drag !== null && model.drag.pointerId === pointerId
+              ? ImageCropperMsg.DragEnd({ pointerId })
+              : undefined
+          )
           .on(
             "keydown",
             ({ key, shift }) => {
@@ -268,7 +384,7 @@ export const ImageCropper = Html.component({
           .children(
             h.span
               .attrs({ "data-cropper-readout": "", "aria-live": "polite" })
-              .children(`${px.width}x${px.height}`)
+              .children(`${px.width}\u00d7${px.height}`)
           )
       )
   }

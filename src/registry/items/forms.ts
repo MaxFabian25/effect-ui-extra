@@ -22,7 +22,7 @@ import { cn } from "./cn.js"
 
 export const inputClass = (className?: string): string =>
   cn(
-    "flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm text-foreground transition-colors",
+    "flex min-h-9 w-full rounded-md border border-input bg-background px-3 py-1.5 text-base md:text-sm text-foreground transition-colors",
     "placeholder:text-muted-foreground focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring",
     "aria-[invalid=true]:border-destructive disabled:cursor-not-allowed disabled:opacity-50",
     className
@@ -35,6 +35,12 @@ export const styledInput = <Msg>(
     readonly name?: string | undefined
     readonly type?: string | undefined
     readonly placeholder?: string | undefined
+    readonly autocomplete?: string | undefined
+    readonly inputmode?: string | undefined
+    readonly enterkeyhint?: string | undefined
+    readonly spellcheck?: "true" | "false" | undefined
+    readonly required?: boolean | undefined
+    readonly describedBy?: string | undefined
     readonly invalid?: boolean | undefined
     readonly disabled?: boolean | undefined
     readonly className?: string | undefined
@@ -45,6 +51,12 @@ export const styledInput = <Msg>(
     ...(options?.id !== undefined ? { id: options.id } : {}),
     ...(options?.name !== undefined ? { name: options.name } : {}),
     ...(options?.placeholder !== undefined ? { placeholder: options.placeholder } : {}),
+    ...(options?.autocomplete !== undefined ? { autocomplete: options.autocomplete } : {}),
+    ...(options?.inputmode !== undefined ? { inputmode: options.inputmode } : {}),
+    ...(options?.enterkeyhint !== undefined ? { enterkeyhint: options.enterkeyhint } : {}),
+    ...(options?.spellcheck !== undefined ? { spellcheck: options.spellcheck } : {}),
+    ...(options?.required === true ? { required: "" } : {}),
+    ...(options?.describedBy !== undefined ? { "aria-describedby": options.describedBy } : {}),
     ...(options?.invalid === true ? { "aria-invalid": "true" } : {}),
     ...(options?.disabled === true ? { disabled: "" } : {})
   })
@@ -67,7 +79,7 @@ import { cn } from "./cn.js"
 
 export const textareaClass = (className?: string): string =>
   cn(
-    "flex min-h-20 w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground",
+    "flex min-h-20 w-full rounded-md border border-input bg-background px-3 py-2 text-base md:text-sm text-foreground",
     "placeholder:text-muted-foreground focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring",
     "aria-[invalid=true]:border-destructive disabled:cursor-not-allowed disabled:opacity-50",
     className
@@ -111,7 +123,7 @@ export const styledTextarea = <Msg>(
 import { cn } from "./cn.js"
 
 export const labelClass = (className?: string): string =>
-  cn("text-sm font-medium leading-none text-foreground peer-disabled:cursor-not-allowed peer-disabled:opacity-60", className)
+  cn("text-sm font-medium leading-snug text-foreground peer-disabled:cursor-not-allowed peer-disabled:opacity-60", className)
 
 export const styledLabel = <Msg>(
   h: Html.H<Msg>,
@@ -162,7 +174,7 @@ export const styledField = <Msg>(
         ? [h.p.attrs({ id: \`\${options.id}-desc\` }).class("text-xs text-muted-foreground").children(options.description)]
         : []),
       ...(options.error != null && options.error.length > 0
-        ? [h.p.attrs({ id: \`\${options.id}-err\`, role: "alert" }).class("text-xs font-medium text-destructive").children(options.error)]
+        ? [h.p.attrs({ id: \`\${options.id}-err\`, "aria-live": "polite" }).class("text-xs font-medium text-destructive").children(options.error)]
         : [])
     )
 `
@@ -184,7 +196,7 @@ import { cn } from "./cn.js"
 
 export const checkboxClass = (className?: string): string =>
   cn(
-    "inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-xs border border-input bg-background text-primary-foreground transition-colors",
+    "relative inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-xs border border-input bg-background text-primary-foreground transition-colors touch-manipulation before:absolute before:-inset-2.5",
     "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
     "data-[checked]:border-primary data-[checked]:bg-primary data-[indeterminate]:border-primary data-[indeterminate]:bg-primary",
     "disabled:cursor-not-allowed disabled:opacity-50",
@@ -204,7 +216,7 @@ export const styledCheckboxRow = <Msg>(
 ) =>
   h.label
     .attrs({ for: options.id })
-    .class(cn("inline-flex cursor-pointer items-center gap-2 text-sm text-foreground", options.className))
+    .class(cn("inline-flex min-h-8 cursor-pointer items-center gap-2.5 text-sm text-foreground", options.className))
     .children(
       h.input
         .attrs({
@@ -213,7 +225,7 @@ export const styledCheckboxRow = <Msg>(
           ...(options.checked ? { checked: "" } : {}),
           ...(options.disabled === true ? { disabled: "" } : {})
         })
-        .class("h-4 w-4 rounded-xs border border-input accent-primary")
+        .class("h-6 w-6 min-h-6 min-w-6 rounded-xs border border-input accent-primary")
         .on("change", () => options.onChange),
       h.span.children(options.label)
     )
@@ -236,16 +248,16 @@ import { cn } from "./cn.js"
 
 export const switchTrackClass = (className?: string): string =>
   cn(
-    "inline-flex h-5 w-9 shrink-0 cursor-pointer items-center rounded-full border border-transparent bg-muted p-0.5 transition-colors",
+    "relative inline-flex h-6 w-10 shrink-0 cursor-pointer items-center rounded-full border border-input bg-muted p-0.5 transition-colors touch-manipulation before:absolute before:-inset-y-2 before:-inset-x-1",
     "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
-    "data-[checked]:bg-primary disabled:cursor-not-allowed disabled:opacity-50",
+    "data-[checked]:border-primary data-[checked]:bg-primary disabled:cursor-not-allowed disabled:opacity-50",
     className
   )
 
 export const switchThumbClass = (className?: string): string =>
   cn(
-    "pointer-events-none block h-4 w-4 rounded-full bg-background shadow-sm transition-transform",
-    "data-[checked]:translate-x-4",
+    "pointer-events-none block h-4 w-4 rounded-full bg-background shadow-sm transition-transform duration-150 ease-[var(--ease-eui,ease-out)] motion-reduce:transition-none",
+    "data-[checked]:translate-x-4 rtl:data-[checked]:-translate-x-4",
     className
   )
 
@@ -300,7 +312,7 @@ export interface RadioChoice {
 
 export const radioItemClass = (className?: string): string =>
   cn(
-    "flex items-start gap-2.5 rounded-md border border-border bg-background px-3 py-2 text-left text-sm transition-colors",
+    "flex min-h-10 items-start gap-2.5 rounded-md border border-border bg-background px-3 py-2 text-start text-sm touch-manipulation transition-colors",
     "hover:bg-muted/50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
     "data-[checked]:border-primary data-[checked]:bg-accent/40",
     className
@@ -315,23 +327,42 @@ export const styledRadioGroup = <Msg>(
     readonly onSelect: (value: string) => Msg
     readonly className?: string | undefined
   }
-) =>
-  h.div
+) => {
+  const activeIdx = Math.max(0, options.choices.findIndex((c) => c.value === options.value))
+  return h.div
     .attrs({ role: "radiogroup", "aria-label": options.label })
     .class(cn("flex flex-col gap-2", options.className))
     .children(
-      ...options.choices.map((c) => {
+      ...options.choices.map((c, idx) => {
         const checked = c.value === options.value
+        const tabbable = checked || idx === activeIdx
         return h.button
           .key(c.value)
           .attrs({
             type: "button",
             role: "radio",
             "aria-checked": String(checked),
+            tabindex: tabbable ? "0" : "-1",
             ...(checked ? { "data-checked": "" } : {})
           })
           .class(radioItemClass())
           .on("click", () => options.onSelect(c.value))
+          .on(
+            "keydown",
+            ({ key }) => {
+              if (options.choices.length === 0) return undefined
+              if (key === "ArrowDown" || key === "ArrowRight") {
+                const next = options.choices[(idx + 1) % options.choices.length]!
+                return options.onSelect(next.value)
+              }
+              if (key === "ArrowUp" || key === "ArrowLeft") {
+                const prev = options.choices[(idx - 1 + options.choices.length) % options.choices.length]!
+                return options.onSelect(prev.value)
+              }
+              return undefined
+            },
+            { preventDefault: true }
+          )
           .children(
             h.span
               .attrs({ "aria-hidden": "true" })
@@ -345,6 +376,7 @@ export const styledRadioGroup = <Msg>(
           )
       })
     )
+}
 `
       }
     ]
@@ -362,25 +394,26 @@ export const styledRadioGroup = <Msg>(
         content: `import type { Html } from "@effect/ui/html"
 import { Select } from "@effect/ui-kit"
 import { cn } from "./cn.js"
+import { uiIcon } from "./icons.js"
 
 export const selectTriggerClass = (className?: string): string =>
   cn(
-    "inline-flex h-9 w-full items-center justify-between gap-2 rounded-md border border-input bg-background px-3 text-sm text-foreground",
+    "inline-flex min-h-9 w-full items-center justify-between gap-2 rounded-md border border-input bg-background px-3 py-1.5 text-sm text-foreground touch-manipulation select-none",
     "focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring disabled:opacity-50",
     className
   )
 
 export const selectPopupClass = (className?: string): string =>
   cn(
-    "z-50 min-w-36 overflow-hidden rounded-md border border-border bg-surface p-1 text-foreground shadow-md",
-    "transition-all duration-120 data-[starting-style]:scale-95 data-[starting-style]:opacity-0 data-[ending-style]:opacity-0",
+    "z-[var(--z-dropdown,100)] min-w-36 overflow-auto overscroll-contain rounded-md border border-border bg-surface p-1 text-foreground shadow-md dark:shadow-none",
+    "origin-[var(--transform-origin)] transition-[transform,opacity] duration-150 ease-[var(--ease-eui,ease-out)] data-[starting-style]:scale-[0.96] data-[starting-style]:opacity-0 data-[ending-style]:scale-[0.96] data-[ending-style]:opacity-0 data-[ending-style]:duration-100 motion-reduce:data-[starting-style]:scale-100 motion-reduce:data-[ending-style]:scale-100",
     className
   )
 
 export const selectItemClass = (className?: string): string =>
   cn(
-    "flex cursor-pointer select-none items-center justify-between rounded-sm px-2.5 py-1.5 text-sm outline-none",
-    "data-[highlighted]:bg-accent data-[highlighted]:text-accent-foreground data-[selected]:font-medium data-[disabled]:opacity-50",
+    "flex min-h-8 cursor-pointer select-none items-center justify-between gap-2 rounded-xs px-2.5 py-1.5 text-sm outline-none",
+    "data-[highlighted]:bg-accent data-[highlighted]:text-accent-foreground data-[highlighted]:ring-2 data-[highlighted]:ring-inset data-[highlighted]:ring-ring data-[disabled]:opacity-50",
     className
   )
 
@@ -396,6 +429,7 @@ export const styledSelect = <Msg>(
     readonly key?: string | undefined
     readonly open: boolean
     readonly value: string | null
+    readonly label?: string | undefined
     readonly placeholder?: string | undefined
     readonly items: ReadonlyArray<StyledSelectOption>
     readonly onOpenChange: (open: boolean) => Msg
@@ -418,11 +452,20 @@ export const styledSelect = <Msg>(
     },
     view: (parts) =>
       h.div.class(cn("relative w-full", options.className)).children(
-        parts.trigger(h.button.attrs({ type: "button" }).class(selectTriggerClass())).children(
+        parts.trigger(
+          h.button
+            .attrs({
+              type: "button",
+              ...(options.label !== undefined ? { "aria-label": options.label } : {})
+            })
+            .class(selectTriggerClass())
+        ).children(
           parts.value(h.span).children(
-            options.items.find((i) => i.value === options.value)?.label ?? options.placeholder ?? "Select..."
+            options.items.find((i) => i.value === options.value)?.label ?? options.placeholder ?? "Select…"
           ),
-          parts.icon(h.span.attrs({ "aria-hidden": "true" }).class("text-muted-foreground")).children("▾")
+          parts.icon(h.span.attrs({ "aria-hidden": "true" }).class("shrink-0 text-muted-foreground")).children(
+            uiIcon(h, "chevronDown", 14)
+          )
         ),
         parts.positioner(h.div).children(
           parts.popup(h.div.class(selectPopupClass())).children(
@@ -430,7 +473,9 @@ export const styledSelect = <Msg>(
               ...options.items.map((item) =>
                 parts.item({ element: h.div.key(item.value).class(selectItemClass()), value: item.value }).children(
                   parts.itemText(h.div).children(item.label),
-                  parts.itemIndicator({ element: h.span.attrs({ "aria-hidden": "true" }), value: item.value })?.children("✓")
+                  parts.itemIndicator({ element: h.span.attrs({ "aria-hidden": "true" }).class("shrink-0"), value: item.value })?.children(
+                    uiIcon(h, "check", 14)
+                  )
                 )
               )
             )
@@ -481,7 +526,7 @@ export const styledNativeSelect = <Msg>(
     })
     .class(
       cn(
-        "h-9 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground",
+        "min-h-9 w-full rounded-md border border-input bg-background px-3 py-1.5 text-base md:text-sm text-foreground",
         "focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring disabled:opacity-50",
         options.className
       )
@@ -516,6 +561,7 @@ export const styledNativeSelect = <Msg>(
         content: `import type { Html } from "@effect/ui/html"
 import { Combobox } from "@effect/ui-kit"
 import { cn } from "./cn.js"
+import { uiIcon } from "./icons.js"
 import { inputClass } from "./input.js"
 import { selectItemClass, selectPopupClass } from "./select.js"
 
@@ -523,7 +569,7 @@ export const comboboxInputClass = (className?: string): string => inputClass(cla
 
 export const comboboxChipsClass = (className?: string): string =>
   cn(
-    "flex min-h-9 w-full flex-wrap items-center gap-1.5 rounded-md border border-input bg-background px-2.5 py-1.5 text-sm",
+    "flex min-h-9 w-full flex-wrap items-center gap-1.5 rounded-md border border-input bg-background px-2.5 py-1.5 text-base md:text-sm",
     "focus-within:outline-2 focus-within:outline-offset-1 focus-within:outline-ring",
     className
   )
@@ -548,6 +594,7 @@ export const styledCombobox = <Msg>(
     readonly open: boolean
     readonly value: string | null
     readonly inputValue: string
+    readonly label?: string | undefined
     readonly placeholder?: string | undefined
     readonly emptyText?: string | undefined
     readonly items: ReadonlyArray<StyledComboboxOption>
@@ -579,10 +626,18 @@ export const styledCombobox = <Msg>(
           parts.input(
             h.input.attrs({
               type: "text",
+              autocomplete: "off",
+              spellcheck: "false",
+              enterkeyhint: "search",
+              ...(options.label !== undefined ? { "aria-label": options.label } : {}),
               ...(options.placeholder !== undefined ? { placeholder: options.placeholder } : {})
-            }).class(comboboxInputClass("pr-8"))
+            }).class(comboboxInputClass("pe-10"))
           ),
-          parts.trigger(h.button.attrs({ type: "button", "aria-label": "Toggle options" }).class("absolute right-2 text-muted-foreground")).children("▾")
+          parts.trigger(
+            h.button
+              .attrs({ type: "button", "aria-label": "Toggle options" })
+              .class("absolute end-0 inline-flex h-9 w-9 items-center justify-center rounded-md text-muted-foreground touch-manipulation hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring")
+          ).children(uiIcon(h, "chevronDown", 14))
         ),
         parts.positioner(h.div).children(
           parts.popup(h.div.class(comboboxPopupClass())).children(
@@ -590,11 +645,13 @@ export const styledCombobox = <Msg>(
               ...parts.items.map((item) =>
                 parts.item({ element: h.div.key(item.value).class(comboboxItemClass()), value: item.value }).children(
                   h.span.children(item.label),
-                  parts.itemIndicator({ element: h.span.attrs({ "aria-hidden": "true" }), value: item.value })?.children("✓")
+                  parts.itemIndicator({ element: h.span.attrs({ "aria-hidden": "true" }).class("shrink-0"), value: item.value })?.children(
+                    uiIcon(h, "check", 14)
+                  )
                 )
               )
             ),
-            parts.empty(h.div.class("px-2.5 py-2 text-xs text-muted-foreground")).children(options.emptyText ?? "No matches.")
+            parts.empty(h.div.class("px-2.5 py-2 text-xs text-muted-foreground")).children(options.emptyText ?? "No matches")
           )
         )
       )
@@ -619,11 +676,11 @@ import type * as Redacted from "effect/Redacted"
 import { cn } from "./cn.js"
 
 export const otpGroupClass = (className?: string): string =>
-  cn("inline-flex items-center gap-2", className)
+  cn("inline-flex max-w-full flex-wrap items-center justify-center gap-1.5 sm:gap-2", className)
 
 export const otpSlotClass = (className?: string): string =>
   cn(
-    "flex h-10 w-10 items-center justify-center rounded-md border border-input bg-background text-center font-mono text-base font-semibold text-foreground",
+    "flex h-10 w-9 sm:w-10 items-center justify-center rounded-md border border-input bg-background text-center font-mono text-base font-semibold tabular-nums text-foreground",
     "focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring data-[invalid]:border-destructive",
     className
   )
@@ -652,7 +709,14 @@ export const styledInputOtp = <Msg>(
       parts.root(h.div.class(otpGroupClass(options.className))).children(
         ...Array.from({ length }, (_, index) =>
           parts.input({
-            element: h.input.key(String(index)).attrs({ "aria-label": \`Digit \${index + 1}\` }).class(otpSlotClass()),
+            element: h.input
+              .key(String(index))
+              .attrs({
+                "aria-label": \`Digit \${index + 1}\`,
+                inputmode: "numeric",
+                autocomplete: index === 0 ? "one-time-code" : "off"
+              })
+              .class(otpSlotClass()),
             index
           })
         )
@@ -688,8 +752,8 @@ export const sliderIndicatorClass = (className?: string): string =>
 
 export const sliderThumbClass = (className?: string): string =>
   cn(
-    "block h-4 w-4 rounded-full border-2 border-primary bg-background shadow-sm transition-transform",
-    "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring data-[dragging]:scale-110",
+    "relative block h-4 w-4 rounded-full border-2 border-primary bg-background shadow-sm transition-transform duration-150 motion-reduce:transition-none before:absolute before:-inset-3",
+    "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring data-[dragging]:scale-110 motion-reduce:data-[dragging]:scale-100",
     className
   )
 
@@ -752,22 +816,23 @@ export const styledSlider = <Msg>(
 import { Calendar } from "@effect/ui-kit"
 import * as DateTime from "effect/DateTime"
 import { cn } from "./cn.js"
+import { uiIcon } from "./icons.js"
 
 export const calendarRootClass = (className?: string): string =>
-  cn("inline-flex flex-col gap-3 rounded-lg border border-border bg-surface p-3 text-foreground", className)
+  cn("inline-flex max-w-full flex-col gap-3 rounded-lg border border-border bg-surface p-3 text-foreground", className)
 
 export const calendarHeaderClass = (className?: string): string =>
   cn("flex items-center justify-between gap-2 text-sm font-semibold", className)
 
 export const calendarGridClass = (className?: string): string =>
-  cn("border-collapse text-center text-xs", className)
+  cn("border-collapse text-center text-xs tabular-nums", className)
 
 export const calendarDayClass = (className?: string): string =>
   cn(
-    "flex h-8 w-8 items-center justify-center rounded-sm text-sm transition-colors",
+    "flex h-8 w-8 pointer-coarse:h-11 pointer-coarse:w-11 items-center justify-center rounded-sm text-sm tabular-nums touch-manipulation transition-colors",
     "hover:bg-muted focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring",
     "data-[selected]:bg-primary data-[selected]:text-primary-foreground data-[today]:border data-[today]:border-primary",
-    "data-[outside-month]:text-muted-foreground/50 data-[disabled]:pointer-events-none data-[disabled]:opacity-40",
+    "data-[outside-month]:text-muted-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-40",
     className
   )
 
@@ -800,9 +865,17 @@ export const styledCalendar = <Msg>(
       const m = parts.months[0]
       return parts.root(h.div.class(calendarRootClass(options.className))).children(
         h.div.class(calendarHeaderClass()).children(
-          parts.previous(h.button.attrs({ type: "button", "aria-label": "Previous month" }).class("inline-flex h-7 w-7 items-center justify-center rounded-sm hover:bg-muted")).children("‹"),
+          parts.previous(
+            h.button
+              .attrs({ type: "button", "aria-label": "Previous month" })
+              .class("relative inline-flex h-8 w-8 pointer-coarse:h-11 pointer-coarse:w-11 items-center justify-center rounded-sm touch-manipulation hover:bg-muted focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring")
+          ).children(uiIcon(h, "chevronLeft", 16)),
           m.heading(h.div.class("text-sm font-semibold")).children(m.title),
-          parts.next(h.button.attrs({ type: "button", "aria-label": "Next month" }).class("inline-flex h-7 w-7 items-center justify-center rounded-sm hover:bg-muted")).children("›")
+          parts.next(
+            h.button
+              .attrs({ type: "button", "aria-label": "Next month" })
+              .class("relative inline-flex h-8 w-8 pointer-coarse:h-11 pointer-coarse:w-11 items-center justify-center rounded-sm touch-manipulation hover:bg-muted focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring")
+          ).children(uiIcon(h, "chevronRight", 16))
         ),
         m.grid(h.table.class(calendarGridClass())).children(
           h.thead.children(
@@ -849,7 +922,7 @@ import { cn } from "./cn.js"
 
 export const toggleClass = (className?: string): string =>
   cn(
-    "inline-flex h-9 items-center justify-center rounded-md border border-transparent px-3 text-sm font-medium text-foreground transition-colors",
+    "inline-flex min-h-8 items-center justify-center rounded-xs border border-transparent px-3 py-1 text-sm font-medium text-foreground touch-manipulation select-none transition-colors",
     "hover:bg-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
     "data-[pressed]:bg-accent data-[pressed]:text-accent-foreground disabled:opacity-50",
     className

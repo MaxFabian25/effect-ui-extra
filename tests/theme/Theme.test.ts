@@ -2,6 +2,13 @@ import { describe, expect, test } from "bun:test"
 import { readFileSync } from "node:fs"
 import { resolve } from "node:path"
 import {
+  composeVisualPreset,
+  generateIconModule,
+  generatePresetCss,
+  listVisualPresets,
+  VISUAL_PRESETS
+} from "../../src/registry/index.js"
+import {
   DEFAULT_DARK_TOKENS,
   DEFAULT_LIGHT_TOKENS,
   SCALE_STEPS,
@@ -185,7 +192,25 @@ describe("Default OKLCH theme tokens and @layer effect-ui stylesheet", () => {
     expect(stylesheet).toContain("[data-overlay-viewport]")
     expect(stylesheet).toContain("[data-overlay-actions]")
     expect(stylesheet).toContain('[role="switch"] > span')
-    expect(stylesheet).toContain("--eui-duration-fast: 0ms")
+    expect(stylesheet).toContain("translateX(1rem)")
+    expect(stylesheet).toContain("rotate(180deg)")
+    expect(stylesheet).toContain("--eui-duration-fast: 100ms")
+    expect(stylesheet).toContain("--eui-duration-motion: 0ms")
+    expect(stylesheet).toContain("color-mix(in oklab,")
+    expect(stylesheet).not.toContain("color-mix(in oklch,")
+    expect(stylesheet).not.toContain("font-synthesis: none")
+    expect(stylesheet).not.toContain("scrollbar-color:")
+    expect(stylesheet).toContain("--eui-chart-1:")
+    expect(stylesheet).toContain("--eui-chart-6:")
+    expect(stylesheet).toContain("--eui-z-dropdown: 100")
+    expect(stylesheet).toContain("[data-image-cropper]")
+    expect(stylesheet).toContain("[data-area-picker]")
+    expect(stylesheet).toContain("[data-waterfall]")
+    expect(stylesheet).toContain("[data-carousel]")
+    expect(stylesheet).toContain("[data-timeline]")
+    expect(stylesheet).toContain("[data-scroll-picker]")
+    expect(stylesheet).toContain("[data-datetime-picker]")
+    expect(stylesheet).toContain("[data-trigger-menu]")
     expect(stylesheet).toContain("direction: ltr")
     expect(stylesheet).toContain("[data-segmented-control]")
     expect(stylesheet).toContain("[data-rating]")
@@ -216,5 +241,62 @@ describe("Default OKLCH theme tokens and @layer effect-ui stylesheet", () => {
     expect(css).toContain(`--eui-primary: ${DEFAULT_LIGHT_TOKENS.primary};`)
     expect(css).toContain(`--eui-primary: ${DEFAULT_DARK_TOKENS.primary};`)
     expect(css).toContain(`--eui-primary: light-dark(${DEFAULT_LIGHT_TOKENS.primary}, ${DEFAULT_DARK_TOKENS.primary});`)
+  })
+
+  test("all 8 visual presets, chart palettes, and 240 composed combos stay inside sRGB gamut and pass WCAG AA", () => {
+    const presets = listVisualPresets()
+    expect(presets.length).toBe(8)
+
+    // Maia light primary and destructive hues stay separated by >= 15 degrees
+    const maiaPrimary = parseColor(VISUAL_PRESETS.maia.light.primary)!
+    const maiaDest = parseColor(VISUAL_PRESETS.maia.light.destructive)!
+    expect(maiaPrimary.h).toBeGreaterThanOrEqual(42)
+    expect(maiaDest.h).toBeLessThanOrEqual(22)
+    expect(Math.abs(maiaPrimary.h - maiaDest.h)).toBeGreaterThanOrEqual(15)
+
+    for (const preset of presets) {
+      for (const chart of [...preset.chartLight, ...preset.chartDark]) {
+        const parsed = parseColor(chart)!
+        expect(isInSrgbGamut(parsed), `${preset.name} chart ${chart}`).toBe(true)
+      }
+      const css = generatePresetCss(preset.name)
+      expect(css).toContain("@media (prefers-reduced-motion: reduce)")
+      expect(css).toContain("@media (forced-colors: active)")
+      expect(css).toContain("@media (pointer: coarse)")
+      expect(css).toContain("--ease-eui:")
+      expect(css).toContain("--ease-sheet:")
+      expect(css).toContain("--z-dropdown: 100")
+    }
+
+    const styles = ["nova", "vega", "maia", "lyra", "mira", "luma", "rhea", "sera"] as const
+    const bases = ["neutral", "slate", "zinc", "stone", "gray"] as const
+    const accents = ["default", "blue", "emerald", "amber", "rose", "violet"] as const
+    for (const style of styles) {
+      for (const baseColor of bases) {
+        for (const accent of accents) {
+          const composed = composeVisualPreset({ style, baseColor, accent, radius: "md" })
+          for (const mode of ["light", "dark"] as const) {
+            for (const [k, v] of Object.entries(composed[mode])) {
+              expect(
+                isInSrgbGamut(parseColor(v)!),
+                `${style}/${baseColor}/${accent} ${mode}.${k}=${v}`
+              ).toBe(true)
+            }
+            expect(
+              auditThemeContrast(themeContrastPairs(composed[mode])),
+              `${style}/${baseColor}/${accent} ${mode}`
+            ).toEqual([])
+          }
+        }
+      }
+    }
+
+    const icons = generateIconModule("lucide")
+    expect(icons).toContain("chevronLeft")
+    expect(icons).toContain("chevronUp")
+    expect(icons).toContain("alertCircle")
+    expect(icons).toContain("arrowUpDown")
+    expect(icons).toContain("M11 4a7 7 0 100 14 7 7 0 000-14zM21 21l-4-4")
+    expect(icons).toContain("rtl:-scale-x-100")
   })
 })

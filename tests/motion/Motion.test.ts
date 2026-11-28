@@ -1,9 +1,11 @@
 import { describe, expect, test } from "bun:test"
 import {
+  computeSafePolygon,
   createVelocityTracker,
   findSnapIndex,
   initialPresenceState,
   initialSheetState,
+  isPointInSafePolygon,
   nearestIndex,
   projectDistance,
   reducePresence,
@@ -184,5 +186,36 @@ describe("Draggable Sheet state machine and Presence lifecycle", () => {
     const caught = reduceSheet(open, { _tag: "DragStart", currentPosition: 310 }, cfg)
     expect(caught.position).toBe(310)
     expect(caught.rawPosition).toBe(310)
+
+    // DragCancel aborts drag cleanly with zero velocity back to pre-drag snapIndex
+    const moved = reduceSheet(caught, { _tag: "DragMove", delta: -120, velocity: -900 }, cfg)
+    const cancelled = reduceSheet(moved, { _tag: "DragCancel" }, cfg)
+    expect(cancelled).toEqual({ phase: "snapping", position: 240, snapIndex: 0, velocity: 0 })
+  })
+})
+
+describe("safePolygon grace corridor", () => {
+  test("bottom popup corridor is non-self-intersecting and contains diagonal interior points", () => {
+    const origin = { x: 200, y: 80 }
+    const popup = { left: 100, top: 140, right: 300, bottom: 320 }
+    const poly = computeSafePolygon(origin, popup, { side: "bottom" })
+    expect(poly.length).toBe(4)
+
+    // Interior points along center and diagonal paths from origin to bottom popup
+    expect(isPointInSafePolygon({ x: 200, y: 110 }, origin, popup)).toBe(true)
+    expect(isPointInSafePolygon({ x: 160, y: 120 }, origin, popup)).toBe(true)
+    expect(isPointInSafePolygon({ x: 240, y: 120 }, origin, popup)).toBe(true)
+    // Points outside corridor return false
+    expect(isPointInSafePolygon({ x: 200, y: 40 }, origin, popup)).toBe(false)
+    expect(isPointInSafePolygon({ x: 60, y: 110 }, origin, popup)).toBe(false)
+  })
+
+  test("top popup corridor contains diagonal interior points and rejects outside points", () => {
+    const origin = { x: 200, y: 300 }
+    const popup = { left: 100, top: 100, right: 300, bottom: 240 }
+    expect(isPointInSafePolygon({ x: 200, y: 270 }, origin, popup)).toBe(true)
+    expect(isPointInSafePolygon({ x: 160, y: 260 }, origin, popup)).toBe(true)
+    expect(isPointInSafePolygon({ x: 240, y: 260 }, origin, popup)).toBe(true)
+    expect(isPointInSafePolygon({ x: 200, y: 340 }, origin, popup)).toBe(false)
   })
 })

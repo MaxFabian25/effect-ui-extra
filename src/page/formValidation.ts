@@ -3,6 +3,7 @@ export type ValidationMode = "onSubmit" | "onBlur" | "onChange"
 export interface FieldValidationEntry {
   readonly touched: boolean
   readonly dirty: boolean
+  readonly hasShownError: boolean
   readonly clientError: string | null
   readonly serverError: string | null
 }
@@ -31,6 +32,7 @@ export const initialFormValidationState = (
 const emptyField = (): FieldValidationEntry => ({
   touched: false,
   dirty: false,
+  hasShownError: false,
   clientError: null,
   serverError: null
 })
@@ -69,6 +71,10 @@ export const reduceFormValidation = (
           [event.name]: {
             ...prev,
             touched: true,
+            hasShownError:
+              prev.hasShownError ||
+              event.clientError !== null ||
+              prev.serverError !== null,
             clientError: event.clientError
           }
         }
@@ -78,7 +84,12 @@ export const reduceFormValidation = (
       const nextFields: Record<string, FieldValidationEntry> = { ...state.fields }
       for (const [name, err] of Object.entries(event.clientErrors)) {
         const prev = nextFields[name] ?? emptyField()
-        nextFields[name] = { ...prev, touched: true, clientError: err }
+        nextFields[name] = {
+          ...prev,
+          touched: true,
+          hasShownError: prev.hasShownError || err !== null,
+          clientError: err
+        }
       }
       return {
         ...state,
@@ -90,7 +101,12 @@ export const reduceFormValidation = (
       const nextFields: Record<string, FieldValidationEntry> = { ...state.fields }
       for (const [name, err] of Object.entries(event.errors)) {
         const prev = nextFields[name] ?? emptyField()
-        nextFields[name] = { ...prev, touched: true, serverError: err }
+        nextFields[name] = {
+          ...prev,
+          touched: true,
+          hasShownError: prev.hasShownError || err !== null,
+          serverError: err
+        }
       }
       return {
         ...state,
@@ -117,7 +133,7 @@ export const getVisibleFieldError = (
   if (entry.clientError === null) return null
   if (state.submitted) return entry.clientError
   if (state.mode === "onChange" && entry.dirty) return entry.clientError
-  if (state.mode === "onBlur" && entry.touched) return entry.clientError
+  if (state.mode === "onBlur" && entry.hasShownError) return entry.clientError
   return null
 }
 

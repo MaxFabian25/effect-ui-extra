@@ -141,20 +141,38 @@ export const Waterfall = Html.component({
       .attrs({
         role: "grid",
         "aria-label": p.label,
-        "aria-rowcount": String(layout.bars.length),
+        "aria-rowcount": String(layout.bars.length + 1),
+        "aria-colcount": "2",
         "data-waterfall": ""
       })
       .children(
         h.div
-          .attrs({ role: "row", "data-waterfall-axis": "" })
+          .attrs({ role: "row", "aria-rowindex": "1", "data-waterfall-header": "" })
           .children(
-            ...layout.ticks.map((tick, idx) =>
-              h.span
-                .key(`tick-${idx}`)
-                .attrs({ role: "columnheader", "data-waterfall-tick": "" })
-                .style({ left: `${tick.pct}%` })
-                .children(tick.label)
-            )
+            h.div
+              .key("header-label")
+              .attrs({
+                role: "columnheader",
+                "aria-colindex": "1",
+                "data-waterfall-header-label": ""
+              })
+              .children("Span"),
+            h.div
+              .key("header-axis")
+              .attrs({
+                role: "columnheader",
+                "aria-colindex": "2",
+                "data-waterfall-axis": ""
+              })
+              .children(
+                ...layout.ticks.map((tick, idx) =>
+                  h.span
+                    .key(`tick-${idx}`)
+                    .attrs({ "data-waterfall-tick": "" })
+                    .style({ left: `${tick.pct}%` })
+                    .children(tick.label)
+                )
+              )
           ),
         ...layout.bars.map((bar, idx) => {
           const isSelected = bar.span.id === selectedId
@@ -163,7 +181,7 @@ export const Waterfall = Html.component({
             .key(bar.span.id)
             .attrs({
               role: "row",
-              "aria-rowindex": String(idx + 1),
+              "aria-rowindex": String(idx + 2),
               "aria-selected": String(isSelected),
               "data-waterfall-row": "",
               "data-status": bar.span.status ?? "ok",
@@ -172,8 +190,8 @@ export const Waterfall = Html.component({
             .children(
               h.div
                 .key(`${bar.span.id}-label`)
-                .attrs({ role: "gridcell", "data-waterfall-label": "" })
-                .style({ paddingLeft: `${bar.depth * 14}px` })
+                .attrs({ role: "gridcell", "aria-colindex": "1", "data-waterfall-label": "" })
+                .style({ paddingInlineStart: `${bar.depth * 14}px` })
                 .children(
                   h.button
                     .ref(rowRef(bar.span.id))
@@ -208,7 +226,7 @@ export const Waterfall = Html.component({
                 ),
               h.div
                 .key(`${bar.span.id}-track`)
-                .attrs({ role: "gridcell", "data-waterfall-track": "" })
+                .attrs({ role: "gridcell", "aria-colindex": "2", "data-waterfall-track": "" })
                 .children(
                   h.span
                     .attrs({

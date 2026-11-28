@@ -1,5 +1,5 @@
 import { UiSchema } from "@effect/ui"
-import { Html, HtmlCommand } from "@effect/ui/html"
+import { Html, HtmlCommand, HtmlSubscription } from "@effect/ui/html"
 import * as Option from "effect/Option"
 import * as Schema from "effect/Schema"
 import { resolveDir } from "./internal.js"
@@ -49,7 +49,7 @@ const ResizableMsg = UiSchema.TaggedEnum({
   },
   Measured: { size: Schema.Number },
   DragMoved: { pointerId: Schema.Number, pos: Schema.Number, isRtl: Schema.Boolean },
-  DragEnded: { pointerId: Schema.Number }
+  DragEnded: { pointerId: Schema.optional(Schema.Number) }
 })
 
 const containerRef = Html.ref("ResizableRoot", "div")
@@ -118,6 +118,18 @@ export const Resizable = Html.component({
   events: ResizableEvents
 }).make({
   init: () => ({ restoredSizes: {}, drag: null }),
+  subscriptions: ($) =>
+    $.model.drag === null
+      ? []
+      : [
+          HtmlSubscription.onDocument("pointerup", ({ pointerId }) =>
+            ResizableMsg.DragEnded({ pointerId })
+          ),
+          HtmlSubscription.onDocument("pointercancel", ({ pointerId }) =>
+            ResizableMsg.DragEnded({ pointerId })
+          ),
+          HtmlSubscription.onWindow("blur", () => ResizableMsg.DragEnded({}))
+        ],
   update: {
     Adjusted: ($, { delta, handleIndex }) => {
       const next = resizePanes($.props.sizes, $.props.panes, handleIndex, delta)
@@ -211,7 +223,8 @@ export const Resizable = Html.component({
       return $.emit(ResizableEvents.Resized({ sizes: [...next] }))
     },
     DragEnded: ($, { pointerId }) =>
-      $.model.drag !== null && $.model.drag.pointerId === pointerId
+      $.model.drag !== null &&
+      (pointerId === undefined || $.model.drag.pointerId === pointerId)
         ? $.evolve({ drag: null })
         : $.model
   },
