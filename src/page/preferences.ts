@@ -110,7 +110,11 @@ const parseCookies = (cookieHeader: string): Record<string, string> => {
  */
 export const cookieStorageLayer = (
   cookieHeader?: string,
-  options?: { readonly maxAgeSeconds?: number | undefined; readonly path?: string | undefined }
+  options?: {
+    readonly maxAgeSeconds?: number | undefined
+    readonly path?: string | undefined
+    readonly secure?: boolean | undefined
+  }
 ): Layer.Layer<PreferenceStorage> =>
   Layer.effect(
     PreferenceStorage,
@@ -120,6 +124,13 @@ export const cookieStorageLayer = (
       const path = options?.path ?? "/"
       const serverCookies =
         cookieHeader !== undefined ? parseCookies(cookieHeader) : undefined
+
+      const secureSuffix = (): string => {
+        const isSecure =
+          options?.secure ??
+          (typeof location !== "undefined" && location.protocol === "https:")
+        return isSecure ? "; Secure" : ""
+      }
 
       const readAll = (): Record<string, string> => {
         if (serverCookies !== undefined) return serverCookies
@@ -133,7 +144,7 @@ export const cookieStorageLayer = (
           if (serverCookies !== undefined) {
             serverCookies[key] = value
           } else if (typeof document !== "undefined") {
-            document.cookie = `${encodeURIComponent(key)}=${encodeURIComponent(value)}; Path=${path}; Max-Age=${maxAge}; SameSite=Lax`
+            document.cookie = `${encodeURIComponent(key)}=${encodeURIComponent(value)}; Path=${path}; Max-Age=${maxAge}; SameSite=Lax${secureSuffix()}`
           }
           yield* PubSub.publish(pubsub, { key, value })
         })
@@ -142,7 +153,7 @@ export const cookieStorageLayer = (
           if (serverCookies !== undefined) {
             delete serverCookies[key]
           } else if (typeof document !== "undefined") {
-            document.cookie = `${encodeURIComponent(key)}=; Path=${path}; Max-Age=0; SameSite=Lax`
+            document.cookie = `${encodeURIComponent(key)}=; Path=${path}; Max-Age=0; SameSite=Lax${secureSuffix()}`
           }
           yield* PubSub.publish(pubsub, { key, value: undefined })
         })
@@ -297,11 +308,29 @@ export const definePreference = <const Value extends string>(
 
   const applyToDocument = (value: Value): void => {
     if (typeof document !== "undefined" && document.documentElement !== null) {
-      document.documentElement.setAttribute(spec.attribute, value)
+      const root = document.documentElement
+      const prev = root.getAttribute(spec.attribute)
+      const suppressTransitions =
+        spec.attribute === "data-color-scheme" && prev !== null && prev !== value
+      if (suppressTransitions) {
+        root.setAttribute("data-eui-theme-switching", "")
+      }
+      root.setAttribute(spec.attribute, value)
       if (spec.attribute === "data-color-scheme") {
         const meta = document.querySelector<HTMLMetaElement>('meta[name="color-scheme"]')
         if (meta !== null) {
           meta.content = value === "light" || value === "dark" ? value : "light dark"
+        }
+      }
+      if (suppressTransitions) {
+        if (typeof requestAnimationFrame === "function") {
+          requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+              root.removeAttribute("data-eui-theme-switching")
+            })
+          })
+        } else {
+          root.removeAttribute("data-eui-theme-switching")
         }
       }
     }
@@ -447,7 +476,7 @@ export const preferencesScriptBody = (
     s.defaultValue,
     s.storageKind ?? "local"
   ])
-  return `(function(){try{var d=document.documentElement,c=null,s=${safeJson(payload)};for(var i=0;i<s.length;i++){var p=s[i],v=null;if(p[4]==="cookie"){if(c===null){c={};var parts=document.cookie.split(";");for(var j=0;j<parts.length;j++){var eq=parts[j].indexOf("=");if(eq>0){try{c[decodeURIComponent(parts[j].slice(0,eq).trim())]=decodeURIComponent(parts[j].slice(eq+1).trim())}catch(e){}}}}v=c[p[0]]}else{var st=p[4]==="session"?window.sessionStorage:window.localStorage;v=st?st.getItem(p[0]):null}d.setAttribute(p[1],v!==null&&p[2].indexOf(v)!==-1?v:p[3])}}catch(e){}})();`
+  return `(function(){try{var d=document.documentElement,c=null,s=${safeJson(payload)};for(var i=0;i<s.length;i++){var p=s[i],v=null;if(p[4]==="cookie"){if(c===null){c={};var parts=document.cookie.split(";");for(var j=0;j<parts.length;j++){var eq=parts[j].indexOf("=");if(eq>0){try{c[decodeURIComponent(parts[j].slice(0,eq).trim())]=decodeURIComponent(parts[j].slice(eq+1).trim())}catch(e){}}}}v=c[p[0]]}else{var st=p[4]==="session"?window.sessionStorage:window.localStorage;v=st?st.getItem(p[0]):null}var out=v!==null&&p[2].indexOf(v)!==-1?v:p[3];d.setAttribute(p[1],out);if(p[1]==="data-color-scheme"){var m=document.querySelector('meta[name="color-scheme"]');if(m){m.content=out==="light"||out==="dark"?out:"light dark"}}}}catch(e){}})();`
 }
 
 /**

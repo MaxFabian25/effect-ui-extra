@@ -2,6 +2,7 @@ import { UiSchema } from "@effect/ui"
 import { Html, HtmlCommand } from "@effect/ui/html"
 import * as Schema from "effect/Schema"
 import { recoverFocusKey } from "./focusRecovery.js"
+import { safeIdToken } from "./internal.js"
 
 export const ListboxItem = Schema.Struct({
   value: Schema.String,
@@ -201,7 +202,7 @@ export const Listbox = Html.component({
             .key(item.value)
             .ref(optionRef(item.value))
             .attrs({
-              id: `${prefix}-opt-${item.value}`,
+              id: `${prefix}-opt-${safeIdToken(item.value)}`,
               role: "option",
               "aria-selected": String(isSelected),
               tabindex: item.disabled ? "-1" : isStop ? "0" : "-1",

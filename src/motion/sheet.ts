@@ -16,12 +16,14 @@ export interface SheetState {
   readonly position: number
   readonly snapIndex: number
   readonly velocity: number
+  /** Undamped finger position tracked during `"dragging"` so `rubberBand` never compounds per frame. */
+  readonly rawPosition?: number | undefined
 }
 
 export type SheetEvent =
   | { readonly _tag: "Open"; readonly snapIndex?: number | undefined }
   | { readonly _tag: "Close" }
-  | { readonly _tag: "DragStart" }
+  | { readonly _tag: "DragStart"; readonly currentPosition?: number | undefined }
   | { readonly _tag: "DragMove"; readonly delta: number; readonly velocity: number }
   | { readonly _tag: "DragEnd"; readonly velocity: number }
   | { readonly _tag: "Settled" }
@@ -71,19 +73,30 @@ export const reduceSheet = (
     }
     case "Close":
       return { phase: "snapping", position: 0, snapIndex: -1, velocity: 0 }
-    case "DragStart":
-      return { ...state, phase: "dragging", velocity: 0 }
+    case "DragStart": {
+      const startPos = event.currentPosition ?? state.position
+      return {
+        phase: "dragging",
+        position: startPos,
+        rawPosition: startPos,
+        snapIndex: state.snapIndex,
+        velocity: 0
+      }
+    }
     case "DragMove": {
+      if (state.phase !== "dragging") return state
+      const nextRaw = (state.rawPosition ?? state.position) + event.delta
       const next = rubberBand(
-        state.position + event.delta,
+        nextRaw,
         minPos,
         maxPos,
         config.resistance ?? 220
       )
       return {
-        ...state,
         phase: "dragging",
         position: next,
+        rawPosition: nextRaw,
+        snapIndex: state.snapIndex,
         velocity: event.velocity
       }
     }
@@ -104,8 +117,9 @@ export const reduceSheet = (
     }
     case "Settled":
       return {
-        ...state,
         phase: state.snapIndex < 0 ? "closed" : "open",
+        position: state.position,
+        snapIndex: state.snapIndex,
         velocity: 0
       }
   }

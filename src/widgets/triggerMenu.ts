@@ -2,6 +2,7 @@ import { UiSchema } from "@effect/ui"
 import { Html } from "@effect/ui/html"
 import * as Schema from "effect/Schema"
 import { fuzzyFilter } from "./fuzzy.js"
+import { safeIdToken } from "./internal.js"
 
 export interface TriggerMatch {
   readonly trigger: string
@@ -154,6 +155,7 @@ export const TriggerMenu = Html.component({
     const activeItem = clampedIndex >= 0 ? filtered[clampedIndex]!.item : undefined
     const listId = `${prefix}-listbox`
 
+    const showList = isOpen && filtered.length > 0
     return h.div.attrs({ "data-trigger-menu": "" }).children(
       h.input
         .attrs({
@@ -162,21 +164,21 @@ export const TriggerMenu = Html.component({
           role: "combobox",
           "aria-label": p.label,
           "aria-autocomplete": "list",
-          "aria-expanded": String(isOpen && filtered.length > 0),
-          "aria-controls": listId,
-          ...(activeItem !== undefined
-            ? { "aria-activedescendant": `${prefix}-opt-${activeItem.value}` }
+          "aria-expanded": String(showList),
+          ...(showList ? { "aria-controls": listId } : {}),
+          ...(showList && activeItem !== undefined
+            ? { "aria-activedescendant": `${prefix}-opt-${safeIdToken(activeItem.value)}` }
             : {})
         })
         .value(p.text)
-        .on("input", ({ value }) =>
-          TriggerMenuMsg.InputEdited({ value, caret: value.length })
+        .on("input", ({ selectionStart, value }) =>
+          TriggerMenuMsg.InputEdited({ value, caret: selectionStart ?? value.length })
         )
         .on(
           "keydown",
           ({ key, composing }) => {
             if (composing) return undefined
-            if (!isOpen || filtered.length === 0) return undefined
+            if (!showList) return undefined
             if (key === "ArrowDown") {
               return TriggerMenuMsg.MovedActive({
                 index: (clampedIndex + 1) % filtered.length
@@ -197,7 +199,7 @@ export const TriggerMenu = Html.component({
           },
           { preventDefault: true }
         ),
-      isOpen && filtered.length > 0
+      showList
         ? h.ul
             .attrs({ id: listId, role: "listbox", "aria-label": `${p.label} suggestions` })
             .children(
@@ -205,7 +207,7 @@ export const TriggerMenu = Html.component({
                 h.li
                   .key(item.value)
                   .attrs({
-                    id: `${prefix}-opt-${item.value}`,
+                    id: `${prefix}-opt-${safeIdToken(item.value)}`,
                     role: "option",
                     "aria-selected": String(idx === clampedIndex)
                   })

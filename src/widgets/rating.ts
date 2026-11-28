@@ -1,6 +1,7 @@
 import { UiSchema } from "@effect/ui"
 import { Html, HtmlCommand } from "@effect/ui/html"
 import * as Schema from "effect/Schema"
+import { resolveDir, starIcon } from "./internal.js"
 
 export const RatingProps = Schema.Struct({
   label: Schema.String,
@@ -27,7 +28,7 @@ const ratingRef = (score: number) => Html.ref(`Rating[${score}]`, "button")
 
 /**
  * Accessible WAI-ARIA `radiogroup` star/score rating supporting integer or
- * half-star steps, RTL-aware Arrow navigation, and `HtmlCommand.focus`.
+ * half-star SVG steps, RTL-aware Arrow navigation, and `HtmlCommand.focus`.
  */
 export const Rating = Html.component({
   name: "Rating",
@@ -50,8 +51,8 @@ export const Rating = Html.component({
     const p = h.props
     const max = Math.max(1, Math.floor(p.max ?? 5))
     const step = p.step ?? 1
-    const isRtl = (p.dir ?? "ltr") === "rtl"
     const prefix = p.idPrefix ?? "rating"
+    const isHalfStep = step === 0.5
 
     const scores: Array<number> = []
     for (let s = step; s <= max + 1e-9; s += step) {
@@ -60,57 +61,80 @@ export const Rating = Html.component({
 
     const activeScore = scores.includes(p.value) ? p.value : scores[0]!
 
+    const renderOption = (score: number, idx: number) => {
+      const checked = score === p.value
+      const isStop = !p.disabled && score === activeScore
+      const filled = score <= p.value
+      const half: "start" | "end" | undefined = isHalfStep
+        ? idx % 2 === 0
+          ? "start"
+          : "end"
+        : undefined
+      return h.button
+        .key(String(score))
+        .ref(ratingRef(score))
+        .attrs({
+          id: `${prefix}-${String(score).replace(".", "_")}`,
+          type: "button",
+          role: "radio",
+          "aria-checked": String(checked),
+          "aria-label": `${score} out of ${max}`,
+          tabindex: p.disabled ? "-1" : isStop ? "0" : "-1",
+          "data-filled": filled ? "true" : "false",
+          ...(half !== undefined ? { "data-half": half } : {}),
+          ...(p.disabled ? { "aria-disabled": "true", "data-disabled": "" } : {})
+        })
+        .on("click", () =>
+          p.disabled ? undefined : RatingMsg.Selected({ value: score })
+        )
+        .on(
+          "keydown",
+          ({ key }) => {
+            if (p.disabled) return undefined
+            const isRtl = resolveDir(p.dir) === "rtl"
+            const nextKey = isRtl ? "ArrowLeft" : "ArrowRight"
+            const prevKey = isRtl ? "ArrowRight" : "ArrowLeft"
+            if (key === nextKey || key === "ArrowDown") {
+              const next = scores[(idx + 1) % scores.length]!
+              return RatingMsg.Selected({ value: next })
+            }
+            if (key === prevKey || key === "ArrowUp") {
+              const prev = scores[(idx - 1 + scores.length) % scores.length]!
+              return RatingMsg.Selected({ value: prev })
+            }
+            if (key === "Home") return RatingMsg.Selected({ value: scores[0]! })
+            if (key === "End") return RatingMsg.Selected({ value: scores[scores.length - 1]! })
+            if (key === " " || key === "Enter") return RatingMsg.Selected({ value: score })
+            return undefined
+          },
+          { preventDefault: true }
+        )
+        .children(starIcon(h, filled, half))
+    }
+
+    const items = isHalfStep
+      ? Array.from({ length: Math.ceil(scores.length / 2) }, (_, starIdx) => {
+          const i0 = starIdx * 2
+          const pair = [renderOption(scores[i0]!, i0)]
+          if (i0 + 1 < scores.length) {
+            pair.push(renderOption(scores[i0 + 1]!, i0 + 1))
+          }
+          return h.span
+            .key(`star-${starIdx}`)
+            .attrs({ "data-rating-star": "" })
+            .children(...pair)
+        })
+      : scores.map(renderOption)
+
     return h.div
       .attrs({
         role: "radiogroup",
         "aria-label": p.label,
         "aria-orientation": "horizontal",
-        dir: p.dir,
-        "data-rating": ""
+        ...(p.dir !== undefined ? { dir: p.dir } : {}),
+        "data-rating": "",
+        ...(isHalfStep ? { "data-half-step": "true" } : {})
       })
-      .children(
-        ...scores.map((score, idx) => {
-          const checked = score === p.value
-          const isStop = !p.disabled && score === activeScore
-          return h.button
-            .key(String(score))
-            .ref(ratingRef(score))
-            .attrs({
-              id: `${prefix}-${String(score).replace(".", "_")}`,
-              type: "button",
-              role: "radio",
-              "aria-checked": String(checked),
-              "aria-label": `${score} out of ${max}`,
-              tabindex: p.disabled ? "-1" : isStop ? "0" : "-1",
-              "data-filled": score <= p.value ? "true" : "false",
-              ...(p.disabled ? { "aria-disabled": "true", "data-disabled": "" } : {})
-            })
-            .on("click", () =>
-              p.disabled ? undefined : RatingMsg.Selected({ value: score })
-            )
-            .on(
-              "keydown",
-              ({ key }) => {
-                if (p.disabled) return undefined
-                const nextKey = isRtl ? "ArrowLeft" : "ArrowRight"
-                const prevKey = isRtl ? "ArrowRight" : "ArrowLeft"
-                if (key === nextKey || key === "ArrowDown") {
-                  const next = scores[(idx + 1) % scores.length]!
-                  return RatingMsg.Selected({ value: next })
-                }
-                if (key === prevKey || key === "ArrowUp") {
-                  const prev = scores[(idx - 1 + scores.length) % scores.length]!
-                  return RatingMsg.Selected({ value: prev })
-                }
-                if (key === "Home") return RatingMsg.Selected({ value: scores[0]! })
-                if (key === "End") return RatingMsg.Selected({ value: scores[scores.length - 1]! })
-                if (key === " " || key === "Enter") return RatingMsg.Selected({ value: score })
-                return undefined
-              },
-              { preventDefault: true }
-            )
-            .children(h.span.attrs({ "aria-hidden": "true" }).children(score <= p.value ? "★" : "☆"))
-        })
-      )
+      .children(...items)
   }
 })

@@ -42,10 +42,7 @@ export const compositeOver = (
   }
 }
 
-/**
- * WCAG 2.1 contrast ratio in `[1, 21]`, compositing alpha foregrounds over `bg`.
- */
-export const wcagContrast = (
+const rawWcagContrast = (
   fg: OklchColor | string,
   bg: OklchColor | string
 ): number => {
@@ -61,25 +58,33 @@ export const wcagContrast = (
     0.0722 * srgbToLinear(cBg.b)
   const hi = Math.max(l1, l2)
   const lo = Math.min(l1, l2)
-  return Math.round(((hi + 0.05) / (lo + 0.05)) * 100) / 100
+  return (hi + 0.05) / (lo + 0.05)
 }
+
+/**
+ * WCAG 2.1 contrast ratio in `[1, 21]`, compositing alpha foregrounds over `bg`.
+ */
+export const wcagContrast = (
+  fg: OklchColor | string,
+  bg: OklchColor | string
+): number => Math.round(rawWcagContrast(fg, bg) * 100) / 100
 
 export const meetsWcagAA = (
   fg: OklchColor | string,
   bg: OklchColor | string,
   largeText = false
-): boolean => wcagContrast(fg, bg) >= (largeText ? 3.0 : 4.5)
+): boolean => rawWcagContrast(fg, bg) >= (largeText ? 3.0 : 4.5)
 
 export const meetsWcagAAA = (
   fg: OklchColor | string,
   bg: OklchColor | string,
   largeText = false
-): boolean => wcagContrast(fg, bg) >= (largeText ? 4.5 : 7.0)
+): boolean => rawWcagContrast(fg, bg) >= (largeText ? 4.5 : 7.0)
 
 export const meetsUiControlContrast = (
   control: OklchColor | string,
   bg: OklchColor | string
-): boolean => wcagContrast(control, bg) >= 3.0
+): boolean => rawWcagContrast(control, bg) >= 3.0
 
 /**
  * APCA W3 0.0.98G-4g perceptual lightness contrast (`Lc`), signed:
@@ -139,13 +144,13 @@ export const auditThemeContrast = (
 ): ReadonlyArray<ContrastFailure> => {
   const failures: Array<ContrastFailure> = []
   for (const pair of pairs) {
-    const ratio = wcagContrast(pair.fg, pair.bg)
-    if (ratio < pair.minRatio) {
+    const raw = rawWcagContrast(pair.fg, pair.bg)
+    if (raw < pair.minRatio) {
       failures.push({
         name: pair.name,
         fg: pair.fg,
         bg: pair.bg,
-        ratio,
+        ratio: Math.round(raw * 100) / 100,
         minRatio: pair.minRatio
       })
     }

@@ -158,11 +158,17 @@ describe("Preferences, ColorScheme, and zero-FOUC SSR script", () => {
       win.localStorage.setItem("ui-density", '"><script>alert(1)</script>')
       win.document.cookie = "theme=dark; Path=/"
 
+      const meta = win.document.createElement("meta")
+      meta.setAttribute("name", "color-scheme")
+      meta.setAttribute("content", "light dark")
+      win.document.head.appendChild(meta)
+
       const body = preferencesScriptBody([ColorScheme, Density, CookieTheme])
       const fn = new Function("window", "document", body)
       fn(win, win.document)
 
       expect(win.document.documentElement.getAttribute("data-color-scheme")).toBe("dark")
+      expect(meta.getAttribute("content")).toBe("dark")
       // Disallowed value fell back to defaultValue
       expect(win.document.documentElement.getAttribute("data-density")).toBe("comfortable")
       // Cookie-backed preference restored

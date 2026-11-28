@@ -153,10 +153,36 @@ describe("Draggable Sheet state machine and Presence lifecycle", () => {
     p = reducePresence(p, { _tag: "AnimationEnd" })
     expect(p).toEqual({ phase: "unmounted", mounted: false, dataState: "closed" })
 
-    // Reduced motion jumps straight to open and unmounted
+    // Reduced motion jumps straight to open and unmounted by default
     p = reducePresence(p, { _tag: "SetOpen", open: true, reducedMotion: true })
     expect(p).toEqual({ phase: "open", mounted: true, dataState: "open" })
     p = reducePresence(p, { _tag: "SetOpen", open: false, reducedMotion: true })
     expect(p).toEqual({ phase: "unmounted", mounted: false, dataState: "closed" })
+
+    // Opt-in fade mode preserves enter/exit phases for gentle opacity fades
+    p = reducePresence(p, { _tag: "SetOpen", open: true, reducedMotion: true, reducedMotionMode: "fade" })
+    expect(p).toEqual({ phase: "entering", mounted: true, dataState: "closed" })
+    p = reducePresence(p, { _tag: "EnterFrame" })
+    p = reducePresence(p, { _tag: "SetOpen", open: false, reducedMotion: true, reducedMotionMode: "fade" })
+    expect(p).toEqual({ phase: "exiting", mounted: true, dataState: "closed" })
+  })
+
+  test("reduceSheet accumulates undamped rawPosition across drag frames without compounding rubberBand", () => {
+    const cfg = { snapPoints: [240, 560], dismissible: true, resistance: 220 }
+    let single = reduceSheet(initialSheetState(cfg, 1), { _tag: "DragStart" }, cfg)
+    single = reduceSheet(single, { _tag: "DragMove", delta: 100, velocity: 400 }, cfg)
+
+    let multi = reduceSheet(initialSheetState(cfg, 1), { _tag: "DragStart" }, cfg)
+    for (let i = 0; i < 100; i++) {
+      multi = reduceSheet(multi, { _tag: "DragMove", delta: 1, velocity: 400 }, cfg)
+    }
+    expect(multi.position).toBeCloseTo(single.position, 6)
+
+    // DragMove outside dragging phase is ignored; DragStart accepts live currentPosition
+    const open = initialSheetState(cfg, 0)
+    expect(reduceSheet(open, { _tag: "DragMove", delta: 50, velocity: 100 }, cfg)).toEqual(open)
+    const caught = reduceSheet(open, { _tag: "DragStart", currentPosition: 310 }, cfg)
+    expect(caught.position).toBe(310)
+    expect(caught.rawPosition).toBe(310)
   })
 })

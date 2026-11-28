@@ -56,15 +56,15 @@ export const DEFAULT_DARK_TOKENS: ThemeTokens = {
   surface: "oklch(0.21 0.012 260)",
   muted: "oklch(0.25 0.012 260)",
   foreground: "oklch(0.95 0.006 260)",
-  mutedForeground: "oklch(0.75 0.012 260)",
+  mutedForeground: "oklch(0.78 0.012 260)",
   border: "oklch(0.32 0.012 260)",
   inputBorder: "oklch(0.6 0.015 260)",
   primary: "oklch(0.74 0.12 258)",
   primaryForeground: "oklch(0.15 0.012 260)",
   accent: "oklch(0.29 0.04 258)",
   accentForeground: "oklch(0.93 0.02 258)",
-  destructive: "oklch(0.7 0.16 25)",
-  destructiveForeground: "oklch(0.15 0.012 25)",
+  destructive: "oklch(0.78 0.12 25)",
+  destructiveForeground: "oklch(0.14 0.012 25)",
   ring: "oklch(0.74 0.12 258)"
 }
 
@@ -125,6 +125,12 @@ export const themeContrastPairs = (
     minRatio: 4.5
   },
   {
+    name: "primary on surface",
+    fg: tokens.primary,
+    bg: tokens.surface,
+    minRatio: 4.5
+  },
+  {
     name: "accentForeground on accent",
     fg: tokens.accentForeground,
     bg: tokens.accent,
@@ -140,6 +146,12 @@ export const themeContrastPairs = (
     name: "destructive on background",
     fg: tokens.destructive,
     bg: tokens.background,
+    minRatio: 4.5
+  },
+  {
+    name: "destructive on surface",
+    fg: tokens.destructive,
+    bg: tokens.surface,
     minRatio: 4.5
   },
   {
@@ -197,23 +209,29 @@ export const generateThemeCss = (
   return `@layer ${layer} {
   :root {
     color-scheme: light dark;
-${lightDecls}
   }
 
-  @media (prefers-color-scheme: dark) {
-    :root:not([data-color-scheme="light"]) {
+  :root[data-color-scheme="light"] { color-scheme: light; }
+  :root[data-color-scheme="dark"] { color-scheme: dark; }
+
+  @supports not (color: light-dark(white, black)) {
+    :root {
+${lightDecls}
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root:not([data-color-scheme="light"]) {
+${darkDecls}
+      }
+    }
+
+    :root[data-color-scheme="light"] {
+${lightDecls}
+    }
+
+    :root[data-color-scheme="dark"] {
 ${darkDecls}
     }
-  }
-
-  :root[data-color-scheme="light"] {
-    color-scheme: light;
-${lightDecls}
-  }
-
-  :root[data-color-scheme="dark"] {
-    color-scheme: dark;
-${darkDecls}
   }
 
   @supports (color: light-dark(white, black)) {

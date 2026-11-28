@@ -36,6 +36,7 @@ const HINT_PRESETS: Readonly<Record<InputHintKind, InputHintAttrs>> = {
   search: {
     type: "search",
     inputmode: "search",
+    autocomplete: "off",
     enterkeyhint: "search",
     autocapitalize: "none",
     autocorrect: "off",
@@ -76,6 +77,7 @@ const HINT_PRESETS: Readonly<Record<InputHintKind, InputHintAttrs>> = {
   numeric: {
     type: "text",
     inputmode: "numeric",
+    autocomplete: "off",
     autocapitalize: "none",
     autocorrect: "off",
     spellcheck: "false"
@@ -83,6 +85,7 @@ const HINT_PRESETS: Readonly<Record<InputHintKind, InputHintAttrs>> = {
   decimal: {
     type: "text",
     inputmode: "decimal",
+    autocomplete: "off",
     autocapitalize: "none",
     autocorrect: "off",
     spellcheck: "false"

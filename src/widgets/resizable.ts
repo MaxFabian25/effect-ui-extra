@@ -1,6 +1,8 @@
 import { UiSchema } from "@effect/ui"
-import { Html } from "@effect/ui/html"
+import { Html, HtmlCommand } from "@effect/ui/html"
+import * as Option from "effect/Option"
 import * as Schema from "effect/Schema"
+import { resolveDir } from "./internal.js"
 
 export const PaneSpec = Schema.Struct({
   id: Schema.String,
@@ -28,11 +30,29 @@ export const ResizableEvents = UiSchema.TaggedEnum({
 })
 export type ResizableEvents = typeof ResizableEvents.Type
 
+const DragState = Schema.Struct({
+  handleIndex: Schema.Number,
+  pointerId: Schema.Number,
+  startPos: Schema.Number,
+  startSizes: Schema.Array(Schema.Number),
+  containerSize: Schema.Number
+})
+
 const ResizableMsg = UiSchema.TaggedEnum({
   Adjusted: { handleIndex: Schema.Number, delta: Schema.Number },
   SetEdge: { handleIndex: Schema.Number, edge: Schema.Literals(["min", "max"]) },
-  ToggledCollapse: { handleIndex: Schema.Number }
+  ToggledCollapse: { handleIndex: Schema.Number },
+  DragStarted: {
+    handleIndex: Schema.Number,
+    pointerId: Schema.Number,
+    startPos: Schema.Number
+  },
+  Measured: { size: Schema.Number },
+  DragMoved: { pointerId: Schema.Number, pos: Schema.Number, isRtl: Schema.Boolean },
+  DragEnded: { pointerId: Schema.Number }
 })
+
+const containerRef = Html.ref("ResizableRoot", "div")
 
 const round2 = (n: number): number => Math.round(n * 100) / 100
 
@@ -82,21 +102,22 @@ export const resizePanes = (
  *
  * Each handle renders `role="separator"`, `tabindex="0"`, `aria-orientation`
  * perpendicular to the split axis, `aria-valuenow`/`min`/`max`, and
- * `aria-controls` pointing to its primary pane. Supports Arrow keys (`step`),
- * Shift+Arrow (`largeStep`), `Home` (min), `End` (max), and `Enter`
- * (collapse/restore when `collapsible: true`).
+ * `aria-controls` pointing to its primary pane. Supports pointer/touch drag
+ * with pointer capture plus Arrow keys (`step`), Shift+Arrow (`largeStep`),
+ * `Home` (min), `End` (max), and `Enter` (collapse/restore when `collapsible`).
  */
 export const Resizable = Html.component({
   name: "Resizable",
   props: ResizableProps,
   model: Schema.Struct({
     /** Stores pre-collapse size per pane id so Enter restores cleanly. */
-    restoredSizes: Schema.Record(Schema.String, Schema.Number)
+    restoredSizes: Schema.Record(Schema.String, Schema.Number),
+    drag: Schema.NullOr(DragState)
   }),
   message: ResizableMsg,
   events: ResizableEvents
 }).make({
-  init: () => ({ restoredSizes: {} }),
+  init: () => ({ restoredSizes: {}, drag: null }),
   update: {
     Adjusted: ($, { delta, handleIndex }) => {
       const next = resizePanes($.props.sizes, $.props.panes, handleIndex, delta)
@@ -131,13 +152,13 @@ export const Resizable = Html.component({
       if (isCollapsed) {
         const restoreTo =
           $.model.restoredSizes[leftSpec.id] ?? Math.max(leftSpec.minSize ?? 15, 25)
-        const nextLeft = round2(
-          Math.min(leftSpec.maxSize ?? 95, Math.max(leftSpec.minSize ?? 5, restoreTo))
+        const next = resizePanes(
+          $.props.sizes,
+          $.props.panes,
+          handleIndex,
+          restoreTo - curr
         )
-        const out = [...$.props.sizes]
-        out[handleIndex] = nextLeft
-        out[handleIndex + 1] = round2(pairTotal - nextLeft)
-        return $.emit(ResizableEvents.Resized({ sizes: out }))
+        return $.emit(ResizableEvents.Resized({ sizes: [...next] }))
       }
 
       const out = [...$.props.sizes]
@@ -146,9 +167,55 @@ export const Resizable = Html.component({
       return $.evolve({
         restoredSizes: { ...$.model.restoredSizes, [leftSpec.id]: curr }
       }).emit(ResizableEvents.Resized({ sizes: out }))
-    }
+    },
+    DragStarted: ($, { handleIndex, pointerId, startPos }) => {
+      const orientation = $.props.orientation ?? "horizontal"
+      return $.evolve({
+        drag: {
+          handleIndex,
+          pointerId,
+          startPos,
+          startSizes: [...$.props.sizes],
+          containerSize: 0
+        }
+      }).run(
+        HtmlCommand.measure(containerRef, (rect) =>
+          ResizableMsg.Measured({
+            size: Option.isSome(rect)
+              ? orientation === "horizontal"
+                ? rect.value.width
+                : rect.value.height
+              : 0
+          })
+        )
+      )
+    },
+    Measured: ($, { size }) =>
+      $.model.drag === null
+        ? $.model
+        : $.evolve({ drag: { ...$.model.drag, containerSize: size } }),
+    DragMoved: ($, { isRtl, pointerId, pos }) => {
+      const drag = $.model.drag
+      if (drag === null || drag.pointerId !== pointerId || drag.containerSize <= 0) {
+        return $.model
+      }
+      const orientation = $.props.orientation ?? "horizontal"
+      const sign = orientation === "horizontal" && isRtl ? -1 : 1
+      const deltaPercent = (((pos - drag.startPos) * sign) / drag.containerSize) * 100
+      const next = resizePanes(
+        drag.startSizes,
+        $.props.panes,
+        drag.handleIndex,
+        deltaPercent
+      )
+      return $.emit(ResizableEvents.Resized({ sizes: [...next] }))
+    },
+    DragEnded: ($, { pointerId }) =>
+      $.model.drag !== null && $.model.drag.pointerId === pointerId
+        ? $.evolve({ drag: null })
+        : $.model
   },
-  view: (h) => {
+  view: (h, model) => {
     const p = h.props
     const orientation = p.orientation ?? "horizontal"
     const separatorOrientation =
@@ -169,7 +236,7 @@ export const Resizable = Html.component({
             id: paneId,
             "data-pane": pane.id,
             "data-size": String(size),
-            style: `flex:${size} 1 0%`
+            style: `flex:${size} 1 0%;min-width:0;min-height:0`
           })
           .children(pane.label)
       )
@@ -179,19 +246,7 @@ export const Resizable = Html.component({
           ? (pane.collapsedSize ?? 0)
           : (pane.minSize ?? 5)
         const max = pane.maxSize ?? 95
-        const isRtl = (p.dir ?? "ltr") === "rtl"
-        const incKey =
-          orientation === "horizontal"
-            ? isRtl
-              ? "ArrowLeft"
-              : "ArrowRight"
-            : "ArrowDown"
-        const decKey =
-          orientation === "horizontal"
-            ? isRtl
-              ? "ArrowRight"
-              : "ArrowLeft"
-            : "ArrowUp"
+        const isDragging = model.drag?.handleIndex === i
 
         children.push(
           h.div
@@ -206,11 +261,52 @@ export const Resizable = Html.component({
               "aria-valuemax": String(max),
               "aria-controls": paneId,
               "data-resize-handle": String(i),
-              "data-resizable-handle": String(i)
+              "data-resizable-handle": String(i),
+              ...(isDragging ? { "data-dragging": "true" } : {})
             })
+            .on(
+              "pointerdown",
+              ({ button, pointerId, x, y }) =>
+                button === 0
+                  ? ResizableMsg.DragStarted({
+                      handleIndex: i,
+                      pointerId,
+                      startPos: orientation === "horizontal" ? x : y
+                    })
+                  : undefined,
+              { capturePointer: true, preventDefault: true }
+            )
+            .on("pointermove", ({ pointerId, x, y }) =>
+              model.drag !== null && model.drag.pointerId === pointerId
+                ? ResizableMsg.DragMoved({
+                    pointerId,
+                    pos: orientation === "horizontal" ? x : y,
+                    isRtl: resolveDir(p.dir) === "rtl"
+                  })
+                : undefined
+            )
+            .on("pointerup", ({ pointerId }) =>
+              ResizableMsg.DragEnded({ pointerId })
+            )
+            .on("pointercancel", ({ pointerId }) =>
+              ResizableMsg.DragEnded({ pointerId })
+            )
             .on(
               "keydown",
               ({ key, shift }) => {
+                const isRtl = resolveDir(p.dir) === "rtl"
+                const incKey =
+                  orientation === "horizontal"
+                    ? isRtl
+                      ? "ArrowLeft"
+                      : "ArrowRight"
+                    : "ArrowDown"
+                const decKey =
+                  orientation === "horizontal"
+                    ? isRtl
+                      ? "ArrowRight"
+                      : "ArrowLeft"
+                    : "ArrowUp"
                 const delta = shift ? largeStep : step
                 if (key === incKey) {
                   return ResizableMsg.Adjusted({ handleIndex: i, delta })
@@ -236,7 +332,9 @@ export const Resizable = Html.component({
     }
 
     return h.div
+      .ref(containerRef)
       .attrs({
+        ...(p.dir !== undefined ? { dir: p.dir } : {}),
         "data-resizable": "",
         "data-orientation": orientation,
         style: `display:flex;flex-direction:${orientation === "horizontal" ? "row" : "column"}`

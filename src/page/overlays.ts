@@ -359,7 +359,7 @@ export const OverlayHost = Html.component({
                         .attrs({
                           type: "button",
                           "data-overlay-confirm": "",
-                          ...(active.destructive ? { "data-variant": "destructive" } : {})
+                          "data-variant": active.destructive ? "destructive" : "primary"
                         })
                         .on("click", HostMsg.AcceptedConfirm({ id: active.id }))
                         .children(active.confirmLabel)
@@ -373,6 +373,10 @@ export const OverlayHost = Html.component({
     }
 
     const inputId = `${active.id}-input`
+    const isCoarsePointer =
+      typeof window !== "undefined" &&
+      typeof window.matchMedia === "function" &&
+      window.matchMedia("(pointer: coarse)").matches
     return h.div.attrs({ "data-overlay-host": "" }).children(
       Dialog(h, {
         key: active.id,
@@ -382,8 +386,19 @@ export const OverlayHost = Html.component({
           RequestedClose: () => HostMsg.Cancelled({ id: active.id }),
           Settled: () => undefined
         },
-        view: (d) =>
-          h.div(
+        view: (d) => {
+          const promptInput = h.input
+            .attrs({
+              id: inputId,
+              type: "text",
+              ...(active.placeholder !== null
+                ? { placeholder: active.placeholder }
+                : {})
+            })
+            .value(model.draft)
+            .on("input", ({ value }) => HostMsg.ChangedDraft({ value }))
+
+          return h.div(
             d.portal(h.dialog)?.children(
               d.backdrop(h.div.attrs({ "data-overlay-backdrop": "" })),
               d.viewport(h.div.attrs({ "data-overlay-viewport": "" })).children(
@@ -396,24 +411,15 @@ export const OverlayHost = Html.component({
                     .on("submit", HostMsg.SubmittedPrompt({ id: active.id }))
                     .children(
                       h.label.attrs({ for: inputId }).children(active.label),
-                      d.initialFocus(
-                        h.input
-                          .attrs({
-                            id: inputId,
-                            type: "text",
-                            ...(active.placeholder !== null
-                              ? { placeholder: active.placeholder }
-                              : {})
-                          })
-                          .value(model.draft)
-                          .on("input", ({ value }) =>
-                            HostMsg.ChangedDraft({ value })
-                          )
-                      ),
+                      isCoarsePointer ? promptInput : d.initialFocus(promptInput),
                       h.div.attrs({ "data-overlay-actions": "" }).children(
                         d.close(h.button).children(active.cancelLabel),
                         h.button
-                          .attrs({ type: "submit", "data-overlay-confirm": "" })
+                          .attrs({
+                            type: "submit",
+                            "data-overlay-confirm": "",
+                            "data-variant": "primary"
+                          })
                           .children(active.confirmLabel)
                       )
                     )
@@ -421,6 +427,7 @@ export const OverlayHost = Html.component({
               )
             )
           )
+        }
       })
     )
   }

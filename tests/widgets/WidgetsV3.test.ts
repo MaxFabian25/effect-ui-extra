@@ -90,6 +90,13 @@ describe("TimeInput", () => {
             yield* play.expect(minute).toHaveAttribute("aria-valuetext", "00")
             yield* play.keydown(minute, "End")
             yield* play.expect(minute).toHaveAttribute("aria-valuetext", "59")
+
+            // Numeric digit entry + click period toggle
+            yield* play.keydown(minute, "1")
+            yield* play.keydown(minute, "5")
+            yield* play.expect(minute).toHaveAttribute("aria-valuetext", "15")
+            yield* play.click(period)
+            yield* play.expect(period).toHaveAttribute("aria-valuetext", "PM")
           })
         )
       })
@@ -214,6 +221,13 @@ describe("ColorPicker (dogfooding effect-ui-theme)", () => {
             yield* play.expect(lightness).toHaveAttribute("aria-valuenow", "0.65")
 
             yield* play.type(hexInput, "#000000")
+            yield* play.expect(hexInput).toHaveValue("#000000")
+
+            // Partial invalid draft stays editable with aria-invalid="true" and reverts on Escape
+            yield* play.type(hexInput, "#00")
+            yield* play.expect(hexInput).toHaveValue("#00")
+            yield* play.expect(hexInput).toHaveAttribute("aria-invalid", "true")
+            yield* play.keydown(hexInput, "Escape")
             yield* play.expect(hexInput).toHaveValue("#000000")
           })
         )

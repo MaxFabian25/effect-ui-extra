@@ -1,3 +1,5 @@
+import { oklchToSrgb, parseColor } from "../theme/color.js"
+
 interface Rgb {
   readonly r: number
   readonly g: number
@@ -23,11 +25,16 @@ const parseRgbOrHex = (input: string): Rgb | undefined => {
     return undefined
   }
   const match = /^rgba?\(\s*([\d.]+)[,\s]+([\d.]+)[,\s]+([\d.]+)/.exec(s)
-  if (match === null) return undefined
-  const r = Number.parseFloat(match[1]!)
-  const g = Number.parseFloat(match[2]!)
-  const b = Number.parseFloat(match[3]!)
-  return [r, g, b].some(Number.isNaN) ? undefined : { r, g, b }
+  if (match !== null) {
+    const r = Number.parseFloat(match[1]!)
+    const g = Number.parseFloat(match[2]!)
+    const b = Number.parseFloat(match[3]!)
+    return [r, g, b].some(Number.isNaN) ? undefined : { r, g, b }
+  }
+  const parsed = parseColor(input)
+  if (parsed === undefined) return undefined
+  const srgb = oklchToSrgb(parsed)
+  return { r: srgb.r * 255, g: srgb.g * 255, b: srgb.b * 255 }
 }
 
 const toHex = ({ b, g, r }: Rgb): string => {
@@ -73,14 +80,20 @@ export const createThemeColorDimmer = (
   doc: Pick<Document, "querySelectorAll">,
   alpha = 0.45
 ): ThemeColorDimmer => {
-  const metas = Array.from(
-    doc.querySelectorAll<HTMLMetaElement>('meta[name="theme-color"]')
-  )
-  const originals = metas.map((m) => m.content)
+  let metas: Array<HTMLMetaElement> = []
+  let originals: Array<string> = []
+  let active = false
   let lastShade = -1
 
   return {
     write: (dim: number) => {
+      if (!active) {
+        metas = Array.from(
+          doc.querySelectorAll<HTMLMetaElement>('meta[name="theme-color"]')
+        )
+        originals = metas.map((m) => m.content)
+        active = true
+      }
       const shade = Math.round(Math.max(0, Math.min(1, dim)) * alpha * 100) / 100
       if (shade === lastShade) return
       lastShade = shade
@@ -92,6 +105,8 @@ export const createThemeColorDimmer = (
       }
     },
     restore: () => {
+      if (!active) return
+      active = false
       lastShade = -1
       for (let i = 0; i < metas.length; i++) {
         metas[i]!.content = originals[i]!

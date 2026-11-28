@@ -195,14 +195,19 @@ describe("TokenInput", () => {
             yield* play.type(input, "bun,")
             yield* play.expect(HtmlLocator.role("button", { name: "Remove bun" })).toExist()
 
-            // First Backspace highlights last chip; second Backspace removes it
+            // First Backspace highlights last chip; Delete removes it
             yield* play.keydown(input, "Backspace")
-            yield* play.keydown(input, "Backspace")
+            yield* play.keydown(input, "Delete")
             expect(
               HtmlLocator.queryAllByRole(play.root.container, "button", {
                 name: "Remove bun"
               })
             ).toHaveLength(0)
+
+            // Rejecting duplicate keeps draft instead of silently wiping it
+            yield* play.type(input, "effect")
+            yield* play.keydown(input, "Enter")
+            yield* play.expect(input).toHaveValue("effect")
           })
         )
       })

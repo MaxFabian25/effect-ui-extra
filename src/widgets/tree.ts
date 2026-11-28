@@ -2,6 +2,7 @@ import { UiSchema, type View } from "@effect/ui"
 import { Html, HtmlCommand } from "@effect/ui/html"
 import * as Schema from "effect/Schema"
 import { recoverFocusKey } from "./focusRecovery.js"
+import { chevronRightIcon, resolveDir, safeIdToken } from "./internal.js"
 
 export interface TreeNode {
   readonly value: string
@@ -43,6 +44,7 @@ const TreeMsg = UiSchema.TaggedEnum({
   CollapsedBranch: { value: Schema.String },
   ExpandedSiblings: { values: Schema.Array(Schema.String) },
   ActivatedNode: { value: Schema.String },
+  ClickedBranch: { value: Schema.String, expanded: Schema.Boolean },
   FocusCommandDone: {}
 })
 
@@ -212,12 +214,23 @@ export const Tree = Html.component({
     },
     ActivatedNode: ($, { value }) =>
       $.emit(TreeEvents.Selected({ value })),
+    ClickedBranch: ($, { expanded, value }) => {
+      const nextExpanded = expanded
+        ? $.props.expanded.filter((v) => v !== value)
+        : $.props.expanded.includes(value)
+        ? [...$.props.expanded]
+        : [...$.props.expanded, value]
+      return $.emit(TreeEvents.Selected({ value })).emit(
+        TreeEvents.ToggledExpand({ value, expanded: nextExpanded })
+      )
+    },
     FocusCommandDone: ($) => $.model
   },
   view: (h, model) => {
     const p = h.props
     const prefix = p.idPrefix ?? "tree"
     const expandedSet = new Set(p.expanded)
+    const { parentMap } = flattenVisible(p.nodes, expandedSet)
     const { active, visible, visibleKeys } = resolveActive(
       p.nodes,
       p.expanded,
@@ -225,6 +238,16 @@ export const Tree = Html.component({
       model.lastOrder
     )
     const metaByValue = new Map(visible.map((f) => [f.node.value, f]))
+    const visibleKeySet = new Set(visibleKeys)
+
+    const nearestEnabledAncestor = (start: string | undefined): string | undefined => {
+      let cur = start
+      while (cur !== undefined) {
+        if (visibleKeySet.has(cur)) return cur
+        cur = parentMap.get(cur)
+      }
+      return undefined
+    }
 
     const renderList = (
       list: ReadonlyArray<TreeNode>
@@ -236,13 +259,14 @@ export const Tree = Html.component({
         const isSelected = p.selected === node.value
         const isStop = !node.disabled && active === node.value
 
-        const labelId = `${prefix}-label-${node.value}`
+        const safeVal = safeIdToken(node.value)
+        const labelId = `${prefix}-label-${safeVal}`
 
         return h.li
           .key(node.value)
           .ref(treeItemRef(node.value))
           .attrs({
-            id: `${prefix}-item-${node.value}`,
+            id: `${prefix}-item-${safeVal}`,
             role: "treeitem",
             "aria-labelledby": labelId,
             tabindex: node.disabled ? "-1" : isStop ? "0" : "-1",
@@ -260,7 +284,9 @@ export const Tree = Html.component({
           )
           .on("click", () => {
             if (node.disabled) return undefined
-            return TreeMsg.ActivatedNode({ value: node.value })
+            return isBranch
+              ? TreeMsg.ClickedBranch({ value: node.value, expanded: isExpanded })
+              : TreeMsg.ActivatedNode({ value: node.value })
           })
           .on(
             "keydown",
@@ -283,7 +309,7 @@ export const Tree = Html.component({
                   value: visibleKeys[visibleKeys.length - 1]!
                 })
               }
-              const isRtl = (p.dir ?? "ltr") === "rtl"
+              const isRtl = resolveDir(p.dir) === "rtl"
               const expandKey = isRtl ? "ArrowLeft" : "ArrowRight"
               const collapseKey = isRtl ? "ArrowRight" : "ArrowLeft"
               if (key === expandKey) {
@@ -302,8 +328,9 @@ export const Tree = Html.component({
                 if (isBranch && isExpanded) {
                   return TreeMsg.CollapsedBranch({ value: node.value })
                 }
-                if (meta.parent !== undefined) {
-                  return TreeMsg.MovedFocus({ value: meta.parent })
+                const targetParent = nearestEnabledAncestor(meta.parent)
+                if (targetParent !== undefined) {
+                  return TreeMsg.MovedFocus({ value: targetParent })
                 }
                 return undefined
               }
@@ -320,7 +347,12 @@ export const Tree = Html.component({
             { preventDefault: true }
           )
           .children(
-            h.span.attrs({ id: labelId }).children(node.label),
+            h.span
+              .attrs({ id: labelId })
+              .children(
+                isBranch ? chevronRightIcon(h) : undefined,
+                node.label
+              ),
             isExpanded && node.children !== undefined
               ? h.ul.attrs({ role: "group" }).children(...renderList(node.children))
               : undefined
@@ -328,7 +360,11 @@ export const Tree = Html.component({
       })
 
     return h.ul
-      .attrs({ role: "tree", "aria-label": p.label })
+      .attrs({
+        role: "tree",
+        "aria-label": p.label,
+        ...(p.dir !== undefined ? { dir: p.dir } : {})
+      })
       .children(...renderList(p.nodes))
   }
 })

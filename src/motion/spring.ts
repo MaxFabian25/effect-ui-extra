@@ -140,10 +140,12 @@ export interface SpringCssEasing {
  */
 export const springLinearEasing = (
   config: SpringConfig = {},
-  samples = 32
+  samples?: number
 ): SpringCssEasing => {
   const durationMs = settleTime(config)
-  const count = Math.max(4, Math.floor(samples))
+  const resolved =
+    samples ?? Math.min(120, Math.max(32, Math.ceil(durationMs / 16)))
+  const count = Math.max(4, Math.floor(resolved))
   const points: Array<string> = []
   for (let i = 0; i <= count; i++) {
     const tSec = ((i / count) * durationMs) / 1000

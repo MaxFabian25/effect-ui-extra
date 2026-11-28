@@ -104,6 +104,23 @@ describe("WCAG 2.1 and APCA contrast math", () => {
     expect(darkOnLight).toBeGreaterThan(95)
     expect(lightOnDark).toBeLessThan(-95)
   })
+
+  test("meetsWcagAA and meetsUiControlContrast reject sub-threshold ratios instead of rounding up", () => {
+    const almostAA = "oklch(0.5681 0 0)"
+    expect(wcagContrast(almostAA, "#ffffff")).toBe(4.5)
+    expect(meetsWcagAA(almostAA, "#ffffff")).toBe(false)
+
+    const almostUI = "oklch(0.6695 0 0)"
+    expect(wcagContrast(almostUI, "#ffffff")).toBe(3)
+    expect(meetsUiControlContrast(almostUI, "#ffffff")).toBe(false)
+  })
+
+  test("DEFAULT_DARK_TOKENS meet APCA >= Lc 60 for mutedForeground and destructive controls", () => {
+    expect(Math.abs(apcaContrast(DEFAULT_DARK_TOKENS.mutedForeground, DEFAULT_DARK_TOKENS.background))).toBeGreaterThanOrEqual(60)
+    expect(Math.abs(apcaContrast(DEFAULT_DARK_TOKENS.mutedForeground, DEFAULT_DARK_TOKENS.muted))).toBeGreaterThanOrEqual(60)
+    expect(Math.abs(apcaContrast(DEFAULT_DARK_TOKENS.destructiveForeground, DEFAULT_DARK_TOKENS.destructive))).toBeGreaterThanOrEqual(60)
+    expect(Math.abs(apcaContrast(DEFAULT_DARK_TOKENS.destructive, DEFAULT_DARK_TOKENS.background))).toBeGreaterThanOrEqual(60)
+  })
 })
 
 describe("Default OKLCH theme tokens and @layer effect-ui stylesheet", () => {
@@ -158,17 +175,25 @@ describe("Default OKLCH theme tokens and @layer effect-ui stylesheet", () => {
     expect(stylesheet).toContain("@media (prefers-reduced-motion: reduce)")
     expect(stylesheet).not.toContain("0.01ms !important")
     expect(stylesheet).toContain("@media (prefers-color-scheme: dark)")
+    expect(stylesheet).toContain("@supports not (color: light-dark(white, black))")
     expect(stylesheet).toContain("@supports (color: light-dark(white, black))")
-    expect(stylesheet).toContain("@media (hover: hover)")
+    expect(stylesheet).toContain("@media (hover: hover) and (pointer: fine)")
     expect(stylesheet).toContain("@media (pointer: coarse)")
     expect(stylesheet).toContain("overscroll-behavior: contain")
-    expect(stylesheet).toContain("[data-highlighted]")
+    expect(stylesheet).toContain('[data-highlighted="true"]')
+    expect(stylesheet).toContain('[data-highlighted=""]')
+    expect(stylesheet).toContain("[data-overlay-viewport]")
+    expect(stylesheet).toContain("[data-overlay-actions]")
+    expect(stylesheet).toContain('[role="switch"] > span')
+    expect(stylesheet).toContain("--eui-duration-fast: 0ms")
+    expect(stylesheet).toContain("direction: ltr")
     expect(stylesheet).toContain("[data-segmented-control]")
     expect(stylesheet).toContain("[data-rating]")
     expect(stylesheet).toContain("[data-resize-handle]")
     expect(stylesheet).toContain("[data-time-input]")
     expect(stylesheet).toContain('[aria-current="page"]')
     expect(stylesheet).toContain("@media (forced-colors: active)")
+    expect(stylesheet).toContain("forced-color-adjust: none")
 
     // Zero ::before/::after icon-content hacks (universal box-sizing selector is allowed).
     expect(stylesheet).not.toMatch(/(?<![\w-])content\s*:/)
@@ -185,6 +210,7 @@ describe("Default OKLCH theme tokens and @layer effect-ui stylesheet", () => {
       layer: "brand-theme"
     })
     expect(css).toContain("@layer brand-theme {")
+    expect(css).toContain("@supports not (color: light-dark(white, black))")
     expect(css).toContain("@media (prefers-color-scheme: dark)")
     expect(css).toContain("@supports (color: light-dark(white, black))")
     expect(css).toContain(`--eui-primary: ${DEFAULT_LIGHT_TOKENS.primary};`)
