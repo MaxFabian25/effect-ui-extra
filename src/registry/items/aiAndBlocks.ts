@@ -88,17 +88,29 @@ export type CodeBlockProps = typeof CodeBlockProps.Type
 
 const CodeBlockMsg = UiSchema.TaggedEnum({
   CopyClicked: {},
+  CopySucceeded: {},
+  CopyFailed: {},
   ResetCopied: {}
 })
 
-const copyAndReset = Command.make(
+const copyToClipboard = Command.make(
   "CodeBlockCopy",
   { args: { text: Schema.String } },
   ({ text }) =>
     Effect.gen(function*() {
-      if (typeof navigator !== "undefined" && navigator.clipboard !== undefined) {
-        yield* Effect.tryPromise(() => navigator.clipboard.writeText(text)).pipe(Effect.ignore)
+      if (typeof navigator === "undefined" || navigator.clipboard === undefined) {
+        return CodeBlockMsg.CopyFailed()
       }
+      const res = yield* Effect.tryPromise(() => navigator.clipboard.writeText(text)).pipe(Effect.result)
+      return res._tag === "Success" ? CodeBlockMsg.CopySucceeded() : CodeBlockMsg.CopyFailed()
+    })
+)
+
+const resetCopyStatus = Command.make(
+  "CodeBlockResetCopy",
+  { args: {} },
+  () =>
+    Effect.gen(function*() {
       yield* Effect.sleep(Duration.millis(1500))
       return CodeBlockMsg.ResetCopied()
     })
@@ -107,39 +119,50 @@ const copyAndReset = Command.make(
 export const CodeBlock = Html.component({
   name: "CodeBlock",
   props: CodeBlockProps,
-  model: Schema.Struct({ copied: Schema.Boolean }),
+  model: Schema.Struct({ status: Schema.Literals(["idle", "copied", "failed"]) }),
   message: CodeBlockMsg
 }).make({
-  init: () => ({ copied: false }),
+  init: () => ({ status: "idle" as const }),
   update: {
-    CopyClicked: ($) =>
-      $.evolve({ copied: true }).run(copyAndReset.make({ text: $.props.code })),
-    ResetCopied: ($) => $.evolve({ copied: false })
+    CopyClicked: ($) => $.run(copyToClipboard.make({ text: $.props.code })),
+    CopySucceeded: ($) => $.evolve({ status: "copied" as const }).run(resetCopyStatus.make({})),
+    CopyFailed: ($) => $.evolve({ status: "failed" as const }).run(resetCopyStatus.make({})),
+    ResetCopied: ($) => $.evolve({ status: "idle" as const })
   },
   view: (h, model) => {
     const p = h.props
     const lines = p.code.split("\\n")
+    const copied = model.status === "copied"
+    const failed = model.status === "failed"
     return h.div
       .attrs({ "data-code-block": "" })
       .class("overflow-hidden rounded-lg border border-border bg-surface text-foreground")
       .children(
-        h.div.class("flex items-center justify-between gap-2 border-b border-border bg-muted/60 px-3 py-1.5 text-xs").children(
+        h.div.class("flex items-center justify-between gap-2 border-b border-border bg-muted/60 px-3 py-2 text-xs").children(
           h.span.class("font-mono text-muted-foreground").children(p.title ?? p.language ?? "code"),
-          h.button
-            .attrs({
-              type: "button",
-              "aria-label": model.copied ? "Copied code" : "Copy code"
-            })
-            .class(
-              cn(
-                "rounded-sm px-2 py-0.5 text-xs font-medium transition-colors",
-                model.copied
-                  ? "bg-primary text-primary-foreground"
-                  : "text-muted-foreground hover:bg-muted hover:text-foreground"
+          h.div.class("flex items-center gap-2").children(
+            h.span.attrs({ role: "status", "aria-live": "polite" }).class("sr-only").children(
+              copied ? "Copied to clipboard" : failed ? "Copy failed" : ""
+            ),
+            h.button
+              .attrs({
+                type: "button",
+                "aria-label": copied ? "Copied code" : failed ? "Copy failed, try again" : "Copy code"
+              })
+              .class(
+                cn(
+                  "inline-flex min-h-8 min-w-12 items-center justify-center rounded-sm px-2.5 py-1 text-xs font-medium touch-manipulation select-none transition-colors",
+                  "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
+                  copied
+                    ? "bg-primary text-primary-foreground"
+                    : failed
+                      ? "bg-destructive text-destructive-foreground"
+                      : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                )
               )
-            )
-            .on("click", () => CodeBlockMsg.CopyClicked())
-            .children(model.copied ? "Copied" : "Copy")
+              .on("click", () => CodeBlockMsg.CopyClicked())
+              .children(copied ? "Copied" : failed ? "Copy failed" : "Copy")
+          )
         ),
         h.pre.class("overflow-x-auto p-3 font-mono text-xs leading-relaxed").children(
           h.code.children(
@@ -152,7 +175,7 @@ export const CodeBlock = Html.component({
                     ? [
                         h.span
                           .attrs({ "aria-hidden": "true" })
-                          .class("mr-4 inline-block w-6 select-none text-right text-muted-foreground/60")
+                          .class("me-4 inline-block w-6 select-none text-end tabular-nums text-muted-foreground/60")
                           .children(String(idx + 1))
                       ]
                     : []),
@@ -216,34 +239,36 @@ export const Trace = Html.component({
     const p = h.props
     return h.section
       .attrs({ "aria-label": p.label, "data-trace": "", "data-open": String(model.open) })
-      .class("rounded-md border border-border bg-surface text-sm")
+      .class("rounded-md border border-border bg-surface p-1 text-sm")
       .children(
         h.button
           .attrs({
             type: "button",
-            "aria-expanded": String(model.open)
+            "aria-expanded": String(model.open),
+            ...(model.open ? { "aria-controls": "trace-steps" } : {})
           })
-          .class("flex w-full items-center justify-between gap-2 px-3 py-2 text-left font-medium hover:bg-muted/50")
+          .class("flex min-h-9 w-full items-center justify-between gap-2 rounded-xs px-3 py-2 text-start font-medium touch-manipulation hover:bg-muted/50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring")
           .on("click", () => TraceMsg.Toggle())
           .children(
-            h.span.children(\`\${p.label} (\${p.steps.length})\`),
+            h.span.class("tabular-nums").children(\`\${p.label} (\${p.steps.length})\`),
             h.span.class("text-xs text-muted-foreground").children(model.open ? "Hide" : "Show")
           ),
         ...(model.open
           ? [
               h.ol
-                .class("space-y-2 border-t border-border px-3 py-2.5")
+                .attrs({ id: "trace-steps" })
+                .class("list-none space-y-2 border-t border-border px-3 py-2.5")
                 .children(
                   ...p.steps.map((step) =>
                     h.li
                       .key(step.id)
-                      .class("flex flex-col gap-1 border-l-2 border-border pl-3")
+                      .class("flex flex-col gap-1 border-s-2 border-border ps-3")
                       .children(
                         h.div.class("flex items-center justify-between gap-2").children(
                           h.span.class("font-medium text-foreground").children(step.title),
                           h.div.class("flex items-center gap-1.5").children(
                             ...(step.durationMs !== undefined
-                              ? [h.span.class("font-mono text-xs text-muted-foreground").children(\`\${step.durationMs}ms\`)]
+                              ? [h.span.class("font-mono text-xs tabular-nums text-muted-foreground").children(\`\${step.durationMs}ms\`)]
                               : []),
                             badge(h, step.status, {
                               variant:
@@ -286,6 +311,7 @@ export const Trace = Html.component({
         path: "attachment.ts",
         content: `import type { Html } from "@effect/ui/html"
 import { cn } from "./cn.js"
+import { uiIcon } from "./icons.js"
 
 export const attachmentCard = <Msg>(
   h: Html.H<Msg>,
@@ -300,24 +326,24 @@ export const attachmentCard = <Msg>(
     .attrs({ "data-attachment": "" })
     .class(
       cn(
-        "inline-flex items-center gap-2 rounded-md border border-border bg-surface px-3 py-1.5 text-xs text-foreground",
+        "inline-flex items-center gap-2 rounded-md border border-border bg-surface px-3 py-2 text-xs text-foreground",
         options.className
       )
     )
     .children(
       h.div.class("min-w-0").children(
-        h.div.class("truncate font-medium").children(options.name),
+        h.div.attrs({ title: options.name }).class("truncate font-medium").children(options.name),
         ...(options.meta !== undefined
-          ? [h.div.class("text-[11px] text-muted-foreground").children(options.meta)]
+          ? [h.div.class("text-xs tabular-nums text-muted-foreground").children(options.meta)]
           : [])
       ),
       ...(options.onRemove !== undefined
         ? [
             h.button
               .attrs({ type: "button", "aria-label": \`Remove \${options.name}\` })
-              .class("rounded-sm px-1.5 py-0.5 text-muted-foreground hover:bg-muted hover:text-foreground")
+              .class("relative inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-sm text-muted-foreground touch-manipulation hover:bg-muted hover:text-foreground before:absolute before:-inset-1.5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring")
               .on("click", () => options.onRemove)
-              .children("x")
+              .children(uiIcon(h, "close", 12))
           ]
         : [])
     )
@@ -411,38 +437,41 @@ export const Questionnaire = Html.component({
     const p = h.props
     const total = p.questions.length
     const current = p.questions[model.step]
-    if (current === undefined) return h.div.children("No questions.")
+    if (current === undefined) return h.div.children("No questions")
     const selected = model.answers[current.id]
     const isLast = model.step + 1 >= total
+    const activeIdx = Math.max(0, current.choices.findIndex((c) => c.id === selected))
 
     return h.section
       .attrs({ "aria-label": p.label, "data-questionnaire": "" })
       .class("rounded-lg border border-border bg-surface p-5 text-foreground")
       .children(
-        h.div.class("mb-3 flex items-center justify-between text-xs text-muted-foreground").children(
+        h.div.class("mb-3 flex items-center justify-between text-xs tabular-nums text-muted-foreground").children(
           h.span.children(\`Question \${model.step + 1} of \${total}\`),
           h.span.children(\`\${Math.round(((model.step + 1) / Math.max(1, total)) * 100)}%\`)
         ),
-        h.h3.class("text-base font-semibold").children(current.title),
+        h.h3.class("text-base font-semibold text-balance").children(current.title),
         ...(current.description !== undefined
-          ? [h.p.class("mt-1 text-sm text-muted-foreground").children(current.description)]
+          ? [h.p.class("mt-1 text-sm text-muted-foreground text-pretty").children(current.description)]
           : []),
         h.div
           .attrs({ role: "radiogroup", "aria-label": current.title })
           .class("mt-4 flex flex-col gap-2")
           .children(
-            ...current.choices.map((choice) => {
+            ...current.choices.map((choice, idx) => {
               const checked = selected === choice.id
+              const tabbable = checked || idx === activeIdx
               return h.button
                 .key(choice.id)
                 .attrs({
                   type: "button",
                   role: "radio",
-                  "aria-checked": String(checked)
+                  "aria-checked": String(checked),
+                  tabindex: tabbable ? "0" : "-1"
                 })
                 .class(
                   cn(
-                    "flex flex-col items-start rounded-md border px-3.5 py-2.5 text-left text-sm transition-colors",
+                    "flex min-h-10 flex-col items-start rounded-md border px-3.5 py-2.5 text-start text-sm touch-manipulation transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
                     checked
                       ? "border-primary bg-accent text-accent-foreground"
                       : "border-border bg-background hover:bg-muted"
@@ -450,6 +479,22 @@ export const Questionnaire = Html.component({
                 )
                 .on("click", () =>
                   QuestionnaireMsg.SelectChoice({ questionId: current.id, choiceId: choice.id })
+                )
+                .on(
+                  "keydown",
+                  ({ key }) => {
+                    if (current.choices.length === 0) return undefined
+                    if (key === "ArrowDown" || key === "ArrowRight") {
+                      const next = current.choices[(idx + 1) % current.choices.length]!
+                      return QuestionnaireMsg.SelectChoice({ questionId: current.id, choiceId: next.id })
+                    }
+                    if (key === "ArrowUp" || key === "ArrowLeft") {
+                      const prev = current.choices[(idx - 1 + current.choices.length) % current.choices.length]!
+                      return QuestionnaireMsg.SelectChoice({ questionId: current.id, choiceId: prev.id })
+                    }
+                    return undefined
+                  },
+                  { preventDefault: true }
                 )
                 .children(
                   h.span.class("font-medium").children(choice.label),
@@ -507,7 +552,7 @@ export const citationMarker = <Msg>(
   }
 ) => {
   const cls = cn(
-    "inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-accent px-1 align-super font-mono text-[10px] font-semibold text-accent-foreground",
+    "relative inline-flex min-h-6 min-w-6 items-center justify-center rounded-full bg-accent px-1.5 align-super font-mono text-xs font-semibold tabular-nums text-accent-foreground before:absolute before:-inset-1 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
     options.className
   )
   if (options.href !== undefined) {
@@ -557,7 +602,7 @@ export const DashboardBlock = Html.component({
     NavSelected: ($, { id }) => $.evolve({ activeNav: id })
   },
   view: (h, model) =>
-    h.div.class("flex min-h-screen bg-background text-foreground").children(
+    h.div.class("flex min-h-dvh flex-col md:flex-row bg-background text-foreground").children(
       Sidebar(h, {
         props: {
           title: "Workspace",
@@ -577,11 +622,12 @@ export const DashboardBlock = Html.component({
           Toggled: () => undefined
         }
       }),
-      h.main.class("flex-1 space-y-6 p-6").children(
-        h.div.class("grid gap-4 md:grid-cols-3").children(
-          card(h).children(cardHeader(h).children(cardTitle(h, "Active users")), cardContent(h).children(h.div.class("text-2xl font-bold").children("1,284"))),
-          card(h).children(cardHeader(h).children(cardTitle(h, "Monthly revenue")), cardContent(h).children(h.div.class("text-2xl font-bold").children("$48,920"))),
-          card(h).children(cardHeader(h).children(cardTitle(h, "Error rate")), cardContent(h).children(h.div.class("text-2xl font-bold").children("0.12%")))
+      h.main.class("flex-1 min-w-0 space-y-6 p-4 md:p-6").children(
+        h.h1.class("text-xl font-semibold text-balance text-foreground").children("Workspace overview"),
+        h.div.class("grid gap-4 sm:grid-cols-2 lg:grid-cols-3").children(
+          card(h).children(cardHeader(h).children(cardTitle(h, "Active users", { as: "h2" })), cardContent(h).children(h.div.class("text-2xl font-semibold tabular-nums").children("1,284"))),
+          card(h).children(cardHeader(h).children(cardTitle(h, "Monthly revenue", { as: "h2" })), cardContent(h).children(h.div.class("text-2xl font-semibold tabular-nums").children("$48,920"))),
+          card(h).children(cardHeader(h).children(cardTitle(h, "Error rate", { as: "h2" })), cardContent(h).children(h.div.class("text-2xl font-semibold tabular-nums").children("0.12%")))
         ),
         barChartCard(h, {
           title: "Weekly throughput",
@@ -609,8 +655,8 @@ export const DashboardBlock = Html.component({
               { key: "amount", header: "Amount" }
             ],
             rows: [
-              { id: "r1", cells: { name: "Acme", status: "Paid", amount: "$420" } },
-              { id: "r2", cells: { name: "Northwind", status: "Pending", amount: "$190" } }
+              { id: "r1", cells: { name: "Kestrel Labs", status: "Paid", amount: "$420" } },
+              { id: "r2", cells: { name: "Fjord Retail", status: "Pending", amount: "$190" } }
             ]
           }
         })
@@ -626,7 +672,7 @@ export const DashboardBlock = Html.component({
     title: "Auth Sign-In Block",
     category: "blocks",
     description: "Accessible sign-in card with redacted PasswordInput, Alert error feedback, and styled Button.",
-    registryDependencies: ["card", "button", "alert"],
+    registryDependencies: ["card", "button", "alert", "input"],
     dependencies: ["@effect/ui", "effect", "effect-ui-extra"],
     files: [
       {
@@ -639,6 +685,7 @@ import { PasswordInput } from "effect-ui-extra/widgets"
 import { alertBox } from "../alert.js"
 import { styledButton } from "../button.js"
 import { card, cardContent, cardDescription, cardHeader, cardTitle } from "../card.js"
+import { styledInput } from "../input.js"
 
 const AuthMsg = UiSchema.TaggedEnum({
   EmailChanged: { value: Schema.String },
@@ -651,57 +698,83 @@ export const AuthBlock = Html.component({
   model: Schema.Struct({
     email: Schema.String,
     password: Schema.Redacted(Schema.String),
-    error: Schema.NullOr(Schema.String)
+    emailError: Schema.NullOr(Schema.String),
+    passwordError: Schema.NullOr(Schema.String)
   }),
   message: AuthMsg
 }).make({
-  init: () => ({ email: "", password: Redacted.make(""), error: null }),
+  init: () => ({ email: "", password: Redacted.make(""), emailError: null, passwordError: null }),
   update: {
-    EmailChanged: ($, { value }) => $.evolve({ email: value, error: null }),
+    EmailChanged: ($, { value }) => $.evolve({ email: value, emailError: null }),
     PasswordChanged: ($, { value }) =>
-      $.evolve({ password: value, error: null }),
+      $.evolve({ password: value, passwordError: null }),
     Submitted: ($) => {
-      if (!$.model.email.includes("@") || Redacted.value($.model.password).length === 0) {
-        return $.evolve({ error: "Enter a valid email and password." })
-      }
-      return $.evolve({ error: null })
+      const emailError = !$.model.email.includes("@")
+        ? "Enter an email address with an @ symbol"
+        : null
+      const passwordError = Redacted.value($.model.password).length === 0
+        ? "Enter your workspace password"
+        : null
+      return $.evolve({ emailError, passwordError })
     }
   },
   view: (h, model) =>
-    h.div.class("flex min-h-screen items-center justify-center bg-background p-6").children(
+    h.div.class("flex min-h-dvh items-center justify-center bg-background p-4 sm:p-6").children(
       card(h, "w-full max-w-sm").children(
         cardHeader(h).children(
-          cardTitle(h, "Sign in"),
-          cardDescription(h, "Use your workspace credentials to continue.")
+          cardTitle(h, "Sign in", { as: "h2" }),
+          cardDescription(h, "Use your workspace credentials to continue")
         ),
         cardContent(h).children(
           h.form
             .class("space-y-4")
             .on("submit", () => AuthMsg.Submitted(), { preventDefault: true })
             .children(
-              ...(model.error !== null
-                ? [alertBox(h, { title: "Sign-in error", description: model.error, variant: "destructive" })]
+              ...(model.emailError !== null || model.passwordError !== null
+                ? [
+                    alertBox(h, {
+                      title: "Check your sign-in details",
+                      description: model.emailError ?? model.passwordError ?? "",
+                      variant: "destructive"
+                    })
+                  ]
                 : []),
-              h.div.class("space-y-1").children(
+              h.div.class("space-y-1.5").children(
                 h.label.attrs({ for: "auth-email" }).class("text-sm font-medium").children("Email"),
-                h.input
-                  .attrs({ id: "auth-email", type: "email", autocomplete: "email" })
-                  .class("h-9 w-full rounded-md border border-input bg-background px-3 text-sm")
+                styledInput(h, {
+                  id: "auth-email",
+                  name: "email",
+                  type: "email",
+                  autocomplete: "username",
+                  spellcheck: "false",
+                  enterkeyhint: "next",
+                  required: true,
+                  invalid: model.emailError !== null,
+                  describedBy: model.emailError !== null ? "auth-email-err" : undefined
+                })
                   .value(model.email)
-                  .on("input", ({ value }) => AuthMsg.EmailChanged({ value }))
+                  .on("input", ({ value }) => AuthMsg.EmailChanged({ value })),
+                ...(model.emailError !== null
+                  ? [h.p.attrs({ id: "auth-email-err" }).class("text-xs text-destructive").children(model.emailError)]
+                  : [])
               ),
-              PasswordInput(h, {
-                props: {
-                  id: "auth-password",
-                  label: "Password",
-                  value: model.password,
-                  autocomplete: "current-password"
-                },
-                onEmit: {
-                  Changed: ({ value }) => AuthMsg.PasswordChanged({ value }),
-                  ToggledVisibility: () => undefined
-                }
-              }),
+              h.div.class("space-y-1.5").children(
+                PasswordInput(h, {
+                  props: {
+                    id: "auth-password",
+                    label: "Password",
+                    value: model.password,
+                    autocomplete: "current-password"
+                  },
+                  onEmit: {
+                    Changed: ({ value }) => AuthMsg.PasswordChanged({ value }),
+                    ToggledVisibility: () => undefined
+                  }
+                }),
+                ...(model.passwordError !== null
+                  ? [h.p.attrs({ id: "auth-password-err" }).class("text-xs text-destructive").children(model.passwordError)]
+                  : [])
+              ),
               styledButton(h, { type: "submit", className: "w-full" }).children("Sign in")
             )
         )
@@ -769,20 +842,13 @@ export const AiChatBlock = Html.component({
     }
   },
   view: (h, model) =>
-    h.div.class("mx-auto flex max-w-2xl flex-col gap-4 p-6").children(
+    h.div.class("mx-auto flex w-full max-w-2xl flex-col gap-4 p-4 sm:p-6").children(
       Trace(h, {
         props: {
           label: "Tool execution",
           steps: [{ id: "s1", title: "bun run verify", status: "done", durationMs: 8840 }]
         }
       }),
-      ...model.entries.map((entry) =>
-        messageBubble(h, {
-          role: entry.role,
-          author: entry.role === "user" ? "You" : "Assistant",
-          body: entry.text
-        })
-      ),
       CodeBlock(h, {
         props: {
           language: "bash",
@@ -793,13 +859,30 @@ export const AiChatBlock = Html.component({
       h.div.class("flex flex-wrap gap-2").children(
         attachmentCard(h, { name: "verify.log", meta: "1.4 KB" })
       ),
+      h.div
+        .attrs({ role: "log", "aria-label": "Assistant conversation", "aria-live": "polite" })
+        .class("flex flex-col gap-3")
+        .children(
+          ...model.entries.map((entry) =>
+            messageBubble(h, {
+              role: entry.role,
+              author: entry.role === "user" ? "You" : "Assistant",
+              body: entry.text
+            })
+          )
+        ),
       h.form
-        .class("flex gap-2")
+        .class("flex flex-wrap items-center gap-2 sm:flex-nowrap")
         .on("submit", () => ChatMsg.Sent(), { preventDefault: true })
         .children(
           h.input
-            .attrs({ type: "text", "aria-label": "Message assistant", placeholder: "Ask a follow-up..." })
-            .class("h-9 flex-1 rounded-md border border-input bg-background px-3 text-sm")
+            .attrs({
+              type: "text",
+              "aria-label": "Message assistant",
+              placeholder: "Ask a follow-up…",
+              enterkeyhint: "send"
+            })
+            .class("min-h-9 min-w-0 flex-1 rounded-md border border-input bg-background px-3 py-1.5 text-base md:text-sm text-foreground focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring")
             .value(model.draft)
             .on("input", ({ value }) => ChatMsg.DraftChanged({ value })),
           styledButton(h, { type: "submit" }).children("Send")

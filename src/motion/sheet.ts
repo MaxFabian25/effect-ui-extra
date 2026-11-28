@@ -26,6 +26,7 @@ export type SheetEvent =
   | { readonly _tag: "DragStart"; readonly currentPosition?: number | undefined }
   | { readonly _tag: "DragMove"; readonly delta: number; readonly velocity: number }
   | { readonly _tag: "DragEnd"; readonly velocity: number }
+  | { readonly _tag: "DragCancel" }
   | { readonly _tag: "Settled" }
 
 export const initialSheetState = (
@@ -113,6 +114,19 @@ export const reduceSheet = (
         position: targetPos,
         snapIndex,
         velocity: event.velocity
+      }
+    }
+    case "DragCancel": {
+      if (state.phase !== "dragging") return state
+      const targetPos =
+        state.snapIndex >= 0 && state.snapIndex < snaps.length
+          ? snaps[state.snapIndex]!
+          : 0
+      return {
+        phase: "snapping",
+        position: targetPos,
+        snapIndex: state.snapIndex,
+        velocity: 0
       }
     }
     case "Settled":

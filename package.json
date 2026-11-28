@@ -1,6 +1,6 @@
 {
   "name": "effect-ui-extra",
-  "version": "0.5.0",
+  "version": "0.5.1",
   "description": "Unified companion toolkit for @effect/ui: a11y (APG/RTL/names/checkMarkup), page (zero-FOUC prefs/CSP/tabbable/Form validationMode/history stage+marks/SSR), widgets (Command/Tree/AreaPicker/ScrollPicker/DateTimePicker/Carousel/ImageCropper/Timeline/Waterfall), direct-manipulation/2D move+resize/textEditor/VirtualGrid/CLDR date, OKLCH/WCAG/deltaEOK theme, spring/sheet/safePolygon motion, and 82-item wired shadcn-parity registry + namespaced @org/item CLI + MCP server",
   "license": "MIT",
   "type": "module",

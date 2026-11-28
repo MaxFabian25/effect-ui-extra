@@ -1,5 +1,5 @@
 import { UiSchema } from "@effect/ui"
-import { Html, HtmlCommand } from "@effect/ui/html"
+import { Html, HtmlCommand, HtmlSubscription } from "@effect/ui/html"
 import * as Schema from "effect/Schema"
 
 export type TimeGranularity = "minute" | "second"
@@ -139,6 +139,18 @@ export const TimeInput = Html.component({
   events: TimeInputEvents
 }).make({
   init: () => ({ bufferSeg: null, bufferDigits: "", drag: null }),
+  subscriptions: ($) =>
+    $.model.drag === null
+      ? []
+      : [
+          HtmlSubscription.onDocument("pointerup", ({ pointerId }) =>
+            TimeInputMsg.DragEnded({ pointerId })
+          ),
+          HtmlSubscription.onDocument("pointercancel", ({ pointerId }) =>
+            TimeInputMsg.DragEnded({ pointerId })
+          ),
+          HtmlSubscription.onWindow("blur", () => TimeInputMsg.ClearedBuffer())
+        ],
   update: {
     Stepped: ($, { delta, segment }) => {
       if ($.props.disabled) return $.model
@@ -215,7 +227,7 @@ export const TimeInput = Html.component({
       $.evolve({ bufferSeg: null, bufferDigits: "" }).run(
         HtmlCommand.focus(segmentRef(segment), () => TimeInputMsg.FocusDone())
       ),
-    ClearedBuffer: ($) => $.evolve({ bufferSeg: null, bufferDigits: "" }),
+    ClearedBuffer: ($) => $.evolve({ bufferSeg: null, bufferDigits: "", drag: null }),
     DragStarted: ($, { pointerId, segment, y }) =>
       $.props.disabled
         ? $.model
@@ -330,9 +342,10 @@ export const TimeInput = Html.component({
           "keydown",
           ({ key }) => {
             if (p.disabled) return undefined
-            const isRtl = p.dir === "rtl"
-            const nextKey = isRtl ? "ArrowLeft" : "ArrowRight"
-            const prevKey = isRtl ? "ArrowRight" : "ArrowLeft"
+            // [data-time-input] enforces visual direction: ltr so HH:MM reads
+            // left-to-right; ArrowRight always moves to the next visual segment.
+            const nextKey = "ArrowRight"
+            const prevKey = "ArrowLeft"
             if (key === "ArrowUp") return TimeInputMsg.Stepped({ segment: seg, delta: 1 })
             if (key === "ArrowDown") return TimeInputMsg.Stepped({ segment: seg, delta: -1 })
             if (key === "PageUp") return TimeInputMsg.Stepped({ segment: seg, delta: seg === "hour" ? 2 : 10 })

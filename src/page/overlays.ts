@@ -408,7 +408,9 @@ export const OverlayHost = Html.component({
                     ? d.description(h.p).children(active.description)
                     : undefined,
                   h.form
-                    .on("submit", HostMsg.SubmittedPrompt({ id: active.id }))
+                    .on("submit", HostMsg.SubmittedPrompt({ id: active.id }), {
+                      preventDefault: true
+                    })
                     .children(
                       h.label.attrs({ for: inputId }).children(active.label),
                       isCoarsePointer ? promptInput : d.initialFocus(promptInput),

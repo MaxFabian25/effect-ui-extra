@@ -13,13 +13,63 @@ const TABBABLE_SELECTOR = [
   "[tabindex]"
 ].join(",")
 
+const FORM_CONTROL_TAGS = new Set(["button", "input", "select", "textarea"])
+
+const isDisabledByFieldset = (el: HTMLElement): boolean => {
+  if (!FORM_CONTROL_TAGS.has(el.tagName.toLowerCase())) return false
+  let cur: HTMLElement | null = el.parentElement
+  while (cur !== null) {
+    if (cur.tagName.toLowerCase() === "fieldset" && cur.hasAttribute("disabled")) {
+      const firstLegend = Array.from(cur.children).find(
+        (child) => child.tagName.toLowerCase() === "legend"
+      )
+      if (firstLegend === undefined || !firstLegend.contains(el)) {
+        return true
+      }
+    }
+    cur = cur.parentElement
+  }
+  return false
+}
+
 const isHiddenOrInert = (el: HTMLElement): boolean => {
+  const view = el.ownerDocument?.defaultView
+  let prev: HTMLElement | null = null
   let cur: HTMLElement | null = el
   while (cur !== null) {
     if (cur.hasAttribute("hidden") || cur.hasAttribute("inert")) return true
-    if (cur.getAttribute("aria-hidden") === "true" && cur === el) return false
     const style = cur.style
-    if (style && (style.display === "none" || style.visibility === "hidden")) return true
+    if (
+      style &&
+      (style.display === "none" ||
+        style.visibility === "hidden" ||
+        style.visibility === "collapse")
+    ) {
+      return true
+    }
+    if (view !== null && view !== undefined && typeof view.getComputedStyle === "function") {
+      const computed = view.getComputedStyle(cur)
+      if (
+        computed.display === "none" ||
+        computed.visibility === "hidden" ||
+        computed.visibility === "collapse"
+      ) {
+        return true
+      }
+    }
+    if (
+      prev !== null &&
+      cur.tagName.toLowerCase() === "details" &&
+      !cur.hasAttribute("open")
+    ) {
+      const firstSummary = Array.from(cur.children).find(
+        (child) => child.tagName.toLowerCase() === "summary"
+      )
+      if (firstSummary === undefined || (prev !== firstSummary && !firstSummary.contains(el))) {
+        return true
+      }
+    }
+    prev = cur
     cur = cur.parentElement
   }
   return false
@@ -28,7 +78,7 @@ const isHiddenOrInert = (el: HTMLElement): boolean => {
 /** Returns `true` when `el` is keyboard-reachable via Tab in its current DOM state. */
 export const isTabbable = (el: HTMLElement): boolean => {
   if (isHiddenOrInert(el)) return false
-  if ((el as HTMLButtonElement).disabled === true) return false
+  if ((el as HTMLButtonElement).disabled === true || isDisabledByFieldset(el)) return false
   const tabIndexAttr = el.getAttribute("tabindex")
   if (tabIndexAttr !== null) {
     const parsed = Number.parseInt(tabIndexAttr, 10)

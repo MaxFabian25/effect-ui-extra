@@ -105,13 +105,17 @@ describe("iOS modal touch jitter guard", () => {
     ;(globalThis as unknown as { Node: unknown }).Node = win.Node
     try {
       const doc = win.document
-      doc.body.innerHTML = `<div id="modal"><button id="btn"><span id="icon">×</span></button></div><button id="outside">Out</button>`
+      doc.body.innerHTML = `<div id="modal"><button id="btn"><span id="icon">×</span></button><button id="dis" disabled><span id="disIcon">×</span></button><div id="ariaDis" role="button" aria-disabled="true"><span id="ariaDisIcon">×</span></div></div><button id="outside">Out</button>`
       const modal = doc.getElementById("modal") as unknown as HTMLElement
       const btn = doc.getElementById("btn") as unknown as HTMLElement
       const icon = doc.getElementById("icon") as unknown as HTMLElement
+      const disIcon = doc.getElementById("disIcon") as unknown as HTMLElement
+      const ariaDisIcon = doc.getElementById("ariaDisIcon") as unknown as HTMLElement
       const outside = doc.getElementById("outside") as unknown as HTMLElement
 
       expect(resolveInteractiveTapTarget(icon, modal)).toBe(btn)
+      expect(resolveInteractiveTapTarget(disIcon, modal)).toBeNull()
+      expect(resolveInteractiveTapTarget(ariaDisIcon, modal)).toBeNull()
       expect(resolveInteractiveTapTarget(outside, modal)).toBeNull()
 
       const unbind = bindIosModalTouchGuard(modal)

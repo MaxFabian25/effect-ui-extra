@@ -131,8 +131,26 @@ export const reduceIosTouchGuard = (
   }
 }
 
-const INTERACTIVE_SELECTOR =
-  'button, a[href], input, select, textarea, summary, label, [role="button"], [role="link"], [role="menuitem"], [role="option"], [role="tab"], [role="checkbox"], [role="radio"], [role="switch"], [tabindex]:not([tabindex="-1"])'
+const INTERACTIVE_SELECTOR = [
+  "button",
+  "a[href]",
+  "input",
+  "select",
+  "textarea",
+  "summary",
+  "label",
+  '[role="button"]',
+  '[role="link"]',
+  '[role="menuitem"]',
+  '[role="option"]',
+  '[role="tab"]',
+  '[role="checkbox"]',
+  '[role="radio"]',
+  '[role="switch"]',
+  '[tabindex]:not([tabindex="-1"])'
+]
+  .map((sel) => `${sel}:not(:disabled):not([aria-disabled="true"])`)
+  .join(", ")
 
 /**
  * Resolves the nearest interactive ancestor within `modalRoot` so taps that
@@ -145,6 +163,8 @@ export const resolveInteractiveTapTarget = (
   if (target === null || typeof Element === "undefined") return null
   const el = target instanceof Element ? target : null
   if (el === null || !modalRoot.contains(el)) return null
+  const disabledAncestor = el.closest(':disabled, [aria-disabled="true"]')
+  if (disabledAncestor !== null && modalRoot.contains(disabledAncestor)) return null
   const match = el.closest(INTERACTIVE_SELECTOR)
   if (match === null || !modalRoot.contains(match)) return null
   return match as HTMLElement

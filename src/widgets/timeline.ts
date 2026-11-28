@@ -1,6 +1,7 @@
 import { UiSchema } from "@effect/ui"
 import { Html, HtmlCommand } from "@effect/ui/html"
 import * as Schema from "effect/Schema"
+import { resolveDir } from "./internal.js"
 
 export const TimelineStatusSchema = Schema.Literals([
   "completed",
@@ -23,6 +24,7 @@ export const TimelineProps = Schema.Struct({
   label: Schema.String,
   items: Schema.Array(TimelineItemSchema),
   orientation: Schema.optional(Schema.Literals(["vertical", "horizontal"])),
+  dir: Schema.optional(Schema.Literals(["ltr", "rtl"])),
   activeId: Schema.optional(Schema.String),
   selectable: Schema.optional(Schema.Boolean)
 })
@@ -42,8 +44,9 @@ const itemRef = (id: string) => Html.ref(`TimelineItem[${id}]`, "button")
 
 /**
  * Accessible ordered Timeline widget supporting vertical or horizontal
- * orientation, semantic step statuses (`completed`, `current`, `upcoming`,
- * `error`), `aria-current="step"`, and optional keyboard-navigable selection.
+ * orientation, RTL horizontal arrow reversal, semantic step statuses
+ * (`completed`, `current`, `upcoming`, `error`), `aria-current="step"`, and
+ * optional keyboard-navigable selection.
  */
 export const Timeline = Html.component({
   name: "Timeline",
@@ -74,6 +77,7 @@ export const Timeline = Html.component({
       .attrs({
         role: "list",
         "aria-label": p.label,
+        ...(p.dir !== undefined ? { dir: p.dir } : {}),
         "data-timeline": "",
         "data-orientation": orientation
       })
@@ -81,8 +85,6 @@ export const Timeline = Html.component({
         ...p.items.map((item, idx) => {
           const status = item.status ?? (item.id === activeId ? "current" : "upcoming")
           const isCurrent = item.id === activeId || status === "current"
-          const prevKey = orientation === "horizontal" ? "ArrowLeft" : "ArrowUp"
-          const nextKey = orientation === "horizontal" ? "ArrowRight" : "ArrowDown"
 
           const contentNodes = [
             h.span.attrs({ "data-timeline-marker": "", "aria-hidden": "true" }),
@@ -104,7 +106,7 @@ export const Timeline = Html.component({
             .attrs({
               "data-timeline-item": "",
               "data-status": status,
-              ...(isCurrent ? { "aria-current": "step" } : {})
+              ...(!selectable && isCurrent ? { "aria-current": "step" } : {})
             })
             .children(
               selectable
@@ -116,12 +118,26 @@ export const Timeline = Html.component({
                       "aria-label": item.timestamp !== undefined
                         ? `${item.title} (${item.timestamp})`
                         : item.title,
+                      ...(isCurrent ? { "aria-current": "step" } : {}),
                       "data-timeline-trigger": ""
                     })
                     .on("click", () => TimelineMsg.Select({ id: item.id }))
                     .on(
                       "keydown",
                       ({ key }) => {
+                        const isRtl = resolveDir(p.dir) === "rtl"
+                        const prevKey =
+                          orientation === "horizontal"
+                            ? isRtl
+                              ? "ArrowRight"
+                              : "ArrowLeft"
+                            : "ArrowUp"
+                        const nextKey =
+                          orientation === "horizontal"
+                            ? isRtl
+                              ? "ArrowLeft"
+                              : "ArrowRight"
+                            : "ArrowDown"
                         if (key === nextKey && idx + 1 < p.items.length) {
                           return TimelineMsg.Select({ id: p.items[idx + 1]!.id })
                         }

@@ -23,6 +23,7 @@ export type ScrollHandoffEvent =
       readonly edge?: ScrollHandoffEdge | undefined
     }
   | { readonly _tag: "PointerUp" }
+  | { readonly _tag: "PointerCancel" }
 
 export interface ScrollHandoffTransition {
   readonly state: ScrollHandoffState
@@ -57,6 +58,7 @@ export const reduceScrollHandoff = (
         preventDefault: false
       }
     case "PointerUp":
+    case "PointerCancel":
       return {
         state: { mode: "idle", dragOffsetPx: 0 },
         preventDefault: false

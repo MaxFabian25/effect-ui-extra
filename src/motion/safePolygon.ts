@@ -53,8 +53,8 @@ export const computeSafePolygon = (
     case "bottom":
       return [
         { x: origin.x - buf, y: origin.y - buf },
-        { x: popup.right + buf, y: popup.top },
         { x: popup.left - buf, y: popup.top },
+        { x: popup.right + buf, y: popup.top },
         { x: origin.x + buf, y: origin.y - buf }
       ]
     case "top":

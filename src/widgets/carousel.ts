@@ -1,14 +1,16 @@
 import { Subscription, UiSchema } from "@effect/ui"
-import { Html, HtmlCommand } from "@effect/ui/html"
+import { Html, HtmlCommand, HtmlSubscription } from "@effect/ui/html"
 import * as Duration from "effect/Duration"
-import * as Schema from "effect/Schema"
+import * as Option from "effect/Option"
 import * as Schedule from "effect/Schedule"
+import * as Schema from "effect/Schema"
 import * as Stream from "effect/Stream"
 import {
   carouselPageCount,
   isCarouselAutoplayActive,
   reduceCarousel
 } from "../motion/carousel.js"
+import { resolveDir } from "./internal.js"
 
 export const CarouselSlideSchema = Schema.Struct({
   id: Schema.String,
@@ -37,11 +39,22 @@ export const CarouselEvents = UiSchema.TaggedEnum({
 })
 export type CarouselEvents = typeof CarouselEvents.Type
 
+const CarouselDragSchema = Schema.Struct({
+  pointerId: Schema.Number,
+  startX: Schema.Number,
+  lastX: Schema.Number,
+  viewportPx: Schema.Number
+})
+
 const CarouselModel = Schema.Struct({
   index: Schema.Number,
   hovered: Schema.Boolean,
   focused: Schema.Boolean,
-  pausedByUser: Schema.Boolean
+  pausedByUser: Schema.Boolean,
+  pageHidden: Schema.Boolean,
+  systemReducedMotion: Schema.Boolean,
+  dragOffsetPx: Schema.Number,
+  drag: Schema.NullOr(CarouselDragSchema)
 })
 
 const CarouselMsg = UiSchema.TaggedEnum({
@@ -50,12 +63,20 @@ const CarouselMsg = UiSchema.TaggedEnum({
   GoTo: { index: Schema.Number },
   SetHovered: { hovered: Schema.Boolean },
   SetFocused: { focused: Schema.Boolean },
+  SetPageHidden: { hidden: Schema.Boolean },
+  SetSystemReducedMotion: { reducedMotion: Schema.Boolean },
   TogglePause: {},
   AutoplayTick: {},
+  DragStart: { pointerId: Schema.Number, x: Schema.Number },
+  TrackMeasured: { width: Schema.Number },
+  DragMove: { pointerId: Schema.Number, x: Schema.Number, isRtl: Schema.Boolean },
+  DragEnd: { pointerId: Schema.Number, x: Schema.Number, isRtl: Schema.Boolean },
+  DragCancel: { pointerId: Schema.optional(Schema.Number) },
   FocusDone: {}
 })
 
 const dotRef = (idx: number) => Html.ref(`CarouselDot[${idx}]`, "button")
+const trackRef = Html.ref("CarouselTrack", "div")
 
 const toMotionState = (
   model: typeof CarouselModel.Type,
@@ -63,26 +84,30 @@ const toMotionState = (
 ) => ({
   index: props.index ?? model.index,
   pageCount: carouselPageCount(props.slides.length, props.slidesPerPage),
-  dragging: false,
-  dragOffsetPx: 0,
+  dragging: model.drag !== null,
+  dragOffsetPx: model.dragOffsetPx,
   hovered: model.hovered,
   focused: model.focused,
-  pausedByUser: model.pausedByUser
+  pausedByUser: model.pausedByUser || model.pageHidden
 })
 
-const toMotionConfig = (props: CarouselProps) => ({
+const toMotionConfig = (
+  model: typeof CarouselModel.Type,
+  props: CarouselProps
+) => ({
   slideCount: props.slides.length,
   slidesPerPage: props.slidesPerPage,
   loop: props.loop,
   autoplay: props.autoplay,
-  reducedMotion: props.reducedMotion
+  reducedMotion: props.reducedMotion ?? model.systemReducedMotion
 })
 
 /**
  * Accessible WAI-ARIA Carousel widget wired to `reduceCarousel` from
- * `effect-ui-extra/motion` with RTL-aware Arrow navigation, Home/End jumps,
- * slide indicators, and `TestClock`-driven autoplay that pauses on hover,
- * focus, explicit toggle, or `prefers-reduced-motion`.
+ * `effect-ui-extra/motion` with RTL-aware Arrow navigation, pointer swipe,
+ * Home/End jumps, slide indicators, and `TestClock`-driven autoplay that pauses
+ * on hover, focus, page visibility hide, explicit toggle, or
+ * `prefers-reduced-motion`.
  */
 export const Carousel = Html.component({
   name: "Carousel",
@@ -101,37 +126,82 @@ export const Carousel = Html.component({
     ),
     hovered: false,
     focused: false,
-    pausedByUser: false
+    pausedByUser: false,
+    pageHidden: false,
+    systemReducedMotion: false,
+    dragOffsetPx: 0,
+    drag: null
   }),
   subscriptions: ($) => {
-    const active = isCarouselAutoplayActive(toMotionState($.model, $.props), toMotionConfig($.props))
-    if (!active) return []
-    const ms = Math.max(50, Math.floor($.props.autoplayIntervalMs ?? 5000))
-    return [
-      Subscription.make(
-        `effect-ui-widgets/carousel-autoplay/${$.props.idPrefix ?? "carousel"}/${ms}`,
-        Stream.fromSchedule(Schedule.spaced(Duration.millis(ms))).pipe(
-          Stream.map(() => CarouselMsg.AutoplayTick())
+    const subs: Array<Subscription.Subscription<typeof CarouselMsg.Type>> = []
+    if ($.props.reducedMotion === undefined) {
+      subs.push(
+        HtmlSubscription.onMediaQuery(
+          "(prefers-reduced-motion: reduce)",
+          (reducedMotion) => CarouselMsg.SetSystemReducedMotion({ reducedMotion })
         )
       )
-    ]
+    }
+    if ($.props.autoplay === true) {
+      subs.push(
+        HtmlSubscription.onVisibility((visible) =>
+          CarouselMsg.SetPageHidden({ hidden: !visible })
+        )
+      )
+    }
+    const active = isCarouselAutoplayActive(
+      toMotionState($.model, $.props),
+      toMotionConfig($.model, $.props)
+    )
+    if (active) {
+      const ms = Math.max(50, Math.floor($.props.autoplayIntervalMs ?? 5000))
+      subs.push(
+        Subscription.make(
+          `effect-ui-widgets/carousel-autoplay/${$.props.idPrefix ?? "carousel"}/${ms}`,
+          Stream.fromSchedule(Schedule.spaced(Duration.millis(ms))).pipe(
+            Stream.map(() => CarouselMsg.AutoplayTick())
+          )
+        )
+      )
+    }
+    if ($.model.drag !== null) {
+      subs.push(
+        HtmlSubscription.onDocument("pointercancel", ({ pointerId }) =>
+          CarouselMsg.DragCancel({ pointerId })
+        ),
+        HtmlSubscription.onWindow("blur", () => CarouselMsg.DragCancel({}))
+      )
+    }
+    return subs
   },
   update: {
     Next: ($) => {
-      const next = reduceCarousel(toMotionState($.model, $.props), { _tag: "Next" }, toMotionConfig($.props))
+      const next = reduceCarousel(
+        toMotionState($.model, $.props),
+        { _tag: "Next" },
+        toMotionConfig($.model, $.props)
+      )
       if (next.index === ($.props.index ?? $.model.index)) return $.model
-      return $.evolve({ index: next.index }).emit(CarouselEvents.IndexChanged({ index: next.index }))
+      return $.evolve({ index: next.index }).emit(
+        CarouselEvents.IndexChanged({ index: next.index })
+      )
     },
     Previous: ($) => {
-      const next = reduceCarousel(toMotionState($.model, $.props), { _tag: "Previous" }, toMotionConfig($.props))
+      const next = reduceCarousel(
+        toMotionState($.model, $.props),
+        { _tag: "Previous" },
+        toMotionConfig($.model, $.props)
+      )
       if (next.index === ($.props.index ?? $.model.index)) return $.model
-      return $.evolve({ index: next.index }).emit(CarouselEvents.IndexChanged({ index: next.index }))
+      return $.evolve({ index: next.index }).emit(
+        CarouselEvents.IndexChanged({ index: next.index })
+      )
     },
     GoTo: ($, { index }) => {
       const next = reduceCarousel(
         toMotionState($.model, $.props),
         { _tag: "GoTo", index },
-        toMotionConfig($.props)
+        toMotionConfig($.model, $.props)
       )
       return $.evolve({ index: next.index })
         .emit(CarouselEvents.IndexChanged({ index: next.index }))
@@ -139,18 +209,97 @@ export const Carousel = Html.component({
     },
     SetHovered: ($, { hovered }) => $.evolve({ hovered }),
     SetFocused: ($, { focused }) => $.evolve({ focused }),
+    SetPageHidden: ($, { hidden }) => $.evolve({ pageHidden: hidden }),
+    SetSystemReducedMotion: ($, { reducedMotion }) =>
+      $.evolve({ systemReducedMotion: reducedMotion }),
     TogglePause: ($) => {
       const pausedByUser = !$.model.pausedByUser
-      return $.evolve({ pausedByUser }).emit(CarouselEvents.AutoplayToggled({ paused: pausedByUser }))
+      return $.evolve({ pausedByUser }).emit(
+        CarouselEvents.AutoplayToggled({ paused: pausedByUser })
+      )
     },
     AutoplayTick: ($) => {
       const next = reduceCarousel(
         toMotionState($.model, $.props),
         { _tag: "AutoplayTick" },
-        toMotionConfig($.props)
+        toMotionConfig($.model, $.props)
       )
       if (next.index === ($.props.index ?? $.model.index)) return $.model
-      return $.evolve({ index: next.index }).emit(CarouselEvents.IndexChanged({ index: next.index }))
+      return $.evolve({ index: next.index }).emit(
+        CarouselEvents.IndexChanged({ index: next.index })
+      )
+    },
+    DragStart: ($, { pointerId, x }) =>
+      $.evolve({
+        dragOffsetPx: 0,
+        drag: { pointerId, startX: x, lastX: x, viewportPx: 320 }
+      }).run(
+        HtmlCommand.measure(trackRef, (rect) =>
+          CarouselMsg.TrackMeasured({
+            width: Option.isSome(rect) && rect.value.width > 0 ? rect.value.width : 320
+          })
+        )
+      ),
+    TrackMeasured: ($, { width }) =>
+      $.model.drag === null
+        ? $.model
+        : $.evolve({ drag: { ...$.model.drag, viewportPx: width } }),
+    DragMove: ($, { isRtl, pointerId, x }) => {
+      const drag = $.model.drag
+      if (drag === null || drag.pointerId !== pointerId) return $.model
+      const rawDelta = x - drag.startX
+      const deltaPx = isRtl ? -rawDelta : rawDelta
+      const next = reduceCarousel(
+        toMotionState($.model, $.props),
+        { _tag: "DragMove", deltaPx, viewportPx: drag.viewportPx },
+        toMotionConfig($.model, $.props)
+      )
+      return $.evolve({
+        dragOffsetPx: next.dragOffsetPx,
+        drag: { ...drag, lastX: x }
+      })
+    },
+    DragEnd: ($, { isRtl, pointerId, x }) => {
+      const drag = $.model.drag
+      if (drag === null || drag.pointerId !== pointerId) return $.model
+      const rawDelta = x - drag.startX
+      const deltaPx = isRtl ? -rawDelta : rawDelta
+      const moved = reduceCarousel(
+        toMotionState($.model, $.props),
+        { _tag: "DragMove", deltaPx, viewportPx: drag.viewportPx },
+        toMotionConfig($.model, $.props)
+      )
+      // Approximate velocity from final drag displacement for flick responsiveness
+      const velocityPxPerSec =
+        Math.abs(deltaPx) >= Math.max(32, drag.viewportPx * 0.15)
+          ? Math.sign(deltaPx) * 800
+          : 0
+      const settled = reduceCarousel(
+        moved,
+        { _tag: "DragEnd", velocityPxPerSec, viewportPx: drag.viewportPx },
+        toMotionConfig($.model, $.props)
+      )
+      const prevIdx = $.props.index ?? $.model.index
+      if (settled.index === prevIdx) {
+        return $.evolve({ drag: null, dragOffsetPx: 0 })
+      }
+      return $.evolve({ index: settled.index, drag: null, dragOffsetPx: 0 }).emit(
+        CarouselEvents.IndexChanged({ index: settled.index })
+      )
+    },
+    DragCancel: ($, { pointerId }) => {
+      if (
+        $.model.drag === null ||
+        (pointerId !== undefined && $.model.drag.pointerId !== pointerId)
+      ) {
+        return $.model
+      }
+      const next = reduceCarousel(
+        toMotionState($.model, $.props),
+        { _tag: "DragCancel" },
+        toMotionConfig($.model, $.props)
+      )
+      return $.evolve({ drag: null, dragOffsetPx: next.dragOffsetPx })
     },
     FocusDone: ($) => $.model
   },
@@ -163,20 +312,22 @@ export const Carousel = Html.component({
       Math.min(Math.max(0, pageCount - 1), Math.floor(p.index ?? model.index))
     )
     const loop = p.loop ?? false
-    const isRtl = (p.dir ?? "ltr") === "rtl"
     const prefix = p.idPrefix ?? "carousel"
     const canPrev = pageCount > 1 && (loop || activeIndex > 0)
     const canNext = pageCount > 1 && (loop || activeIndex < pageCount - 1)
     const startSlide = activeIndex * perPage
     const visibleSlides = p.slides.slice(startSlide, startSlide + perPage)
-    const autoplayOn = isCarouselAutoplayActive(toMotionState(model, p), toMotionConfig(p))
+    const autoplayOn = isCarouselAutoplayActive(
+      toMotionState(model, p),
+      toMotionConfig(model, p)
+    )
 
     return h.section
       .attrs({
         role: "region",
         "aria-roledescription": "carousel",
         "aria-label": p.label,
-        dir: p.dir,
+        ...(p.dir !== undefined ? { dir: p.dir } : {}),
         "data-carousel": "",
         "data-index": String(activeIndex)
       })
@@ -187,6 +338,7 @@ export const Carousel = Html.component({
       .on(
         "keydown",
         ({ key }) => {
+          const isRtl = resolveDir(p.dir) === "rtl"
           const nextKey = isRtl ? "ArrowLeft" : "ArrowRight"
           const prevKey = isRtl ? "ArrowRight" : "ArrowLeft"
           if (key === nextKey) return CarouselMsg.Next()
@@ -225,8 +377,8 @@ export const Carousel = Html.component({
                     .attrs({
                       type: "button",
                       "aria-label": model.pausedByUser
-                        ? "Start automatic slide show"
-                        : "Stop automatic slide show",
+                        ? "Play slide show"
+                        : "Pause slide show",
                       "aria-pressed": String(model.pausedByUser)
                     })
                     .on("click", () => CarouselMsg.TogglePause())
@@ -235,11 +387,41 @@ export const Carousel = Html.component({
               : [])
           ),
         h.div
+          .ref(trackRef)
           .attrs({
             id: `${prefix}-slides`,
             "aria-live": autoplayOn ? "off" : "polite",
-            "data-carousel-track": ""
+            "data-carousel-track": "",
+            ...(model.drag !== null ? { "data-dragging": "true" } : {})
           })
+          .style(
+            model.dragOffsetPx !== 0
+              ? { transform: `translate3d(${model.dragOffsetPx}px, 0, 0)` }
+              : {}
+          )
+          .on(
+            "pointerdown",
+            ({ button, pointerId, x }) =>
+              button === 0 && pageCount > 1
+                ? CarouselMsg.DragStart({ pointerId, x })
+                : undefined,
+            { capturePointer: true }
+          )
+          .on("pointermove", ({ pointerId, x }) =>
+            model.drag !== null && model.drag.pointerId === pointerId
+              ? CarouselMsg.DragMove({ pointerId, x, isRtl: resolveDir(p.dir) === "rtl" })
+              : undefined
+          )
+          .on("pointerup", ({ pointerId, x }) =>
+            model.drag !== null && model.drag.pointerId === pointerId
+              ? CarouselMsg.DragEnd({ pointerId, x, isRtl: resolveDir(p.dir) === "rtl" })
+              : undefined
+          )
+          .on("pointercancel", ({ pointerId }) =>
+            model.drag !== null && model.drag.pointerId === pointerId
+              ? CarouselMsg.DragCancel({ pointerId })
+              : undefined
+          )
           .children(
             ...visibleSlides.map((slide, offset) => {
               const absoluteIdx = startSlide + offset + 1

@@ -175,11 +175,13 @@ export const computeDragPreview = (input: {
     x = Math.max(v.x, Math.min(v.x + v.width - input.width, x))
     y = Math.max(v.y, Math.min(v.y + v.height - input.height, y))
   }
+  const tx = Number(x.toFixed(2))
+  const ty = Number(y.toFixed(2))
   return {
     x,
     y,
     width: input.width,
     height: input.height,
-    transform: `translate3d(${Math.round(x)}px, ${Math.round(y)}px, 0)`
+    transform: `translate3d(${tx}px, ${ty}px, 0)`
   }
 }

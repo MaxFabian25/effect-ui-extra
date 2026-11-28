@@ -1,3 +1,4 @@
+import { clampToGamut, formatOklch, parseColor } from "../theme/color.js"
 import {
   DEFAULT_DARK_TOKENS,
   DEFAULT_LIGHT_TOKENS,
@@ -36,11 +37,11 @@ const MONO_DEFAULT =
 
 const CHART_LIGHT_DEFAULT: readonly [string, string, string, string, string, string] = [
   "oklch(0.5 0.17 258)",
-  "oklch(0.55 0.14 170)",
-  "oklch(0.6 0.16 65)",
+  "oklch(0.55 0.108 170)",
+  "oklch(0.6 0.134 65)",
   "oklch(0.54 0.17 305)",
   "oklch(0.56 0.18 22)",
-  "oklch(0.52 0.12 220)"
+  "oklch(0.52 0.094 220)"
 ]
 
 const CHART_DARK_DEFAULT: readonly [string, string, string, string, string, string] = [
@@ -53,8 +54,8 @@ const CHART_DARK_DEFAULT: readonly [string, string, string, string, string, stri
 ]
 
 /**
- * Five WCAG 2.1 AA audited OKLCH visual presets for Effect UI + Tailwind v4
- * (paralleling shadcn's Vega, Nova, Maia, Lyra, and Mira styles).
+ * Eight WCAG 2.1 AA audited sRGB-safe OKLCH visual presets for Effect UI +
+ * Tailwind v4 (Nova, Vega, Maia, Lyra, Mira, Luma, Rhea, and Sera).
  */
 export const VISUAL_PRESETS: Readonly<Record<PresetName, VisualPreset>> = {
   nova: {
@@ -135,13 +136,13 @@ export const VISUAL_PRESETS: Readonly<Record<PresetName, VisualPreset>> = {
       mutedForeground: "oklch(0.45 0.018 55)",
       border: "oklch(0.84 0.015 70)",
       inputBorder: "oklch(0.56 0.02 60)",
-      primary: "oklch(0.46 0.14 38)",
+      primary: "oklch(0.46 0.13 44)",
       primaryForeground: "oklch(0.99 0.004 75)",
       accent: "oklch(0.91 0.03 65)",
       accentForeground: "oklch(0.25 0.05 45)",
-      destructive: "oklch(0.49 0.19 25)",
-      destructiveForeground: "oklch(0.99 0.002 25)",
-      ring: "oklch(0.5 0.14 38)"
+      destructive: "oklch(0.49 0.19 22)",
+      destructiveForeground: "oklch(0.99 0.002 22)",
+      ring: "oklch(0.5 0.135 44)"
     },
     dark: {
       background: "oklch(0.16 0.009 55)",
@@ -151,21 +152,21 @@ export const VISUAL_PRESETS: Readonly<Record<PresetName, VisualPreset>> = {
       mutedForeground: "oklch(0.75 0.014 70)",
       border: "oklch(0.33 0.014 55)",
       inputBorder: "oklch(0.61 0.018 60)",
-      primary: "oklch(0.74 0.13 42)",
+      primary: "oklch(0.74 0.13 44)",
       primaryForeground: "oklch(0.16 0.012 45)",
       accent: "oklch(0.29 0.03 50)",
       accentForeground: "oklch(0.94 0.015 70)",
-      destructive: "oklch(0.7 0.16 25)",
-      destructiveForeground: "oklch(0.16 0.012 25)",
-      ring: "oklch(0.74 0.13 42)"
+      destructive: "oklch(0.7 0.16 22)",
+      destructiveForeground: "oklch(0.16 0.012 22)",
+      ring: "oklch(0.74 0.13 44)"
     },
     chartLight: [
-      "oklch(0.5 0.15 38)",
+      "oklch(0.5 0.14 44)",
       "oklch(0.52 0.12 155)",
-      "oklch(0.55 0.14 80)",
-      "oklch(0.48 0.13 245)",
+      "oklch(0.55 0.113 80)",
+      "oklch(0.48 0.12 245)",
       "oklch(0.54 0.16 15)",
-      "oklch(0.5 0.1 200)"
+      "oklch(0.5 0.085 200)"
     ],
     chartDark: CHART_DARK_DEFAULT
   },
@@ -191,7 +192,7 @@ export const VISUAL_PRESETS: Readonly<Record<PresetName, VisualPreset>> = {
       primaryForeground: "oklch(0.99 0 0)",
       accent: "oklch(0.91 0 0)",
       accentForeground: "oklch(0.15 0 0)",
-      destructive: "oklch(0.48 0.2 26)",
+      destructive: "oklch(0.48 0.194 26)",
       destructiveForeground: "oklch(0.99 0 0)",
       ring: "oklch(0.28 0 0)"
     },
@@ -232,13 +233,13 @@ export const VISUAL_PRESETS: Readonly<Record<PresetName, VisualPreset>> = {
       mutedForeground: "oklch(0.45 0.018 245)",
       border: "oklch(0.84 0.012 240)",
       inputBorder: "oklch(0.56 0.018 245)",
-      primary: "oklch(0.44 0.14 235)",
+      primary: "oklch(0.44 0.092 235)",
       primaryForeground: "oklch(0.99 0.002 240)",
       accent: "oklch(0.91 0.03 235)",
-      accentForeground: "oklch(0.23 0.07 235)",
+      accentForeground: "oklch(0.23 0.048 235)",
       destructive: "oklch(0.5 0.19 27)",
       destructiveForeground: "oklch(0.99 0.002 27)",
-      ring: "oklch(0.48 0.15 235)"
+      ring: "oklch(0.48 0.101 235)"
     },
     dark: {
       background: "oklch(0.155 0.012 245)",
@@ -277,13 +278,13 @@ export const VISUAL_PRESETS: Readonly<Record<PresetName, VisualPreset>> = {
       mutedForeground: "oklch(0.44 0.016 150)",
       border: "oklch(0.84 0.012 95)",
       inputBorder: "oklch(0.55 0.018 150)",
-      primary: "oklch(0.43 0.13 155)",
+      primary: "oklch(0.43 0.106 155)",
       primaryForeground: "oklch(0.99 0.003 95)",
       accent: "oklch(0.91 0.028 155)",
       accentForeground: "oklch(0.22 0.05 155)",
       destructive: "oklch(0.49 0.19 26)",
       destructiveForeground: "oklch(0.99 0.002 26)",
-      ring: "oklch(0.46 0.13 155)"
+      ring: "oklch(0.46 0.113 155)"
     },
     dark: {
       background: "oklch(0.15 0.01 155)",
@@ -367,13 +368,13 @@ export const VISUAL_PRESETS: Readonly<Record<PresetName, VisualPreset>> = {
       mutedForeground: "oklch(0.44 0.016 215)",
       border: "oklch(0.84 0.01 210)",
       inputBorder: "oklch(0.55 0.018 215)",
-      primary: "oklch(0.43 0.12 205)",
+      primary: "oklch(0.43 0.073 205)",
       primaryForeground: "oklch(0.99 0.002 210)",
       accent: "oklch(0.91 0.025 205)",
-      accentForeground: "oklch(0.22 0.05 205)",
+      accentForeground: "oklch(0.22 0.037 205)",
       destructive: "oklch(0.5 0.19 27)",
       destructiveForeground: "oklch(0.99 0.002 27)",
-      ring: "oklch(0.46 0.12 205)"
+      ring: "oklch(0.46 0.078 205)"
     },
     dark: {
       background: "oklch(0.15 0.01 215)",
@@ -414,15 +415,15 @@ const ACCENT_OVERRIDES: Readonly<
   >
 > = {
   blue: {
-    light: { primary: "oklch(0.45 0.17 258)", primaryForeground: "oklch(0.99 0.002 258)", ring: "oklch(0.48 0.17 258)" },
-    dark: { primary: "oklch(0.74 0.14 258)", primaryForeground: "oklch(0.15 0.014 258)", ring: "oklch(0.74 0.14 258)" }
+    light: { primary: "oklch(0.45 0.166 258)", primaryForeground: "oklch(0.99 0.002 258)", ring: "oklch(0.48 0.17 258)" },
+    dark: { primary: "oklch(0.74 0.135 258)", primaryForeground: "oklch(0.15 0.014 258)", ring: "oklch(0.74 0.135 258)" }
   },
   emerald: {
-    light: { primary: "oklch(0.43 0.13 155)", primaryForeground: "oklch(0.99 0.002 155)", ring: "oklch(0.46 0.13 155)" },
+    light: { primary: "oklch(0.43 0.106 155)", primaryForeground: "oklch(0.99 0.002 155)", ring: "oklch(0.46 0.113 155)" },
     dark: { primary: "oklch(0.74 0.13 155)", primaryForeground: "oklch(0.14 0.015 155)", ring: "oklch(0.74 0.13 155)" }
   },
   amber: {
-    light: { primary: "oklch(0.47 0.14 60)", primaryForeground: "oklch(0.99 0.003 60)", ring: "oklch(0.5 0.14 60)" },
+    light: { primary: "oklch(0.47 0.11 60)", primaryForeground: "oklch(0.99 0.003 60)", ring: "oklch(0.5 0.117 60)" },
     dark: { primary: "oklch(0.78 0.14 72)", primaryForeground: "oklch(0.16 0.015 60)", ring: "oklch(0.78 0.14 72)" }
   },
   rose: {
@@ -431,7 +432,7 @@ const ACCENT_OVERRIDES: Readonly<
   },
   violet: {
     light: { primary: "oklch(0.45 0.18 292)", primaryForeground: "oklch(0.99 0.002 292)", ring: "oklch(0.48 0.18 292)" },
-    dark: { primary: "oklch(0.74 0.15 292)", primaryForeground: "oklch(0.15 0.015 292)", ring: "oklch(0.74 0.15 292)" }
+    dark: { primary: "oklch(0.74 0.146 292)", primaryForeground: "oklch(0.15 0.015 292)", ring: "oklch(0.74 0.146 292)" }
   }
 }
 
@@ -441,6 +442,20 @@ const BASE_COLOR_HUES: Readonly<Record<BaseColor, { readonly chroma: number; rea
   zinc: { chroma: 0.004, hue: 260 },
   stone: { chroma: 0.01, hue: 65 },
   gray: { chroma: 0.006, hue: 245 }
+}
+
+const tintNeutralToken = (
+  raw: string,
+  chroma: number,
+  hue: number
+): string => {
+  const parsed = parseColor(raw)
+  if (parsed === undefined) return raw
+  const clamped = clampToGamut(
+    { l: parsed.l, c: chroma, h: hue, alpha: parsed.alpha },
+    "srgb"
+  )
+  return formatOklch({ ...clamped, c: Math.floor(clamped.c * 1e4) / 1e4 })
 }
 
 /** Encodes a composable `PresetSpec` into a compact shareable code (e.g. `v1-nova-slate-blue-md`). */
@@ -461,7 +476,7 @@ export const decodePresetCode = (code: string): PresetSpec => {
   })
 }
 
-/** Composes a WCAG-safe `VisualPreset` by combining a base style with custom `baseColor`, `accent`, and `radius`. */
+/** Composes a WCAG-safe, sRGB-safe `VisualPreset` by combining a base style with custom `baseColor`, `accent`, and `radius`. */
 export const composeVisualPreset = (spec: PresetSpec): VisualPreset => {
   const base = VISUAL_PRESETS[spec.style]
   const rad = RADIUS_SCALES[spec.radius]
@@ -469,14 +484,24 @@ export const composeVisualPreset = (spec: PresetSpec): VisualPreset => {
   const bh = BASE_COLOR_HUES[spec.baseColor]
   const light: ThemeTokens = {
     ...base.light,
-    surface: `oklch(0.962 ${bh.chroma} ${bh.hue})`,
-    muted: `oklch(0.93 ${bh.chroma} ${bh.hue})`,
+    background: tintNeutralToken(base.light.background, bh.chroma * 0.35, bh.hue),
+    surface: tintNeutralToken(base.light.surface, bh.chroma * 0.65, bh.hue),
+    muted: tintNeutralToken(base.light.muted, bh.chroma * 0.85, bh.hue),
+    border: tintNeutralToken(base.light.border, bh.chroma, bh.hue),
+    inputBorder: tintNeutralToken(base.light.inputBorder, bh.chroma * 1.15, bh.hue),
+    foreground: tintNeutralToken(base.light.foreground, bh.chroma * 1.15, bh.hue),
+    mutedForeground: tintNeutralToken(base.light.mutedForeground, bh.chroma * 1.15, bh.hue),
     ...(accentOverride !== undefined ? accentOverride.light : {})
   }
   const dark: ThemeTokens = {
     ...base.dark,
-    surface: `oklch(0.205 ${bh.chroma} ${bh.hue})`,
-    muted: `oklch(0.25 ${bh.chroma} ${bh.hue})`,
+    background: tintNeutralToken(base.dark.background, bh.chroma * 0.8, bh.hue),
+    surface: tintNeutralToken(base.dark.surface, bh.chroma, bh.hue),
+    muted: tintNeutralToken(base.dark.muted, bh.chroma, bh.hue),
+    border: tintNeutralToken(base.dark.border, bh.chroma, bh.hue),
+    inputBorder: tintNeutralToken(base.dark.inputBorder, bh.chroma * 1.15, bh.hue),
+    foreground: tintNeutralToken(base.dark.foreground, bh.chroma * 0.5, bh.hue),
+    mutedForeground: tintNeutralToken(base.dark.mutedForeground, bh.chroma * 1.15, bh.hue),
     ...(accentOverride !== undefined ? accentOverride.dark : {})
   }
   return {
@@ -510,6 +535,14 @@ ${baseCss}
     --eui-radius-sm: ${preset.radiusSm};
     --eui-radius-md: ${preset.radiusMd};
     --eui-radius-lg: ${preset.radiusLg};
+    --eui-duration-fast: 120ms;
+    --eui-duration-motion: 180ms;
+    --eui-ease: cubic-bezier(0.23, 1, 0.32, 1);
+    --eui-ease-sheet: cubic-bezier(0.32, 0.72, 0, 1);
+    --eui-z-dropdown: 100;
+    --eui-z-modal: 200;
+    --eui-z-tooltip: 300;
+    --eui-z-toast: 400;
     --eui-font-sans: ${preset.fontSans};
     --eui-font-mono: ${preset.fontMono};
 ${chartLightDecls}
@@ -523,6 +556,32 @@ ${chartDarkDecls}
 
   :root[data-color-scheme="dark"] {
 ${chartDarkDecls}
+  }
+
+  body {
+    caret-color: var(--eui-primary);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  h1, h2, h3, h4, h5, h6 { text-wrap: balance; }
+  p, li, blockquote, dd, figcaption { text-wrap: pretty; }
+  ::selection { background-color: var(--eui-accent); color: var(--eui-accent-fg); }
+
+  @media (pointer: coarse) {
+    input, textarea, select { font-size: max(1rem, 1em); }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    :root {
+      --eui-duration-fast: 100ms;
+      --eui-duration-motion: 0ms;
+    }
+  }
+
+  @media (forced-colors: active) {
+    :focus-visible { outline: 2px solid Highlight; outline-offset: 2px; }
+    ::selection { background-color: Highlight; color: HighlightText; }
   }
 }
 
@@ -550,6 +609,12 @@ ${chartDarkDecls}
   --radius-sm: var(--eui-radius-sm);
   --radius-md: var(--eui-radius-md);
   --radius-lg: var(--eui-radius-lg);
+  --ease-eui: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-sheet: cubic-bezier(0.32, 0.72, 0, 1);
+  --z-dropdown: 100;
+  --z-modal: 200;
+  --z-tooltip: 300;
+  --z-toast: 400;
 }
 `
 }

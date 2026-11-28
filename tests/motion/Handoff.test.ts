@@ -52,5 +52,10 @@ describe("Scroll-to-drag handoff", () => {
     expect(t.state.mode).toBe("drag")
     expect(t.state.dragOffsetPx).toBe(-20)
     expect(t.preventDefault).toBe(true)
+
+    // PointerCancel resets drag state cleanly
+    t = reduceScrollHandoff(t.state, { _tag: "PointerCancel" })
+    expect(t.state).toEqual({ mode: "idle", dragOffsetPx: 0 })
+    expect(t.preventDefault).toBe(false)
   })
 })

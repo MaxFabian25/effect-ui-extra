@@ -27,7 +27,7 @@ export const accordionItemClass = (className?: string): string =>
 
 export const accordionTriggerClass = (className?: string): string =>
   cn(
-    "flex w-full items-center justify-between py-3 text-left text-sm font-medium text-foreground transition-colors hover:underline",
+    "flex min-h-10 w-full items-center justify-between py-3 text-start text-sm font-medium text-foreground touch-manipulation hover:underline",
     "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
     className
   )
@@ -107,7 +107,11 @@ import { Collapsible } from "@effect/ui-kit"
 import { cn } from "./cn.js"
 
 export const collapsibleTriggerClass = (className?: string): string =>
-  cn("inline-flex items-center gap-1.5 rounded-sm px-2 py-1 text-sm font-medium text-foreground hover:bg-muted", className)
+  cn(
+    "inline-flex min-h-8 items-center gap-1.5 rounded-sm px-2.5 py-1 text-sm font-medium text-foreground touch-manipulation select-none hover:bg-muted",
+    "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
+    className
+  )
 
 export const collapsiblePanelClass = (className?: string): string =>
   cn("overflow-hidden text-sm text-muted-foreground", className)
@@ -156,13 +160,13 @@ import { Tabs } from "@effect/ui-kit"
 import { cn } from "./cn.js"
 
 export const tabsListClass = (className?: string): string =>
-  cn("relative inline-flex items-center gap-1 rounded-md bg-muted p-1 text-muted-foreground", className)
+  cn("relative inline-flex flex-wrap items-center gap-1 rounded-md bg-muted p-1 text-muted-foreground", className)
 
 export const tabsTriggerClass = (className?: string): string =>
   cn(
-    "relative z-10 inline-flex items-center justify-center rounded-sm px-3 py-1 text-sm font-medium transition-colors",
+    "relative z-10 inline-flex min-h-8 items-center justify-center rounded-xs border border-transparent px-3 py-1 text-sm font-medium touch-manipulation select-none",
     "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
-    "data-[active]:bg-background data-[active]:text-foreground data-[active]:shadow-sm aria-[selected=true]:bg-background aria-[selected=true]:text-foreground",
+    "data-[active]:bg-background data-[active]:text-foreground data-[active]:shadow-sm dark:data-[active]:shadow-none aria-[selected=true]:bg-background aria-[selected=true]:text-foreground",
     className
   )
 
@@ -204,7 +208,7 @@ export const styledTabs = <Msg>(
           ...options.items.map((item) =>
             parts.tab({ element: h.button.key(item.value).attrs({ type: "button" }).class(tabsTriggerClass()), value: item.value }).children(item.label)
           ),
-          parts.indicator(h.span.class("pointer-events-none absolute rounded-sm bg-background shadow-sm transition-all"))
+          parts.indicator(h.span.class("pointer-events-none absolute rounded-xs bg-background shadow-sm dark:shadow-none transition-[transform,width,height] duration-150 ease-[var(--ease-eui,ease-out)] motion-reduce:transition-none"))
         ),
         ...options.items.map((item) =>
           parts.panel({ element: h.div.key(item.value).class(tabsPanelClass()), value: item.value })?.children(item.content)
@@ -240,13 +244,14 @@ export const styledAvatar = <Msg>(
   h.span
     .class(
       cn(
-        "relative inline-flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full border border-border bg-muted text-xs font-semibold text-foreground",
+        "relative inline-flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-muted text-xs font-semibold text-foreground",
+        options.src === undefined ? "border border-border" : "",
         options.className
       )
     )
     .children(
       options.src !== undefined
-        ? h.img.attrs({ src: options.src, alt: options.alt }).class("h-full w-full object-cover")
+        ? h.img.attrs({ src: options.src, alt: options.alt }).class("h-full w-full rounded-full object-cover outline-1 -outline-offset-1 outline-black/10 dark:outline-white/10")
         : h.span.attrs({ "aria-label": options.alt }).children(options.fallback)
     )
 `
@@ -311,11 +316,11 @@ export const styledProgress = <Msg>(
       "aria-valuemax": String(max),
       "aria-valuenow": String(clamped)
     })
-    .class(cn("relative h-2 w-full overflow-hidden rounded-full bg-muted", options.className))
+    .class(cn("relative h-2 w-full overflow-hidden rounded-full border border-transparent bg-muted", options.className))
     .children(
       h.div
-        .class("h-full bg-primary transition-all duration-200")
-        .style({ width: \`\${pct}%\` })
+        .class("h-full w-full origin-left rtl:origin-right bg-primary transition-transform duration-200 ease-[var(--ease-eui,ease-out)] motion-reduce:transition-none")
+        .style({ transform: \`scaleX(\${(pct / 100).toFixed(4)})\` })
     )
 }
 `
@@ -375,7 +380,7 @@ export const scrollAreaRootClass = (className?: string): string =>
   cn("relative overflow-hidden", className)
 
 export const scrollAreaViewportClass = (className?: string): string =>
-  cn("h-full w-full overflow-auto rounded-[inherit]", className)
+  cn("h-full w-full overflow-auto overscroll-contain rounded-[inherit]", className)
 
 export const scrollAreaTrackClass = (className?: string): string =>
   cn("flex touch-none select-none p-0.5 transition-opacity data-[orientation=vertical]:w-2.5 data-[orientation=horizontal]:h-2.5", className)
@@ -435,7 +440,7 @@ export const resizableGroupClass = (className?: string): string =>
 
 export const resizableHandleClass = (className?: string): string =>
   cn(
-    "relative flex w-1.5 shrink-0 cursor-col-resize items-center justify-center bg-border transition-colors",
+    "relative flex w-6 shrink-0 cursor-col-resize touch-none items-center justify-center bg-border bg-clip-content px-2.5 transition-colors",
     "hover:bg-primary/60 focus-visible:outline-2 focus-visible:outline-ring",
     className
   )
@@ -481,7 +486,7 @@ export const paginationNavClass = (className?: string): string =>
 
 export const paginationButtonClass = (active: boolean, className?: string): string =>
   cn(
-    "inline-flex h-8 min-w-8 items-center justify-center rounded-md px-2.5 text-sm font-medium transition-colors",
+    "inline-flex min-h-8 min-w-8 items-center justify-center rounded-md border border-transparent px-2.5 text-sm font-medium tabular-nums touch-manipulation select-none transition-colors",
     "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
     active ? "bg-primary text-primary-foreground" : "text-foreground hover:bg-muted",
     className
@@ -537,8 +542,9 @@ export const carouselSlideClass = (className?: string): string =>
 
 export const carouselDotClass = (active: boolean, className?: string): string =>
   cn(
-    "h-2.5 w-2.5 rounded-full transition-colors",
-    active ? "bg-primary" : "bg-muted-foreground/30 hover:bg-muted-foreground/60",
+    "relative h-2.5 w-2.5 rounded-full border transition-colors touch-manipulation before:absolute before:-inset-2.5",
+    "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
+    active ? "border-primary bg-primary" : "border-input bg-background hover:bg-muted",
     className
   )
 
@@ -619,13 +625,18 @@ export const messageScroller = <Msg>(
     .children(
       h.div
         .attrs({ role: "log", "aria-label": options.label ?? "Conversation messages", "aria-live": "polite" })
-        .class("flex flex-1 flex-col gap-3 overflow-y-auto p-4")
+        .class("flex flex-1 flex-col gap-3 overflow-y-auto overscroll-contain p-4")
         .children(...options.items),
       ...(options.showJumpButton
         ? [
             h.button
-              .attrs({ type: "button", "aria-label": "Jump to latest messages" })
-              .class(cn(buttonClass({ variant: "secondary", size: "sm" }), "absolute bottom-3 left-1/2 -translate-x-1/2 shadow-md"))
+              .attrs({ type: "button" })
+              .class(
+                cn(
+                  buttonClass({ variant: "secondary", size: "sm" }),
+                  "absolute bottom-[max(0.75rem,env(safe-area-inset-bottom))] left-1/2 -translate-x-1/2 tabular-nums shadow-md dark:shadow-none"
+                )
+              )
               .on("click", () => options.onJumpToBottom)
               .children(
                 options.unseenCount !== undefined && options.unseenCount > 0
@@ -708,13 +719,13 @@ export const tableBodyClass = (className?: string): string =>
   cn("[&_tr:last-child]:border-0", className)
 
 export const tableRowClass = (className?: string): string =>
-  cn("border-b border-border transition-colors hover:bg-surface/60 data-[state=selected]:bg-surface", className)
+  cn("border-b border-border hover:bg-surface/60 data-[state=selected]:bg-surface", className)
 
 export const tableHeadClass = (className?: string): string =>
-  cn("h-10 px-3 text-left align-middle font-medium text-muted-foreground", className)
+  cn("h-10 px-3 text-start align-middle font-medium text-muted-foreground", className)
 
 export const tableCellClass = (className?: string): string =>
-  cn("p-3 align-middle", className)
+  cn("p-3 align-middle tabular-nums", className)
 
 export const tableCaptionClass = (className?: string): string =>
   cn("mt-3 text-xs text-muted-foreground", className)
