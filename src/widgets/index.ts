@@ -203,3 +203,38 @@ export {
   type WaterfallSpan,
   WaterfallSpanSchema
 } from "./waterfall.js"
+
+export {
+  AreaPicker,
+  AreaPickerEvents,
+  AreaPickerProps,
+  type AreaPoint,
+  AreaPointSchema
+} from "./areaPicker.js"
+
+export {
+  projectScrollPickerIndex,
+  ScrollPicker,
+  ScrollPickerEvents,
+  type ScrollPickerOption,
+  ScrollPickerOptionSchema,
+  ScrollPickerProps
+} from "./scrollPicker.js"
+
+export {
+  DateTimePicker,
+  DateTimePickerEvents,
+  DateTimePickerProps,
+  formatDateTimeString,
+  type ParsedDateTime,
+  parseDateTimeString
+} from "./dateTimePicker.js"
+
+export {
+  areStructuredTokensReady,
+  resolveStructuredToken,
+  serializeStructuredPrompt,
+  type StructuredToken,
+  type StructuredTokenStatus,
+  upsertStructuredToken
+} from "./structuredTokens.js"
