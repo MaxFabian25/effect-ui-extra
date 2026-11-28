@@ -1,5 +1,6 @@
 import { UiSchema } from "@effect/ui"
 import { Html, HtmlCommand, HtmlSubscription } from "@effect/ui/html"
+import * as Match from "effect/Match"
 import * as Schema from "effect/Schema"
 
 export type TimeGranularity = "minute" | "second"
@@ -17,9 +18,11 @@ const pad2 = (n: number): string => String(n).padStart(2, "0")
 export const parseTimeString = (raw: string): ParsedTime | undefined => {
   const m = /^(\d{1,2}):(\d{2})(?::(\d{2}))?$/.exec(raw.trim())
   if (m === null) return undefined
-  const hours = Number.parseInt(m[1]!, 10)
-  const minutes = Number.parseInt(m[2]!, 10)
-  const seconds = m[3] === undefined ? 0 : Number.parseInt(m[3]!, 10)
+  const [, rawH, rawM, rawS] = m
+  if (rawH === undefined || rawM === undefined) return undefined
+  const hours = Number.parseInt(rawH, 10)
+  const minutes = Number.parseInt(rawM, 10)
+  const seconds = rawS === undefined ? 0 : Number.parseInt(rawS, 10)
   if (
     hours < 0 ||
     hours > 23 ||
@@ -78,15 +81,15 @@ export type TimeInputEvents = typeof TimeInputEvents.Type
 const SegmentLiteral = Schema.Literals(["hour", "minute", "second", "period"])
 
 const TimeInputMsg = UiSchema.TaggedEnum({
-  Stepped: { segment: SegmentLiteral, delta: Schema.Number },
+  Stepped: { segment: SegmentLiteral, delta: Schema.Finite },
   SetEdge: { segment: SegmentLiteral, edge: Schema.Literals(["min", "max"]) },
-  TypedDigit: { segment: SegmentLiteral, digit: Schema.Number },
+  TypedDigit: { segment: SegmentLiteral, digit: Schema.Finite },
   SetPeriod: { pm: Schema.Boolean },
   MovedSegment: { segment: SegmentLiteral },
   ClearedBuffer: {},
-  DragStarted: { segment: SegmentLiteral, pointerId: Schema.Number, y: Schema.Number },
-  DragMoved: { pointerId: Schema.Number, y: Schema.Number },
-  DragEnded: { pointerId: Schema.Number },
+  DragStarted: { segment: SegmentLiteral, pointerId: Schema.Finite, y: Schema.Finite },
+  DragMoved: { pointerId: Schema.Finite, y: Schema.Finite },
+  DragEnded: { pointerId: Schema.Finite },
   FocusDone: {}
 })
 
@@ -130,8 +133,8 @@ export const TimeInput = Html.component({
     drag: Schema.NullOr(
       Schema.Struct({
         segment: SegmentLiteral,
-        pointerId: Schema.Number,
-        lastY: Schema.Number
+        pointerId: Schema.Finite,
+        lastY: Schema.Finite
       })
     )
   }),
@@ -166,24 +169,26 @@ export const TimeInput = Html.component({
       const current = parseTimeString($.props.value) ?? { hours: 0, minutes: 0, seconds: 0 }
       const isPm = current.hours >= 12
       const hourCycle: HourCycle = $.props.hourCycle ?? 24
-      const next: ParsedTime =
-        segment === "hour"
-          ? {
-              ...current,
-              hours:
-                hourCycle === 12
-                  ? edge === "min"
-                    ? (isPm ? 13 : 1)
-                    : (isPm ? 12 : 0)
-                  : edge === "min"
-                  ? 0
-                  : 23
-            }
-          : segment === "minute"
-          ? { ...current, minutes: edge === "min" ? 0 : 59 }
-          : segment === "second"
-          ? { ...current, seconds: edge === "min" ? 0 : 59 }
-          : { ...current, hours: (current.hours % 12) + (edge === "min" ? 0 : 12) }
+      const next: ParsedTime = Match.value(segment).pipe(
+        Match.when("hour", () => ({
+          ...current,
+          hours:
+            hourCycle === 12
+              ? edge === "min"
+                ? (isPm ? 13 : 1)
+                : (isPm ? 12 : 0)
+              : edge === "min"
+              ? 0
+              : 23
+        })),
+        Match.when("minute", () => ({ ...current, minutes: edge === "min" ? 0 : 59 })),
+        Match.when("second", () => ({ ...current, seconds: edge === "min" ? 0 : 59 })),
+        Match.when("period", () => ({
+          ...current,
+          hours: (current.hours % 12) + (edge === "min" ? 0 : 12)
+        })),
+        Match.exhaustive
+      )
       const formatted = formatTimeString(next, $.props.granularity ?? "minute")
       return $.evolve({ bufferSeg: null, bufferDigits: "" }).emit(
         TimeInputEvents.ValueChanged({ value: formatted })
@@ -272,35 +277,33 @@ export const TimeInput = Html.component({
     const periodText = parsed.hours >= 12 ? "PM" : "AM"
 
     const renderSeg = (seg: TimeSegment, idx: number) => {
-      const label =
-        seg === "hour"
-          ? "Hour"
-          : seg === "minute"
-          ? "Minute"
-          : seg === "second"
-          ? "Second"
-          : "AM/PM"
-      const text =
-        seg === "hour"
-          ? pad2(displayHour)
-          : seg === "minute"
-          ? pad2(parsed.minutes)
-          : seg === "second"
-          ? pad2(parsed.seconds)
-          : periodText
-      const valNow =
-        seg === "hour"
-          ? displayHour
-          : seg === "minute"
-          ? parsed.minutes
-          : seg === "second"
-          ? parsed.seconds
-          : parsed.hours >= 12
-          ? 1
-          : 0
+      const label = Match.value(seg).pipe(
+        Match.when("hour", () => "Hour"),
+        Match.when("minute", () => "Minute"),
+        Match.when("second", () => "Second"),
+        Match.when("period", () => "AM/PM"),
+        Match.exhaustive
+      )
+      const text = Match.value(seg).pipe(
+        Match.when("hour", () => pad2(displayHour)),
+        Match.when("minute", () => pad2(parsed.minutes)),
+        Match.when("second", () => pad2(parsed.seconds)),
+        Match.when("period", () => periodText),
+        Match.exhaustive
+      )
+      const valNow = Match.value(seg).pipe(
+        Match.when("hour", () => displayHour),
+        Match.when("minute", () => parsed.minutes),
+        Match.when("second", () => parsed.seconds),
+        Match.when("period", () => (parsed.hours >= 12 ? 1 : 0)),
+        Match.exhaustive
+      )
       const valMin = seg === "hour" ? (hourCycle === 12 ? 1 : 0) : 0
-      const valMax =
-        seg === "hour" ? (hourCycle === 12 ? 12 : 23) : seg === "period" ? 1 : 59
+      const valMax = Match.value(seg).pipe(
+        Match.when("hour", () => (hourCycle === 12 ? 12 : 23)),
+        Match.when("period", () => 1),
+        Match.orElse(() => 59)
+      )
 
       return h.span
         .key(seg)
@@ -365,11 +368,17 @@ export const TimeInput = Html.component({
                 digit: Number.parseInt(key, 10)
               })
             }
-            if (key === nextKey && idx < segments.length - 1) {
-              return TimeInputMsg.MovedSegment({ segment: segments[idx + 1]! })
+            if (key === nextKey) {
+              const nextSeg = segments[idx + 1]
+              if (nextSeg !== undefined) {
+                return TimeInputMsg.MovedSegment({ segment: nextSeg })
+              }
             }
-            if (key === prevKey && idx > 0) {
-              return TimeInputMsg.MovedSegment({ segment: segments[idx - 1]! })
+            if (key === prevKey) {
+              const prevSeg = segments[idx - 1]
+              if (prevSeg !== undefined) {
+                return TimeInputMsg.MovedSegment({ segment: prevSeg })
+              }
             }
             return undefined
           },

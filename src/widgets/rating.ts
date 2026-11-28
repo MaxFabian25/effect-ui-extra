@@ -5,8 +5,8 @@ import { resolveDir, starIcon } from "./internal.js"
 
 export const RatingProps = Schema.Struct({
   label: Schema.String,
-  value: Schema.Number,
-  max: Schema.optional(Schema.Number),
+  value: Schema.Finite,
+  max: Schema.optional(Schema.Finite),
   step: Schema.optional(Schema.Literals([0.5, 1])),
   dir: Schema.optional(Schema.Literals(["ltr", "rtl"])),
   disabled: Schema.optional(Schema.Boolean),
@@ -15,12 +15,12 @@ export const RatingProps = Schema.Struct({
 export type RatingProps = typeof RatingProps.Type
 
 export const RatingEvents = UiSchema.TaggedEnum({
-  ValueChanged: { value: Schema.Number }
+  ValueChanged: { value: Schema.Finite }
 })
 export type RatingEvents = typeof RatingEvents.Type
 
 const RatingMsg = UiSchema.TaggedEnum({
-  Selected: { value: Schema.Number },
+  Selected: { value: Schema.Finite },
   FocusDone: {}
 })
 
@@ -59,7 +59,9 @@ export const Rating = Html.component({
       scores.push(Math.round(s * 10) / 10)
     }
 
-    const activeScore = scores.includes(p.value) ? p.value : scores[0]!
+    const firstScore = scores[0] ?? step
+    const lastScore = scores[scores.length - 1] ?? max
+    const activeScore = scores.includes(p.value) ? p.value : firstScore
 
     const renderOption = (score: number, idx: number) => {
       const checked = score === p.value
@@ -95,15 +97,15 @@ export const Rating = Html.component({
             const nextKey = isRtl ? "ArrowLeft" : "ArrowRight"
             const prevKey = isRtl ? "ArrowRight" : "ArrowLeft"
             if (key === nextKey || key === "ArrowDown") {
-              const next = scores[(idx + 1) % scores.length]!
+              const next = scores[(idx + 1) % scores.length] ?? firstScore
               return RatingMsg.Selected({ value: next })
             }
             if (key === prevKey || key === "ArrowUp") {
-              const prev = scores[(idx - 1 + scores.length) % scores.length]!
+              const prev = scores[(idx - 1 + scores.length) % scores.length] ?? lastScore
               return RatingMsg.Selected({ value: prev })
             }
-            if (key === "Home") return RatingMsg.Selected({ value: scores[0]! })
-            if (key === "End") return RatingMsg.Selected({ value: scores[scores.length - 1]! })
+            if (key === "Home") return RatingMsg.Selected({ value: firstScore })
+            if (key === "End") return RatingMsg.Selected({ value: lastScore })
             if (key === " " || key === "Enter") return RatingMsg.Selected({ value: score })
             return undefined
           },
@@ -115,9 +117,11 @@ export const Rating = Html.component({
     const items = isHalfStep
       ? Array.from({ length: Math.ceil(scores.length / 2) }, (_, starIdx) => {
           const i0 = starIdx * 2
-          const pair = [renderOption(scores[i0]!, i0)]
-          if (i0 + 1 < scores.length) {
-            pair.push(renderOption(scores[i0 + 1]!, i0 + 1))
+          const s0 = scores[i0]
+          const s1 = scores[i0 + 1]
+          const pair = s0 !== undefined ? [renderOption(s0, i0)] : []
+          if (s1 !== undefined) {
+            pair.push(renderOption(s1, i0 + 1))
           }
           return h.span
             .key(`star-${starIdx}`)

@@ -1,7 +1,9 @@
-import { UiSchema, type View } from "@effect/ui"
+import { UiSchema } from '@effect/ui';
+import type { View } from '@effect/ui';
 import { Html } from "@effect/ui/html"
 import * as Schema from "effect/Schema"
-import { fuzzyFilter, type FuzzyRange } from "./fuzzy.js"
+import { fuzzyFilter } from './fuzzy.js';
+import type { FuzzyRange } from './fuzzy.js';
 import { safeIdToken } from "./internal.js"
 
 export const CommandItem = Schema.Struct({
@@ -187,24 +189,28 @@ export const Command = Html.component({
             if (key === "Escape") {
               return CommandMsg.PressedClose()
             }
-            if (enabledMatches.length === 0) return undefined
+            const firstMatch = enabledMatches[0]
+            const lastMatch = enabledMatches[enabledMatches.length - 1]
+            if (firstMatch === undefined || lastMatch === undefined) return undefined
             const idx = enabledMatches.findIndex((m) => m.item.value === active)
             if (key === "ArrowDown") {
               const next =
-                enabledMatches[(idx + 1 + enabledMatches.length) % enabledMatches.length]!
+                enabledMatches[(idx + 1 + enabledMatches.length) % enabledMatches.length] ??
+                firstMatch
               return CommandMsg.Highlighted({ value: next.item.value })
             }
             if (key === "ArrowUp") {
               const prev =
-                enabledMatches[(idx - 1 + enabledMatches.length) % enabledMatches.length]!
+                enabledMatches[(idx - 1 + enabledMatches.length) % enabledMatches.length] ??
+                lastMatch
               return CommandMsg.Highlighted({ value: prev.item.value })
             }
             if (key === "Home") {
-              return CommandMsg.Highlighted({ value: enabledMatches[0]!.item.value })
+              return CommandMsg.Highlighted({ value: firstMatch.item.value })
             }
             if (key === "End") {
               return CommandMsg.Highlighted({
-                value: enabledMatches[enabledMatches.length - 1]!.item.value
+                value: lastMatch.item.value
               })
             }
             if (key === "Enter" && active !== null) {

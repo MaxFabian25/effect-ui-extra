@@ -1,14 +1,17 @@
 import { readFileSync, writeFileSync } from "node:fs"
-import { dirname, resolve } from "node:path"
-import ts from "typescript"
+import { resolve } from "node:path"
+import { Schema } from "effect"
 
 const ROOT = resolve(import.meta.dir, "..")
-const pkg = JSON.parse(readFileSync(resolve(ROOT, "package.json"), "utf8")) as {
-  readonly name: string
-  readonly version: string
-  readonly description: string
-  readonly exports: Readonly<Record<string, unknown>>
-}
+const PackageJsonSchema = Schema.Struct({
+  name: Schema.String,
+  version: Schema.String,
+  description: Schema.String,
+  exports: Schema.Record(Schema.String, Schema.Unknown)
+})
+const pkg = Schema.decodeUnknownSync(PackageJsonSchema)(
+  JSON.parse(readFileSync(resolve(ROOT, "package.json"), "utf8"))
+)
 
 interface SubpathSpec {
   readonly subpath: string
@@ -69,17 +72,25 @@ interface ExtractedExport {
 const extractExports = (entryRel: string): ReadonlyArray<ExtractedExport> => {
   const entryPath = resolve(ROOT, entryRel)
   const sourceText = readFileSync(entryPath, "utf8")
-  const sf = ts.createSourceFile(entryPath, sourceText, ts.ScriptTarget.ES2022, true)
+  const stripped = sourceText.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/.*$/gm, "")
   const items: Array<ExtractedExport> = []
+  const exportBlockPattern = /\bexport\s+(type\s+)?\{([^}]*)\}\s*(?:from\s*["'][^"']+["'])?/g
 
-  for (const stmt of sf.statements) {
-    if (ts.isExportDeclaration(stmt) && stmt.exportClause && ts.isNamedExports(stmt.exportClause)) {
-      for (const el of stmt.exportClause.elements) {
-        items.push({
-          name: el.name.text,
-          kind: el.isTypeOnly || stmt.isTypeOnly ? "type" : "value"
-        })
-      }
+  for (const match of stripped.matchAll(exportBlockPattern)) {
+    const blockIsTypeOnly = match[1] !== undefined
+    const body = match[2] ?? ""
+    for (const rawEntry of body.split(",")) {
+      const trimmed = rawEntry.trim()
+      if (trimmed.length === 0) continue
+      const isTypeSpec = trimmed.startsWith("type ")
+      const withoutType = isTypeSpec ? trimmed.slice(5).trim() : trimmed
+      const aliasParts = withoutType.split(/\s+as\s+/)
+      const exportedName = (aliasParts[1] ?? aliasParts[0] ?? "").trim()
+      if (exportedName.length === 0) continue
+      items.push({
+        name: exportedName,
+        kind: blockIsTypeOnly || isTypeSpec ? "type" : "value"
+      })
     }
   }
   return items
@@ -142,7 +153,7 @@ Version: \`${pkg.version}\` (generated from \`src/\` via \`bun run gen:docs\`; r
 
 1. **Import by subpath.** Prefer \`effect-ui-extra/widgets\`, \`effect-ui-extra/page\`, \`effect-ui-extra/a11y\`, \`effect-ui-extra/direct\`, \`effect-ui-extra/theme\`, \`effect-ui-extra/theme/effect-ui.css\`, and \`effect-ui-extra/motion\` over the root barrel so unused modules stay out of client bundles.
 2. **Pair zero-FOUC theme persistence with the layered stylesheet.** Inline \`preferencesScript()\` from \`effect-ui-extra/page\` in SSR \`<head>\` and import \`effect-ui-extra/theme/effect-ui.css\`; both coordinate on \`:root[data-color-scheme="light"|"dark"]\`.
-3. **Run all four built-in audits in UI tests.** Under \`bun test\` with \`TestHost.layer()\`, \`A11yFocus.layer()\`, and \`TestClock.layer()\`:
+3. **Run all four built-in audits in UI tests.** Under \`bun test\` with \`TestHost.layer()\`, \`A11yFocus.layer\`, and \`TestClock.layer()\`:
    - \`checkPattern(play, pattern)\` and \`checkDirection(...)\` from \`effect-ui-extra/a11y\`
    - \`checkAccessibleNames(play)\` from \`effect-ui-extra/a11y\`
    - \`checkServer(Component, props)\` from \`effect-ui-extra/page\`

@@ -114,13 +114,13 @@ export const getCheckedByStrategy = (
       const isLeaf = node.children === undefined || node.children.length === 0
       if (strategy === "leaves") {
         if (isLeaf && s === true) out.push(node.value)
-        else if (!isLeaf) walk(node.children!)
+        else if (!isLeaf) walk(node.children)
       } else if (strategy === "parents") {
         if (s === true) out.push(node.value)
-        else if (!isLeaf) walk(node.children!)
+        else if (!isLeaf) walk(node.children)
       } else {
         if (s === true) out.push(node.value)
-        if (!isLeaf) walk(node.children!)
+        if (!isLeaf) walk(node.children)
       }
     }
   }

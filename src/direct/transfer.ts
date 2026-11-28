@@ -30,11 +30,13 @@ export const findTransferItem = <A extends TransferItem>(
   itemId: string
 ): { readonly item: A; readonly location: TransferLocation } | undefined => {
   for (const container of containers) {
-    const idx = container.items.findIndex((item) => item.id === itemId)
-    if (idx !== -1) {
-      return {
-        item: container.items[idx]!,
-        location: { containerId: container.id, index: idx }
+    for (let idx = 0; idx < container.items.length; idx++) {
+      const item = container.items[idx]
+      if (item !== undefined && item.id === itemId) {
+        return {
+          item,
+          location: { containerId: container.id, index: idx }
+        }
       }
     }
   }
@@ -89,7 +91,10 @@ export const transferItem = <A extends TransferItem>(
   }
 
   const from = found.location
-  const targetContainer = containers.find((c) => c.id === target.containerId)!
+  const targetContainer = containers.find((c) => c.id === target.containerId)
+  if (targetContainer === undefined) {
+    return { containers, moved: false, from, to: null }
+  }
   const sameContainer = from.containerId === target.containerId
   const maxIndex = sameContainer ? targetContainer.items.length - 1 : targetContainer.items.length
   const clampedIndex = Math.max(0, Math.min(maxIndex, Math.floor(target.index)))
@@ -102,7 +107,9 @@ export const transferItem = <A extends TransferItem>(
     if (sameContainer && container.id === from.containerId) {
       const copy = [...container.items]
       const [item] = copy.splice(from.index, 1)
-      copy.splice(clampedIndex, 0, item!)
+      if (item !== undefined) {
+        copy.splice(clampedIndex, 0, item)
+      }
       return { ...container, items: copy }
     }
     if (container.id === from.containerId) {
@@ -158,7 +165,8 @@ export const moveTransferItemByKey = <A extends TransferItem>(
   const isRtl = options?.dir === "rtl"
   const step = (key === "ArrowRight") !== isRtl ? 1 : -1
   for (let i = colIdx + step; i >= 0 && i < containers.length; i += step) {
-    const candidate = containers[i]!
+    const candidate = containers[i]
+    if (candidate === undefined) continue
     if (canTransferItem(containers, itemId, candidate.id, options)) {
       const clampedIdx = Math.min(index, candidate.items.length)
       return transferItem(

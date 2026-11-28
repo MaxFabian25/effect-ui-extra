@@ -199,21 +199,25 @@ export const browserStorageLayer = (
 
       const set = (key: string, value: string) =>
         Effect.gen(function*() {
-          try {
-            getWebStorage()?.setItem(key, value)
-          } catch {
-            // Storage quota or private browsing mode; keep event flow alive.
-          }
+          yield* Effect.sync(() => {
+            try {
+              getWebStorage()?.setItem(key, value)
+            } catch {
+              // Storage quota or private browsing mode; keep event flow alive.
+            }
+          })
           yield* PubSub.publish(pubsub, { key, value })
         })
 
       const remove = (key: string) =>
         Effect.gen(function*() {
-          try {
-            getWebStorage()?.removeItem(key)
-          } catch {
-            // Ignore blocked storage writes.
-          }
+          yield* Effect.sync(() => {
+            try {
+              getWebStorage()?.removeItem(key)
+            } catch {
+              // Ignore blocked storage writes.
+            }
+          })
           yield* PubSub.publish(pubsub, { key, value: undefined })
         })
 
@@ -302,9 +306,10 @@ export const definePreference = <const Value extends string>(
   spec: PreferenceSpec<Value>
 ): Preference<Value> => {
   assertValidSpec(spec)
-  const allowed = new Set<string>(spec.values)
-  const parse = (raw: string | undefined): Value =>
-    raw !== undefined && allowed.has(raw) ? (raw as Value) : spec.defaultValue
+  const parse = (raw: string | undefined): Value => {
+    if (raw === undefined) return spec.defaultValue
+    return spec.values.find((v) => v === raw) ?? spec.defaultValue
+  }
 
   const applyToDocument = (value: Value): void => {
     if (typeof document !== "undefined" && document.documentElement !== null) {
@@ -431,7 +436,13 @@ export const colorSchemeFromHeaders = (
   } else {
     for (const [k, v] of Object.entries(headers)) {
       if (k.toLowerCase() === "sec-ch-prefers-color-scheme") {
-        raw = Array.isArray(v) ? v[0] : (v as string | undefined)
+        if (typeof v === "string") {
+          raw = v
+        } else if (Array.isArray(v) && typeof v[0] === "string") {
+          raw = v[0]
+        } else {
+          raw = undefined
+        }
         break
       }
     }

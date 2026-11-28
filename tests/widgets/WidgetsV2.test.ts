@@ -7,32 +7,12 @@ import { Duration, Effect, Layer, Schema } from "effect"
 import { TestClock } from "effect/testing"
 import { A11yFocus, checkDirection, checkPattern } from "../../src/a11y/index.js"
 import { checkServer } from "../../src/page/index.js"
-import {
-  addTokens,
-  applyTriggerSelection,
-  buildPaginationRange,
-  computeIndicatorGeometry,
-  computeTreeCheckStates,
-  detectTrigger,
-  getCheckedByStrategy,
-  initialStickToBottomState,
-  InlineEdit,
-  jumpToBottom,
-  makeAsyncOptionsLoader,
-  onStickContentGrowth,
-  onStickScroll,
-  Pagination,
-  parseTokenText,
-  SegmentedControl,
-  TokenInput,
-  toggleTreeNodeCheck,
-  TriggerMenu,
-  type TreeNode
-} from "../../src/widgets/index.js"
+import { addTokens, applyTriggerSelection, buildPaginationRange, computeIndicatorGeometry, computeTreeCheckStates, detectTrigger, getCheckedByStrategy, initialStickToBottomState, InlineEdit, jumpToBottom, makeAsyncOptionsLoader, onStickContentGrowth, onStickScroll, Pagination, parseTokenText, SegmentedControl, TokenInput, toggleTreeNodeCheck, TriggerMenu } from '../../src/widgets/index.js';
+import type { TreeNode } from '../../src/widgets/index.js';
 
 const playLayer = Layer.mergeAll(
   TestHost.layer(),
-  A11yFocus.layer(),
+  A11yFocus.layer,
   TestClock.layer()
 )
 
@@ -124,10 +104,10 @@ describe("AsyncOptionsLoader (debounced & fiber-interruptible under TestClock)",
     ))
 })
 
-const PaginationHostMsg = UiSchema.TaggedEnum({ SetPage: { page: Schema.Number } })
+const PaginationHostMsg = UiSchema.TaggedEnum({ SetPage: { page: Schema.Finite } })
 const PaginationHost = Html.component({
   name: "PaginationHost",
-  model: Schema.Struct({ page: Schema.Number }),
+  model: Schema.Struct({ page: Schema.Finite }),
   message: PaginationHostMsg
 }).make({
   init: () => ({ page: 1 }),
@@ -311,11 +291,11 @@ describe("InlineEdit", () => {
 })
 
 const TriggerHostMsg = UiSchema.TaggedEnum({
-  Set: { text: Schema.String, caret: Schema.Number }
+  Set: { text: Schema.String, caret: Schema.Finite }
 })
 const TriggerHost = Html.component({
   name: "TriggerHost",
-  model: Schema.Struct({ text: Schema.String, caret: Schema.Number }),
+  model: Schema.Struct({ text: Schema.String, caret: Schema.Finite }),
   message: TriggerHostMsg
 }).make({
   init: () => ({ text: "Hi @al", caret: 6 }),
@@ -346,7 +326,8 @@ describe("TriggerMenu and caret parser", () => {
           expect(detectTrigger("mail a@b.com", 12)).toBeUndefined()
           const match = detectTrigger("hello @ali", 10)
           expect(match).toEqual({ trigger: "@", query: "ali", rangeStart: 6, rangeEnd: 10 })
-          expect(applyTriggerSelection("hello @ali!", match!, "@alice")).toEqual({
+          if (match === undefined) throw new Error("expected trigger match")
+          expect(applyTriggerSelection("hello @ali!", match, "@alice")).toEqual({
             text: "hello @alice !",
             caret: 13
           })

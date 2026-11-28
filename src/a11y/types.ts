@@ -1,6 +1,6 @@
 import * as Data from "effect/Data"
 import type * as Effect from "effect/Effect"
-import type { Locator } from "@effect/ui/testing"
+import type { Locator, Play, TestHost } from "@effect/ui/testing"
 
 /**
  * Supported WAI-ARIA Authoring Practices Guide (APG) widget patterns.
@@ -79,9 +79,11 @@ export interface CheckPatternOptions {
   readonly settle?: Effect.Effect<void> | undefined
 }
 
-export interface AnyHtmlPlay {
+export interface AnyHtmlPlay
+  extends Pick<Play.Play<unknown, unknown, unknown>, "expectIgnored">
+{
   readonly root: { readonly container: NodeLike }
-  click(target: string | Locator.Locator): Effect.Effect<void, unknown>
+  click(target: string | Locator.Locator): Effect.Effect<void, Play.StepError>
   keydown(
     locator: Locator.Locator,
     key: string,
@@ -91,15 +93,14 @@ export interface AnyHtmlPlay {
       readonly alt: boolean
       readonly meta: boolean
     }>
-  ): Effect.Effect<void, unknown>
-  focus(locator: Locator.Locator): Effect.Effect<void, unknown>
-  blur(locator: Locator.Locator): Effect.Effect<void, unknown>
+  ): Effect.Effect<void, Play.StepError>
+  focus(locator: Locator.Locator): Effect.Effect<void, Play.StepError>
+  blur(locator: Locator.Locator): Effect.Effect<void, Play.StepError>
   fire(
     locator: Locator.Locator,
     event: string,
     payload?: unknown
-  ): Effect.Effect<void, unknown>
-  expectIgnored(): Effect.Effect<void>
+  ): Effect.Effect<void, Play.StepError>
 }
 
 export interface DomTarget {
@@ -109,14 +110,7 @@ export interface DomTarget {
 
 export type A11yTarget = AnyHtmlPlay | globalThis.Element | DomTarget
 
-export type NodeLike = globalThis.Element | {
-  readonly _tag: "Element"
-  readonly tag: string
-  readonly attrs: Record<string, string>
-  readonly props: Record<string, unknown>
-  readonly children: ReadonlyArray<unknown>
-  readonly parent?: NodeLike | undefined
-}
+export type NodeLike = globalThis.Element | TestHost.TestElement
 
 export interface A11yDriver {
   readonly kind: "testhost" | "dom"

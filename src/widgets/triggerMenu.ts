@@ -25,7 +25,7 @@ export const detectTrigger = (
   const before = text.slice(0, pos)
 
   for (let i = pos - 1; i >= 0; i--) {
-    const ch = before[i]!
+    const ch = before.charAt(i)
     if (/\s/.test(ch)) return undefined
     if (triggers.includes(ch)) {
       const prev = i === 0 ? undefined : before[i - 1]
@@ -71,7 +71,7 @@ export type TriggerSuggestion = typeof TriggerSuggestion.Type
 export const TriggerMenuProps = Schema.Struct({
   label: Schema.String,
   text: Schema.String,
-  caret: Schema.Number,
+  caret: Schema.Finite,
   triggers: Schema.optional(Schema.Array(Schema.String)),
   suggestions: Schema.Array(TriggerSuggestion),
   idPrefix: Schema.optional(Schema.String)
@@ -79,19 +79,19 @@ export const TriggerMenuProps = Schema.Struct({
 export type TriggerMenuProps = typeof TriggerMenuProps.Type
 
 export const TriggerMenuEvents = UiSchema.TaggedEnum({
-  TextChanged: { text: Schema.String, caret: Schema.Number },
+  TextChanged: { text: Schema.String, caret: Schema.Finite },
   SuggestionApplied: {
     trigger: Schema.String,
     value: Schema.String,
     text: Schema.String,
-    caret: Schema.Number
+    caret: Schema.Finite
   }
 })
 export type TriggerMenuEvents = typeof TriggerMenuEvents.Type
 
 const TriggerMenuMsg = UiSchema.TaggedEnum({
-  InputEdited: { value: Schema.String, caret: Schema.Number },
-  MovedActive: { index: Schema.Number },
+  InputEdited: { value: Schema.String, caret: Schema.Finite },
+  MovedActive: { index: Schema.Finite },
   Dismissed: {},
   PickedSuggestion: { value: Schema.String }
 })
@@ -104,8 +104,8 @@ export const TriggerMenu = Html.component({
   name: "TriggerMenu",
   props: TriggerMenuProps,
   model: Schema.Struct({
-    activeIndex: Schema.Number,
-    dismissedAt: Schema.NullOr(Schema.Number)
+    activeIndex: Schema.Finite,
+    dismissedAt: Schema.NullOr(Schema.Finite)
   }),
   message: TriggerMenuMsg,
   events: TriggerMenuEvents
@@ -152,7 +152,7 @@ export const TriggerMenu = Html.component({
       filtered.length === 0
         ? -1
         : Math.min(filtered.length - 1, Math.max(0, model.activeIndex))
-    const activeItem = clampedIndex >= 0 ? filtered[clampedIndex]!.item : undefined
+    const activeItem = clampedIndex >= 0 ? filtered[clampedIndex]?.item : undefined
     const listId = `${prefix}-listbox`
 
     const showList = isOpen && filtered.length > 0

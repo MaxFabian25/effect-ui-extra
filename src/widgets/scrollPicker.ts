@@ -50,16 +50,16 @@ export const ScrollPickerEvents = UiSchema.TaggedEnum({
 export type ScrollPickerEvents = typeof ScrollPickerEvents.Type
 
 const ScrollDragSchema = Schema.Struct({
-  pointerId: Schema.Number,
-  startY: Schema.Number,
-  startIndex: Schema.Number
+  pointerId: Schema.Finite,
+  startY: Schema.Finite,
+  startIndex: Schema.Finite
 })
 
 const ScrollPickerMsg = UiSchema.TaggedEnum({
-  SelectIndex: { index: Schema.Number },
-  DragStart: { pointerId: Schema.Number, y: Schema.Number, startIndex: Schema.Number },
-  DragMove: { pointerId: Schema.Number, y: Schema.Number },
-  DragEnd: { pointerId: Schema.optional(Schema.Number) }
+  SelectIndex: { index: Schema.Finite },
+  DragStart: { pointerId: Schema.Finite, y: Schema.Finite, startIndex: Schema.Finite },
+  DragMove: { pointerId: Schema.Finite, y: Schema.Finite },
+  DragEnd: { pointerId: Schema.optional(Schema.Finite) }
 })
 
 const nextEnabledIndex = (
@@ -84,7 +84,8 @@ const jumpEnabledIndex = (
   const dir: 1 | -1 = delta >= 0 ? 1 : -1
   const forward = nextEnabledIndex(options, clamped, dir)
   if (forward !== clamped) return forward
-  const backward = nextEnabledIndex(options, clamped, (dir * -1) as 1 | -1)
+  const opposite: 1 | -1 = dir === 1 ? -1 : 1
+  const backward = nextEnabledIndex(options, clamped, opposite)
   return backward !== clamped ? backward : from
 }
 

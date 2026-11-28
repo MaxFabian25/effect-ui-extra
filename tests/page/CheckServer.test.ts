@@ -100,11 +100,11 @@ describe("checkServer SSR purity guard (clean baseline + 6 planted SSR faults)",
           const rendered = yield* checkServer(CleanComponent, { greeting: "Hello SSR" })
           expect(rendered.html).toContain("Hello SSR")
           // Global window is restored after checkServer finishes
-          expect(globalThis.window).toBe(win as unknown as Window & typeof globalThis)
+          expect<unknown>(globalThis.window).toBe(win)
         } finally {
-          win.happyDOM.close()
+          yield* Effect.promise(() => win.happyDOM.close())
           if (origWindowDesc === undefined) {
-            delete (globalThis as Record<string, unknown>).window
+            Reflect.deleteProperty(globalThis, "window")
           } else {
             Object.defineProperty(globalThis, "window", origWindowDesc)
           }

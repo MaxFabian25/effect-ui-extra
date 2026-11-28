@@ -7,23 +7,12 @@ import { Effect, Layer, Redacted, Schema } from "effect"
 import { TestClock } from "effect/testing"
 import { A11yFocus, checkPattern } from "../../src/a11y/index.js"
 import { checkServer } from "../../src/page/index.js"
-import {
-  Command,
-  computeListboxRange,
-  fuzzyFilter,
-  fuzzyMatch,
-  Listbox,
-  PasswordInput,
-  recoverFocusKey,
-  Resizable,
-  resizePanes,
-  Tree,
-  type TreeNode
-} from "../../src/widgets/index.js"
+import { Command, computeListboxRange, fuzzyFilter, fuzzyMatch, Listbox, PasswordInput, recoverFocusKey, Resizable, resizePanes, Tree } from '../../src/widgets/index.js';
+import type { TreeNode } from '../../src/widgets/index.js';
 
 const playLayer = Layer.mergeAll(
   TestHost.layer(),
-  A11yFocus.layer(),
+  A11yFocus.layer,
   TestClock.layer()
 )
 
@@ -60,17 +49,14 @@ describe("fuzzyMatch, fuzzyFilter, and recoverFocusKey", () => {
     ])
 
     const accentMatch = fuzzyMatch("cafe", "Sétup Café")
-    expect(accentMatch).toBeDefined()
-    expect(accentMatch!.ranges).toEqual([{ start: 6, end: 10 }])
+    expect(accentMatch?.ranges).toEqual([{ start: 6, end: 10 }])
 
     // NFD-decomposed combining mark stays grouped inside highlight range
     const nfdMatch = fuzzyMatch("cafe", "cafe\u0301")
-    expect(nfdMatch).toBeDefined()
-    expect(nfdMatch!.ranges).toEqual([{ start: 0, end: 5 }])
+    expect(nfdMatch?.ranges).toEqual([{ start: 0, end: 5 }])
 
     const subseq = fuzzyMatch("gp", "Git Push")
-    expect(subseq).toBeDefined()
-    expect(subseq!.ranges).toEqual([
+    expect(subseq?.ranges).toEqual([
       { start: 0, end: 1 },
       { start: 4, end: 5 }
     ])
@@ -162,7 +148,9 @@ describe("PasswordInput", () => {
             yield* play.expect(hideBtn).toHaveAttribute("aria-pressed", false)
 
             yield* play.type(input, "new-secret-99")
-            expect(Redacted.value(play.root.model()!.secret)).toBe("new-secret-99")
+            const pwModel = play.root.model()
+            if (pwModel === undefined) throw new Error("expected PasswordHost model")
+            expect(Redacted.value(pwModel.secret)).toBe("new-secret-99")
           })
         )
 
@@ -259,11 +247,11 @@ describe("Listbox", () => {
             // Shift+ArrowDown extends contiguous range skipping disabled "gamma"
             const optAlpha = HtmlLocator.role("option", { name: "Alpha" })
             yield* play.keydown(optAlpha, "ArrowDown", { shift: true })
-            expect(play.root.model()!.selected).toEqual(["alpha", "beta"])
+            expect(play.root.model()?.selected).toEqual(["alpha", "beta"])
 
             const optBeta = HtmlLocator.role("option", { name: "Beta" })
             yield* play.keydown(optBeta, "ArrowDown", { shift: true })
-            expect(play.root.model()!.selected).toEqual(["alpha", "beta", "delta"])
+            expect(play.root.model()?.selected).toEqual(["alpha", "beta", "delta"])
 
             // Delete focused "beta" -> FocusRecovery moves tab stop to surviving "delta"
             yield* play.click(HtmlLocator.role("button", { name: "Remove Beta" }))
@@ -343,7 +331,7 @@ describe("Tree", () => {
             const srcItem = HtmlLocator.role("treeitem", { name: "src" })
             // ArrowRight on collapsed branch expands it
             yield* play.keydown(srcItem, "ArrowRight")
-            expect(play.root.model()!.expanded).toEqual(["src"])
+            expect(play.root.model()?.expanded).toEqual(["src"])
             yield* play
               .expect(HtmlLocator.role("treeitem", { name: "index.ts" }))
               .toExist()
@@ -359,17 +347,17 @@ describe("Tree", () => {
 
             // ArrowLeft on expanded branch collapses it
             yield* play.keydown(srcItem, "ArrowLeft")
-            expect(play.root.model()!.expanded).toEqual([])
+            expect(play.root.model()?.expanded).toEqual([])
 
             // '*' expands all sibling branches
             yield* play.keydown(srcItem, "*")
-            expect(play.root.model()!.expanded).toEqual(["src", "tests"])
+            expect(play.root.model()?.expanded).toEqual(["src", "tests"])
 
             // Clicking an expanded branch collapses it; clicking again re-expands it
             yield* play.click(srcItem)
-            expect(play.root.model()!.expanded).toEqual(["tests"])
+            expect(play.root.model()?.expanded).toEqual(["tests"])
             yield* play.click(srcItem)
-            expect(play.root.model()!.expanded).toEqual(["tests", "src"])
+            expect(play.root.model()?.expanded).toEqual(["tests", "src"])
           })
         )
 
@@ -383,11 +371,11 @@ describe("Tree", () => {
 // ---------------------------------------------------------------------------
 
 const ResizableHostMsg = UiSchema.TaggedEnum({
-  Resized: { sizes: Schema.Array(Schema.Number) }
+  Resized: { sizes: Schema.Array(Schema.Finite) }
 })
 const ResizableHost = Html.component({
   name: "ResizableHost",
-  model: Schema.Array(Schema.Number),
+  model: Schema.Array(Schema.Finite),
   message: ResizableHostMsg
 }).make({
   init: () => [30, 70],
@@ -516,8 +504,8 @@ describe("Command", () => {
             expect(play.root.all(Locator.tag("mark")).length).toBe(2)
 
             yield* play.keydown(input, "Enter")
-            expect(play.root.model()!.lastRan).toBe("git-push")
-            expect(play.root.model()!.open).toBe(false)
+            expect(play.root.model()?.lastRan).toBe("git-push")
+            expect(play.root.model()?.open).toBe(false)
           })
         )
 

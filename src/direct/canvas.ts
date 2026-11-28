@@ -1,9 +1,6 @@
 import type { Point } from "./selection.js"
-import {
-  nearestInDirection,
-  type Rect,
-  type SpatialDirection
-} from "./spatial.js"
+import { nearestInDirection } from './spatial.js';
+import type { Rect, SpatialDirection } from './spatial.js';
 
 // ---------------------------------------------------------------------------
 // Infinite Canvas Viewport (pan, cursor-pinned zoom, fitBounds)

@@ -171,7 +171,7 @@ export class ShortcutRegistry extends Context.Service<
   ShortcutRegistryService
 >()("effect-ui-page/ShortcutRegistry") {}
 
-export const makeShortcutRegistry = (): Effect.Effect<ShortcutRegistryService> =>
+export const makeShortcutRegistry: Effect.Effect<ShortcutRegistryService> =
   Effect.sync(() => {
     const entries = new Map<string, ShortcutMetadata>()
 
@@ -214,8 +214,8 @@ export const makeShortcutRegistry = (): Effect.Effect<ShortcutRegistryService> =
     return { register, list, conflicts }
   })
 
-export const shortcutRegistryLayer = (): Layer.Layer<ShortcutRegistry> =>
-  Layer.effect(ShortcutRegistry, makeShortcutRegistry())
+export const shortcutRegistryLayer: Layer.Layer<ShortcutRegistry> =
+  Layer.effect(ShortcutRegistry, makeShortcutRegistry)
 
 export interface DocumentedShortcut<Msg> extends HtmlKeyboard.Shortcut<Msg> {
   readonly id: string

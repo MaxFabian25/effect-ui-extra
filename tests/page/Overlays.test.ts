@@ -6,7 +6,7 @@ import { TestClock } from "effect/testing"
 import { OverlayHost, Overlays, overlaysLayer } from "../../src/page/index.js"
 
 const makeLayer = () =>
-  Layer.mergeAll(TestHost.layer(), TestClock.layer(), overlaysLayer())
+  Layer.mergeAll(TestHost.layer(), TestClock.layer(), overlaysLayer)
 
 describe("Deferred-backed Overlays and OverlayHost on TestHost", () => {
   it("Overlays.confirm renders AlertDialog and resolves true on confirm and false on cancel", () =>

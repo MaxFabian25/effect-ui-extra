@@ -186,13 +186,30 @@ export const themeContrastPairs = (
  * via `@supports (color: light-dark(white, black))` and `[data-color-scheme]`
  * overrides compatible with `effect-ui-page`.
  */
+const THEME_TOKEN_KEYS: ReadonlyArray<keyof ThemeTokens> = [
+  "background",
+  "surface",
+  "muted",
+  "foreground",
+  "mutedForeground",
+  "border",
+  "inputBorder",
+  "primary",
+  "primaryForeground",
+  "accent",
+  "accentForeground",
+  "destructive",
+  "destructiveForeground",
+  "ring"
+]
+
 export const generateThemeCss = (
   light: ThemeTokens = DEFAULT_LIGHT_TOKENS,
   dark: ThemeTokens = DEFAULT_DARK_TOKENS,
   options: { readonly layer?: string } = {}
 ): string => {
   const layer = options.layer ?? "effect-ui"
-  const keys = Object.keys(TOKEN_CSS_NAMES) as ReadonlyArray<keyof ThemeTokens>
+  const keys = THEME_TOKEN_KEYS
   const lightDecls = keys
     .map((key) => `    ${TOKEN_CSS_NAMES[key]}: ${light[key]};`)
     .join("\n")

@@ -11,9 +11,12 @@ const parseRgbOrHex = (input: string): Rgb | undefined => {
   if (s.startsWith("#")) {
     const hex = s.slice(1)
     if (hex.length === 3) {
-      const r = Number.parseInt(hex[0]! + hex[0]!, 16)
-      const g = Number.parseInt(hex[1]! + hex[1]!, 16)
-      const b = Number.parseInt(hex[2]! + hex[2]!, 16)
+      const h0 = hex.charAt(0)
+      const h1 = hex.charAt(1)
+      const h2 = hex.charAt(2)
+      const r = Number.parseInt(h0 + h0, 16)
+      const g = Number.parseInt(h1 + h1, 16)
+      const b = Number.parseInt(h2 + h2, 16)
       return [r, g, b].some(Number.isNaN) ? undefined : { r, g, b }
     }
     if (hex.length === 6) {
@@ -26,9 +29,11 @@ const parseRgbOrHex = (input: string): Rgb | undefined => {
   }
   const match = /^rgba?\(\s*([\d.]+)[,\s]+([\d.]+)[,\s]+([\d.]+)/.exec(s)
   if (match !== null) {
-    const r = Number.parseFloat(match[1]!)
-    const g = Number.parseFloat(match[2]!)
-    const b = Number.parseFloat(match[3]!)
+    const [, rawR, rawG, rawB] = match
+    if (rawR === undefined || rawG === undefined || rawB === undefined) return undefined
+    const r = Number.parseFloat(rawR)
+    const g = Number.parseFloat(rawG)
+    const b = Number.parseFloat(rawB)
     return [r, g, b].some(Number.isNaN) ? undefined : { r, g, b }
   }
   const parsed = parseColor(input)
@@ -98,9 +103,12 @@ export const createThemeColorDimmer = (
       if (shade === lastShade) return
       lastShade = shade
       for (let i = 0; i < metas.length; i++) {
-        const blended = blendThemeColor(originals[i]!, dim, alpha)
+        const meta = metas[i]
+        const orig = originals[i]
+        if (meta === undefined || orig === undefined) continue
+        const blended = blendThemeColor(orig, dim, alpha)
         if (blended !== undefined) {
-          metas[i]!.content = blended
+          meta.content = blended
         }
       }
     },
@@ -109,7 +117,11 @@ export const createThemeColorDimmer = (
       active = false
       lastShade = -1
       for (let i = 0; i < metas.length; i++) {
-        metas[i]!.content = originals[i]!
+        const meta = metas[i]
+        const orig = originals[i]
+        if (meta !== undefined && orig !== undefined) {
+          meta.content = orig
+        }
       }
     }
   }

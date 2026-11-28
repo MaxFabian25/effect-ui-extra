@@ -4,12 +4,8 @@ import * as Layer from "effect/Layer"
 import * as PubSub from "effect/PubSub"
 import type { Scope } from "effect/Scope"
 import * as Stream from "effect/Stream"
-import {
-  type ChangeSource,
-  type ObservedChange,
-  PageObserver,
-  type PageObserverService
-} from "./observe.js"
+import { PageObserver } from './observe.js';
+import type { ChangeSource, ObservedChange, PageObserverService } from './observe.js';
 
 export interface HistoryEntry {
   readonly id: number
@@ -180,17 +176,17 @@ export const makePageHistory = (
 
     const undo: Effect.Effect<HistoryActionResult> = Effect.gen(function*() {
       let idx = cursor - 1
-      while (idx >= 0 && entries[idx]!.reverted) {
+      while (idx >= 0 && entries[idx]?.reverted === true) {
         idx--
       }
-      if (idx < 0) {
+      const entry = idx >= 0 ? entries[idx] : undefined
+      if (entry === undefined) {
         return {
           applied: false,
           skippedRedacted: false,
           missingTarget: false
         }
       }
-      const entry = entries[idx]!
       cursor = idx
       sealed = true
 
@@ -231,14 +227,14 @@ export const makePageHistory = (
     })
 
     const redo: Effect.Effect<HistoryActionResult> = Effect.gen(function*() {
-      if (cursor >= entries.length) {
+      const entry = entries[cursor]
+      if (entry === undefined) {
         return {
           applied: false,
           skippedRedacted: false,
           missingTarget: false
         }
       }
-      const entry = entries[cursor]!
       cursor = cursor + 1
       sealed = true
 
@@ -287,12 +283,13 @@ export const makePageHistory = (
         const missingTargets: Array<HistoryEntry> = []
 
         for (let i = cursor - 1; i >= 0; i--) {
-          const entry = entries[i]!
-          if (entry.source !== source || entry.reverted) continue
+          const entry = entries[i]
+          if (entry === undefined || entry.source !== source || entry.reverted) continue
 
           if (entry.redacted) {
-            entries[i] = { ...entry, reverted: true }
-            skippedRedacted.push(entries[i]!)
+            const updated: HistoryEntry = { ...entry, reverted: true }
+            entries[i] = updated
+            skippedRedacted.push(updated)
             continue
           }
 

@@ -1,11 +1,6 @@
 import { describe, expect, test } from "bun:test"
-import {
-  canTransferItem,
-  findTransferItem,
-  moveTransferItemByKey,
-  type TransferContainer,
-  transferItem
-} from "../../src/direct/index.js"
+import { canTransferItem, findTransferItem, moveTransferItemByKey, transferItem } from '../../src/direct/index.js';
+import type { TransferContainer } from '../../src/direct/index.js';
 
 interface Card {
   readonly id: string
@@ -52,15 +47,15 @@ describe("Cross-container drag-and-drop transfer", () => {
     expect(moved.moved).toBe(true)
     expect(moved.from).toEqual({ containerId: "todo", index: 0 })
     expect(moved.to).toEqual({ containerId: "done", index: 0 })
-    expect(moved.containers[0]!.items.map((c) => c.id)).toEqual(["c2"])
-    expect(moved.containers[2]!.items.map((c) => c.id)).toEqual(["c1"])
+    expect(moved.containers[0]?.items.map((c) => c.id)).toEqual(["c2"])
+    expect(moved.containers[2]?.items.map((c) => c.id)).toEqual(["c1"])
   })
 
   test("reorders within container and moves across columns via keyboard (LTR and RTL)", () => {
     const board = makeBoard()
     const reordered = moveTransferItemByKey(board, "c1", "ArrowDown")
     expect(reordered.moved).toBe(true)
-    expect(reordered.containers[0]!.items.map((c) => c.id)).toEqual(["c2", "c1"])
+    expect(reordered.containers[0]?.items.map((c) => c.id)).toEqual(["c2", "c1"])
 
     // ArrowRight from todo skips full 'doing' column and lands in 'done'
     const jumped = moveTransferItemByKey(board, "c1", "ArrowRight")

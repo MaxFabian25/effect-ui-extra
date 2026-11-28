@@ -32,7 +32,7 @@ export const recallHistoryPrevious = <T = string>(
     const nextIdx = entries.length - 1
     return {
       state: { cursor: nextIdx, savedDraft: currentValue },
-      value: entries[nextIdx]!,
+      value: entries[nextIdx],
       handled: true
     }
   }
@@ -42,7 +42,7 @@ export const recallHistoryPrevious = <T = string>(
   const nextIdx = state.cursor - 1
   return {
     state: { ...state, cursor: nextIdx },
-    value: entries[nextIdx]!,
+    value: entries[nextIdx],
     handled: true
   }
 }
@@ -68,7 +68,7 @@ export const recallHistoryNext = <T = string>(
   const nextIdx = state.cursor + 1
   return {
     state: { ...state, cursor: nextIdx },
-    value: entries[nextIdx]!,
+    value: entries[nextIdx],
     handled: true
   }
 }

@@ -3,6 +3,7 @@ import type { TestHost } from "@effect/ui/testing"
 import * as Context from "effect/Context"
 import * as Effect from "effect/Effect"
 import * as Layer from "effect/Layer"
+import * as Predicate from "effect/Predicate"
 import type { NodeLike } from "./types.js"
 
 export interface FocusTrackerService {
@@ -23,9 +24,7 @@ export class FocusTracker extends Context.Service<
 >()("effect-ui-a11y/FocusTracker") {}
 
 const isTestElement = (value: unknown): value is TestHost.TestElement =>
-  typeof value === "object" &&
-  value !== null &&
-  (value as { readonly _tag?: unknown })._tag === "Element"
+  Predicate.isTagged(value, "Element")
 
 const tryFireOwn = (
   element: TestHost.TestElement,
@@ -88,7 +87,7 @@ const zeroRect: Html.Rect = {
  * Merge with `TestHost.layer()` to enable `HtmlCommand.focus` tracking in
  * zero-DOM `HtmlPlay` tests.
  */
-export const layer = (): Layer.Layer<FocusTracker | Html.Host> =>
+export const layer: Layer.Layer<FocusTracker | Html.Host> =
   Layer.effectContext(
     Effect.sync(() => {
       const tracker = makeFocusTracker()

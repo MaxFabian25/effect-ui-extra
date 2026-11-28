@@ -71,7 +71,9 @@ const parseAttributes = (raw: string): ReadonlyMap<string, string> => {
   const re = /([a-zA-Z_:][-a-zA-Z0-9_:.]*)(?:\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'=<>`]+)))?/g
   let m: RegExpExecArray | null
   while ((m = re.exec(raw)) !== null) {
-    const name = m[1]!.toLowerCase()
+    const rawName = m[1]
+    if (rawName === undefined) continue
+    const name = rawName.toLowerCase()
     const val = m[2] ?? m[3] ?? m[4] ?? ""
     attrs.set(name, val)
   }
@@ -99,13 +101,15 @@ export const auditMarkup = (html: string): ReadonlyArray<MarkupViolation> => {
 
   while ((m = tagRe.exec(cleaned)) !== null) {
     const isClose = m[1] === "/"
-    const tag = m[2]!.toLowerCase()
+    const rawTag = m[2]
+    if (rawTag === undefined) continue
+    const tag = rawTag.toLowerCase()
     const rawAttrs = m[3] ?? ""
     const isSelfClose = m[4] === "/" || VOID_TAGS.has(tag)
 
     if (isClose) {
       for (let i = openStack.length - 1; i >= 0; i--) {
-        if (openStack[i]!.tag === tag) {
+        if (openStack[i]?.tag === tag) {
           openStack.splice(i)
           break
         }

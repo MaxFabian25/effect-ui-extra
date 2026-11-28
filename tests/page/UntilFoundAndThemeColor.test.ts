@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test"
+import { GlobalWindow } from "happy-dom"
 import {
   bindBeforeMatch,
   blendThemeColor,
@@ -37,27 +38,44 @@ describe("hidden='until-found' and beforematch helpers", () => {
 })
 
 describe("dimThemeColor", () => {
-  test("blends hex, rgb, and oklch theme colors toward black and re-snapshots meta tags across theme changes", () => {
+  test("blends hex, rgb, and oklch theme colors toward black and re-snapshots meta tags across theme changes", async () => {
     expect(blendThemeColor("#ffffff", 1, 0.5)).toBe("#808080")
     expect(blendThemeColor("rgb(200, 100, 50)", 1, 0.5)).toBe("#643219")
     expect(blendThemeColor("oklch(0.99 0.002 260)", 1, 0.5)).toMatch(/^#[0-9a-f]{6}$/)
     expect(blendThemeColor("not-a-color", 1, 0.5)).toBeUndefined()
 
-    const meta = { content: "#ffffff" } as HTMLMetaElement
-    const fakeDoc = {
-      querySelectorAll: () => [meta] as unknown as NodeListOf<Element>
-    }
-    const dimmer = createThemeColorDimmer(fakeDoc, 0.5)
-    dimmer.write(1)
-    expect(meta.content).toBe("#808080")
-    dimmer.restore()
-    expect(meta.content).toBe("#ffffff")
+    const win = new GlobalWindow({ url: "http://localhost/" })
+    const origDocDesc = Object.getOwnPropertyDescriptor(globalThis, "document")
+    Object.defineProperty(globalThis, "document", {
+      configurable: true,
+      writable: true,
+      value: win.document
+    })
+    try {
+      const meta = document.createElement("meta")
+      meta.name = "theme-color"
+      meta.content = "#ffffff"
+      document.head.appendChild(meta)
 
-    // Theme toggled while modal closed -> next dim snapshots the new dark color
-    meta.content = "#101010"
-    dimmer.write(1)
-    expect(meta.content).toBe("#080808")
-    dimmer.restore()
-    expect(meta.content).toBe("#101010")
+      const dimmer = createThemeColorDimmer(document, 0.5)
+      dimmer.write(1)
+      expect(meta.content).toBe("#808080")
+      dimmer.restore()
+      expect(meta.content).toBe("#ffffff")
+
+      // Theme toggled while modal closed -> next dim snapshots the new dark color
+      meta.content = "#101010"
+      dimmer.write(1)
+      expect(meta.content).toBe("#080808")
+      dimmer.restore()
+      expect(meta.content).toBe("#101010")
+    } finally {
+      if (origDocDesc === undefined) {
+        Reflect.deleteProperty(globalThis, "document")
+      } else {
+        Object.defineProperty(globalThis, "document", origDocDesc)
+      }
+      await win.happyDOM.close()
+    }
   })
 })

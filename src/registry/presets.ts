@@ -2,16 +2,16 @@ import { clampToGamut, formatOklch, parseColor } from "../theme/color.js"
 import {
   DEFAULT_DARK_TOKENS,
   DEFAULT_LIGHT_TOKENS,
-  generateThemeCss,
-  type ThemeTokens
+  generateThemeCss
 } from "../theme/tokens.js"
-import {
-  type AccentColor,
-  type BaseColor,
-  decodePresetSpec,
-  type PresetName,
-  type PresetSpec,
-  type RadiusScale
+import type { ThemeTokens } from "../theme/tokens.js"
+import { decodePresetSpec } from "./schema.js"
+import type {
+  AccentColor,
+  BaseColor,
+  PresetName,
+  PresetSpec,
+  RadiusScale
 } from "./schema.js"
 
 export interface VisualPreset {

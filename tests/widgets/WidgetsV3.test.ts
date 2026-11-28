@@ -32,7 +32,7 @@ import {
 
 const playLayer = Layer.mergeAll(
   TestHost.layer(),
-  A11yFocus.layer(),
+  A11yFocus.layer,
   TestClock.layer()
 )
 
@@ -113,7 +113,7 @@ describe("InputHistory and inputHints", () => {
     expect(step1.value).toBe("second prompt")
     h = step1.state
 
-    const step2 = recallHistoryPrevious(h, entries, step1.value!)
+    const step2 = recallHistoryPrevious(h, entries, step1.value ?? "")
     expect(step2.value).toBe("first prompt")
     h = step2.state
 
@@ -147,11 +147,11 @@ describe("InputHistory and inputHints", () => {
   })
 })
 
-const RatingHostMsg = UiSchema.TaggedEnum({ Set: { value: Schema.Number } })
+const RatingHostMsg = UiSchema.TaggedEnum({ Set: { value: Schema.Finite } })
 const RatingHost = Html.component({
   name: "RatingHost",
   props: Schema.Struct({ dir: Schema.optional(Schema.Literals(["ltr", "rtl"])) }),
-  model: Schema.Struct({ value: Schema.Number }),
+  model: Schema.Struct({ value: Schema.Finite }),
   message: RatingHostMsg
 }).make({
   init: () => ({ value: 3 }),
@@ -355,10 +355,10 @@ describe("IME-safe Enter handling across text-input widgets", () => {
         let triggerPicked: string | undefined
         const TriggerHost = Html.component({
           name: "TriggerImeHost",
-          model: Schema.Struct({ text: Schema.String, caret: Schema.Number }),
+          model: Schema.Struct({ text: Schema.String, caret: Schema.Finite }),
           message: UiSchema.TaggedEnum({
-            Edited: { text: Schema.String, caret: Schema.Number },
-            Applied: { value: Schema.String, text: Schema.String, caret: Schema.Number }
+            Edited: { text: Schema.String, caret: Schema.Finite },
+            Applied: { value: Schema.String, text: Schema.String, caret: Schema.Finite }
           })
         }).make({
           init: () => ({ text: "@al", caret: 3 }),

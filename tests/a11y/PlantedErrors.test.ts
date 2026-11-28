@@ -5,18 +5,12 @@ import { TestHost } from "@effect/ui/testing"
 import { describe, expect, it } from "bun:test"
 import { Effect, Exit, Layer, Schema } from "effect"
 import { TestClock } from "effect/testing"
-import {
-  A11yFocus,
-  auditDirection,
-  auditPattern,
-  checkPattern,
-  type Direction,
-  type PatternViolation
-} from "../../src/a11y/index.js"
+import { A11yFocus, auditDirection, auditPattern, checkPattern } from '../../src/a11y/index.js';
+import type { Direction, PatternViolation } from '../../src/a11y/index.js';
 
 const testLayer = Layer.mergeAll(
   TestHost.layer(),
-  A11yFocus.layer(),
+  A11yFocus.layer,
   TestClock.layer()
 )
 
@@ -163,8 +157,8 @@ const makeDisclosure = (fault: "clean" | "dangling-controls" | "stays-hidden") =
   })
 
 const TabMsg = UiSchema.TaggedEnum({
-  Focus: { index: Schema.Number },
-  Select: { index: Schema.Number },
+  Focus: { index: Schema.Finite },
+  Select: { index: Schema.Finite },
   Focused: {}
 })
 
@@ -187,7 +181,7 @@ const makeTabs = (
 ) =>
   Html.component({
     name: `Tabs_${fault}_${direction}`,
-    model: Schema.Struct({ active: Schema.Number, focused: Schema.Number }),
+    model: Schema.Struct({ active: Schema.Finite, focused: Schema.Finite }),
     message: TabMsg
   }).make({
     init: () => ({ active: 0, focused: 0 }),
@@ -195,9 +189,10 @@ const makeTabs = (
       Focus: ($, { index }) => {
         const next = $.evolve({ focused: index })
         if (fault === "tabindex-without-focus") return next
-        return next.run(
-          HtmlCommand.focus(tabRefs[index]!, () => TabMsg.Focused())
-        )
+        const ref = tabRefs[index]
+        return ref === undefined
+          ? next
+          : next.run(HtmlCommand.focus(ref, () => TabMsg.Focused()))
       },
       Select: ($, { index }) => $.evolve({ active: index, focused: index }),
       Focused: ($) => $.model
@@ -218,8 +213,9 @@ const makeTabs = (
                 : model.focused === i
                 ? "0"
                 : "-1"
+            const ref = tabRefs[i] ?? tabRefs[0]
             return h.button
-              .ref(tabRefs[i]!)
+              .ref(ref)
               .attrs({
                 type: "button",
                 id: `tab-${i}`,
@@ -289,7 +285,7 @@ const DoubleCheckedRadios = Html.component({
 
 const OutOfRangeSlider = Html.component({
   name: "OutOfRangeSlider",
-  model: Schema.Number,
+  model: Schema.Finite,
   message: Schema.Never
 }).make({
   init: () => 150,
@@ -341,7 +337,7 @@ const DanglingActiveDescendantListbox = Html.component({
 })
 
 const TreeMsg = UiSchema.TaggedEnum({
-  Focus: { index: Schema.Number },
+  Focus: { index: Schema.Finite },
   Focused: {}
 })
 const treeRefs = [
@@ -352,20 +348,24 @@ const treeRefs = [
 const makeTree = (fault: "clean" | "bad-expanded-and-keys") =>
   Html.component({
     name: `Tree_${fault}`,
-    model: Schema.Number,
+    model: Schema.Finite,
     message: TreeMsg
   }).make({
     init: () => 0,
     update: {
-      Focus: ($, { index }) =>
-        $.set(index).run(HtmlCommand.focus(treeRefs[index]!, () => TreeMsg.Focused())),
+      Focus: ($, { index }) => {
+        const ref = treeRefs[index]
+        return ref === undefined
+          ? $.set(index)
+          : $.set(index).run(HtmlCommand.focus(ref, () => TreeMsg.Focused()))
+      },
       Focused: ($) => $.model
     },
     view: (h, focused) =>
       h.ul.attrs({ role: "tree", "aria-label": "Files" }).children(
         ...["src", "tests", "README.md"].map((label, i) =>
           h.li
-            .ref(treeRefs[i]!)
+            .ref(treeRefs[i] ?? treeRefs[0])
             .attrs({
               role: "treeitem",
               tabindex: focused === i ? "0" : "-1",

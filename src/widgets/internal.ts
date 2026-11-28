@@ -1,4 +1,5 @@
 import type { Html } from "@effect/ui/html"
+import * as Match from "effect/Match"
 
 /**
  * Resolves effective reading direction: explicit `dir` prop wins, otherwise
@@ -61,8 +62,11 @@ export const starIcon = <Msg>(
   filled: boolean,
   half?: "start" | "end"
 ) => {
-  const viewBox =
-    half === "start" ? "0 0 8 16" : half === "end" ? "8 0 8 16" : "0 0 16 16"
+  const viewBox = Match.value(half).pipe(
+    Match.when("start", () => "0 0 8 16"),
+    Match.when("end", () => "8 0 8 16"),
+    Match.orElse(() => "0 0 16 16")
+  )
   const width = half !== undefined ? "8" : "16"
   return h.svg
     .attrs({

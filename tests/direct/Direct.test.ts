@@ -1,4 +1,6 @@
 import { describe, expect, it } from "bun:test"
+import * as Data from "effect/Data"
+import type { SwipeReleaseOutcome } from "../../src/direct/index.js"
 import { Effect, Exit, Fiber, Stream } from "effect"
 import { TestClock } from "effect/testing"
 import {
@@ -100,27 +102,24 @@ describe("SwipeActions", () => {
     expect(rubberBand(200, 100, 320)).toBeLessThan(200)
     expect(rubberBand(200, 100, 320)).toBeGreaterThan(100)
 
+    const SwipeOutcome = Data.taggedEnum<SwipeReleaseOutcome>()
     const halfOpen = evaluateSwipeDrag("row-1", -60, cfg)
-    expect(resolveSwipeRelease(halfOpen, 0, cfg)).toEqual({
-      _tag: "Opened",
-      open: { key: "row-1", side: "end" }
-    })
+    expect(resolveSwipeRelease(halfOpen, 0, cfg)).toEqual(
+      SwipeOutcome.Opened({ open: { key: "row-1", side: "end" } })
+    )
 
     // Flick velocity opens even below half width
     const smallFlick = evaluateSwipeDrag("row-1", -25, cfg)
-    expect(resolveSwipeRelease(smallFlick, -0.5, cfg)).toEqual({
-      _tag: "Opened",
-      open: { key: "row-1", side: "end" }
-    })
+    expect(resolveSwipeRelease(smallFlick, -0.5, cfg)).toEqual(
+      SwipeOutcome.Opened({ open: { key: "row-1", side: "end" } })
+    )
 
     // Full swipe triggers primary action
     const full = evaluateSwipeDrag("row-1", 210, cfg)
     expect(full?.full).toBe(true)
-    expect(resolveSwipeRelease(full, 0, cfg)).toEqual({
-      _tag: "TriggeredFull",
-      key: "row-1",
-      side: "start"
-    })
+    expect(resolveSwipeRelease(full, 0, cfg)).toEqual(
+      SwipeOutcome.TriggeredFull({ key: "row-1", side: "start" })
+    )
 
     // Keyboard LTR + RTL + Escape
     expect(handleSwipeKey("row-1", null, "ArrowRight", cfg)).toEqual({

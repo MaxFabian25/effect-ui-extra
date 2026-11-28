@@ -13,7 +13,7 @@ describe("Transactional PageHistory staging and Observe marks", () => {
     await Effect.runPromise(
       Effect.scoped(
         Effect.gen(function*() {
-          const observer = yield* makePageObserver()
+          const observer = yield* makePageObserver
           const history = yield* makePageHistory(observer, { coalesce: false })
           const stage = createHistoryStage()
           const marks = createMarkRegistry()

@@ -87,9 +87,11 @@ export const detectSpanOverlaps = (
   const sorted = [...spans].sort((x, y) => x.start - y.start || x.end - y.end)
   const overlaps: Array<SpanOverlap> = []
   for (let i = 0; i < sorted.length; i++) {
-    const a = sorted[i]!
+    const a = sorted[i]
+    if (a === undefined) continue
     for (let j = i + 1; j < sorted.length; j++) {
-      const b = sorted[j]!
+      const b = sorted[j]
+      if (b === undefined) continue
       if (b.start >= a.end) break
       const overlapStart = Math.max(a.start, b.start)
       const overlapEnd = Math.min(a.end, b.end)

@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test"
+import * as Data from "effect/Data"
 import * as Effect from "effect/Effect"
-import { Window } from "happy-dom"
+import { GlobalWindow } from "happy-dom"
 import {
   bindIosModalTouchGuard,
   ColorScheme,
@@ -14,6 +15,9 @@ import {
   reduceIosTouchGuard,
   resolveInteractiveTapTarget
 } from "../../src/page/index.js"
+import type { IosTouchGuardEvent } from "../../src/page/index.js"
+
+const TouchEv = Data.taggedEnum<IosTouchGuardEvent>()
 
 describe("CspContext and CSP tag helpers", () => {
   test("reads nonce from Effect context and escapes closing tags", async () => {
@@ -54,64 +58,85 @@ describe("CspContext and CSP tag helpers", () => {
 describe("iOS modal touch jitter guard", () => {
   test("blocks first scroll-bleed touchmove yet lets wobbling tap click once", () => {
     let s = initialIosTouchGuardState
-    let d = reduceIosTouchGuard(s, {
-      _tag: "TouchStart",
-      point: { x: 100, y: 100 },
-      insideModal: true
-    })
+    let d = reduceIosTouchGuard(
+      s,
+      TouchEv.TouchStart({
+        point: { x: 100, y: 100 },
+        insideModal: true
+      })
+    )
     s = d.state
     expect(d.preventDefault).toBe(false)
 
     // Wobbling finger drifts 6px (within default 10px tolerance)
-    d = reduceIosTouchGuard(s, { _tag: "TouchMove", point: { x: 104, y: 104 } })
+    d = reduceIosTouchGuard(s, TouchEv.TouchMove({ point: { x: 104, y: 104 } }))
     s = d.state
     expect(d.preventDefault).toBe(true)
     expect(s.wobblingTap).toBe(true)
 
-    d = reduceIosTouchGuard(s, { _tag: "TouchEnd", nowMs: 1000, insideModal: true })
+    d = reduceIosTouchGuard(s, TouchEv.TouchEnd({ nowMs: 1000, insideModal: true }))
     s = d.state
     expect(d.synthesizeClick).toBe(true)
 
     // A second tap immediately within dedupeWindowMs does not double-synthesize
-    d = reduceIosTouchGuard(s, {
-      _tag: "TouchStart",
-      point: { x: 100, y: 100 },
-      insideModal: true
-    })
-    d = reduceIosTouchGuard(d.state, { _tag: "TouchMove", point: { x: 102, y: 102 } })
-    d = reduceIosTouchGuard(d.state, { _tag: "TouchEnd", nowMs: 1100, insideModal: true })
+    d = reduceIosTouchGuard(
+      s,
+      TouchEv.TouchStart({
+        point: { x: 100, y: 100 },
+        insideModal: true
+      })
+    )
+    d = reduceIosTouchGuard(d.state, TouchEv.TouchMove({ point: { x: 102, y: 102 } }))
+    d = reduceIosTouchGuard(d.state, TouchEv.TouchEnd({ nowMs: 1100, insideModal: true }))
     expect(d.synthesizeClick).toBe(false)
   })
 
   test("does not synthesize click when finger scrolls past jitter tolerance", () => {
-    let d = reduceIosTouchGuard(initialIosTouchGuardState, {
-      _tag: "TouchStart",
-      point: { x: 50, y: 50 },
-      insideModal: true
-    })
-    d = reduceIosTouchGuard(d.state, { _tag: "TouchMove", point: { x: 50, y: 80 } })
+    let d = reduceIosTouchGuard(
+      initialIosTouchGuardState,
+      TouchEv.TouchStart({
+        point: { x: 50, y: 50 },
+        insideModal: true
+      })
+    )
+    d = reduceIosTouchGuard(d.state, TouchEv.TouchMove({ point: { x: 50, y: 80 } }))
     expect(d.preventDefault).toBe(false)
     expect(d.state.wobblingTap).toBe(false)
 
-    d = reduceIosTouchGuard(d.state, { _tag: "TouchEnd", nowMs: 2000, insideModal: true })
+    d = reduceIosTouchGuard(d.state, TouchEv.TouchEnd({ nowMs: 2000, insideModal: true }))
     expect(d.synthesizeClick).toBe(false)
   })
 
-  test("resolves nested icon inside button within modal root and cleans up listeners", () => {
-    const win = new Window()
-    const prevElement = globalThis.Element
-    const prevNode = globalThis.Node
-    ;(globalThis as unknown as { Element: unknown }).Element = win.Element
-    ;(globalThis as unknown as { Node: unknown }).Node = win.Node
+  test("resolves nested icon inside button within modal root and cleans up listeners", async () => {
+    const win = new GlobalWindow({ url: "http://localhost/" })
+    const keys = ["document", "Element", "HTMLElement", "Node"] as const
+    const saved = new Map<string, PropertyDescriptor | undefined>()
+    for (const key of keys) {
+      saved.set(key, Object.getOwnPropertyDescriptor(globalThis, key))
+      Object.defineProperty(globalThis, key, {
+        configurable: true,
+        writable: true,
+        value: Reflect.get(win, key)
+      })
+    }
     try {
-      const doc = win.document
-      doc.body.innerHTML = `<div id="modal"><button id="btn"><span id="icon">×</span></button><button id="dis" disabled><span id="disIcon">×</span></button><div id="ariaDis" role="button" aria-disabled="true"><span id="ariaDisIcon">×</span></div></div><button id="outside">Out</button>`
-      const modal = doc.getElementById("modal") as unknown as HTMLElement
-      const btn = doc.getElementById("btn") as unknown as HTMLElement
-      const icon = doc.getElementById("icon") as unknown as HTMLElement
-      const disIcon = doc.getElementById("disIcon") as unknown as HTMLElement
-      const ariaDisIcon = doc.getElementById("ariaDisIcon") as unknown as HTMLElement
-      const outside = doc.getElementById("outside") as unknown as HTMLElement
+      document.body.innerHTML = `<div id="modal"><button id="btn"><span id="icon">×</span></button><button id="dis" disabled><span id="disIcon">×</span></button><div id="ariaDis" role="button" aria-disabled="true"><span id="ariaDisIcon">×</span></div></div><button id="outside">Out</button>`
+      const modal = document.getElementById("modal")
+      const btn = document.getElementById("btn")
+      const icon = document.getElementById("icon")
+      const disIcon = document.getElementById("disIcon")
+      const ariaDisIcon = document.getElementById("ariaDisIcon")
+      const outside = document.getElementById("outside")
+      if (
+        modal === null ||
+        btn === null ||
+        icon === null ||
+        disIcon === null ||
+        ariaDisIcon === null ||
+        outside === null
+      ) {
+        throw new Error("Expected modal DOM elements")
+      }
 
       expect(resolveInteractiveTapTarget(icon, modal)).toBe(btn)
       expect(resolveInteractiveTapTarget(disIcon, modal)).toBeNull()
@@ -122,9 +147,14 @@ describe("iOS modal touch jitter guard", () => {
       expect(typeof unbind).toBe("function")
       unbind()
     } finally {
-      ;(globalThis as unknown as { Element: unknown }).Element = prevElement
-      ;(globalThis as unknown as { Node: unknown }).Node = prevNode
-      win.close()
+      for (const [key, desc] of saved) {
+        if (desc === undefined) {
+          Reflect.deleteProperty(globalThis, key)
+        } else {
+          Object.defineProperty(globalThis, key, desc)
+        }
+      }
+      await win.happyDOM.close()
     }
   })
 })

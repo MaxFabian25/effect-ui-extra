@@ -138,17 +138,21 @@ export const Timeline = Html.component({
                               ? "ArrowLeft"
                               : "ArrowRight"
                             : "ArrowDown"
-                        if (key === nextKey && idx + 1 < p.items.length) {
-                          return TimelineMsg.Select({ id: p.items[idx + 1]!.id })
+                        if (key === nextKey) {
+                          const next = p.items[idx + 1]
+                          if (next !== undefined) return TimelineMsg.Select({ id: next.id })
                         }
-                        if (key === prevKey && idx > 0) {
-                          return TimelineMsg.Select({ id: p.items[idx - 1]!.id })
+                        if (key === prevKey) {
+                          const prev = p.items[idx - 1]
+                          if (prev !== undefined) return TimelineMsg.Select({ id: prev.id })
                         }
-                        if (key === "Home" && p.items.length > 0) {
-                          return TimelineMsg.Select({ id: p.items[0]!.id })
+                        if (key === "Home") {
+                          const first = p.items[0]
+                          if (first !== undefined) return TimelineMsg.Select({ id: first.id })
                         }
-                        if (key === "End" && p.items.length > 0) {
-                          return TimelineMsg.Select({ id: p.items[p.items.length - 1]!.id })
+                        if (key === "End") {
+                          const last = p.items[p.items.length - 1]
+                          if (last !== undefined) return TimelineMsg.Select({ id: last.id })
                         }
                         return undefined
                       },

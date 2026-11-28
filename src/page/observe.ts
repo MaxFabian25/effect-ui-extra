@@ -109,7 +109,7 @@ const isSecretValue = (input: RecordChangeInput): boolean =>
 const sanitize = (value: unknown, redacted: boolean): unknown =>
   redacted ? REDACTED_PLACEHOLDER : value
 
-export const makePageObserver = (): Effect.Effect<PageObserverService> =>
+export const makePageObserver: Effect.Effect<PageObserverService> =
   Effect.gen(function*() {
     let seq = 0
     const staged = new Map<string, StagedEntry>()
@@ -258,5 +258,5 @@ export const makePageObserver = (): Effect.Effect<PageObserverService> =>
     }
   })
 
-export const pageObserverLayer = (): Layer.Layer<PageObserver> =>
-  Layer.effect(PageObserver, makePageObserver())
+export const pageObserverLayer: Layer.Layer<PageObserver> =
+  Layer.effect(PageObserver, makePageObserver)

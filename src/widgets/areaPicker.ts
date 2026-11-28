@@ -6,8 +6,8 @@ import { snapToStep } from "../direct/scale.js"
 import { resolveDir } from "./internal.js"
 
 export const AreaPointSchema = Schema.Struct({
-  x: Schema.Number,
-  y: Schema.Number
+  x: Schema.Finite,
+  y: Schema.Finite
 })
 export type AreaPoint = typeof AreaPointSchema.Type
 
@@ -16,12 +16,12 @@ export const AreaPickerProps = Schema.Struct({
   xLabel: Schema.optional(Schema.String),
   yLabel: Schema.optional(Schema.String),
   value: Schema.optional(AreaPointSchema),
-  minX: Schema.optional(Schema.Number),
-  maxX: Schema.optional(Schema.Number),
-  stepX: Schema.optional(Schema.Number),
-  minY: Schema.optional(Schema.Number),
-  maxY: Schema.optional(Schema.Number),
-  stepY: Schema.optional(Schema.Number),
+  minX: Schema.optional(Schema.Finite),
+  maxX: Schema.optional(Schema.Finite),
+  stepX: Schema.optional(Schema.Finite),
+  minY: Schema.optional(Schema.Finite),
+  maxY: Schema.optional(Schema.Finite),
+  stepY: Schema.optional(Schema.Finite),
   dir: Schema.optional(Schema.Literals(["ltr", "rtl"])),
   disabled: Schema.optional(Schema.Boolean)
 })
@@ -33,34 +33,34 @@ export const AreaPickerEvents = UiSchema.TaggedEnum({
 export type AreaPickerEvents = typeof AreaPickerEvents.Type
 
 const AreaDragSchema = Schema.Struct({
-  pointerId: Schema.Number,
-  left: Schema.Number,
-  top: Schema.Number,
-  width: Schema.Number,
-  height: Schema.Number,
-  pendingX: Schema.Number,
-  pendingY: Schema.Number,
+  pointerId: Schema.Finite,
+  left: Schema.Finite,
+  top: Schema.Finite,
+  width: Schema.Finite,
+  height: Schema.Finite,
+  pendingX: Schema.Finite,
+  pendingY: Schema.Finite,
   isRtl: Schema.Boolean
 })
 
 const AreaPickerModel = Schema.Struct({
-  x: Schema.Number,
-  y: Schema.Number,
+  x: Schema.Finite,
+  y: Schema.Finite,
   drag: Schema.NullOr(AreaDragSchema)
 })
 
 const AreaPickerMsg = UiSchema.TaggedEnum({
-  Step: { dx: Schema.Number, dy: Schema.Number },
-  Set: { x: Schema.Number, y: Schema.Number },
-  PointerStart: { pointerId: Schema.Number, x: Schema.Number, y: Schema.Number, isRtl: Schema.Boolean },
+  Step: { dx: Schema.Finite, dy: Schema.Finite },
+  Set: { x: Schema.Finite, y: Schema.Finite },
+  PointerStart: { pointerId: Schema.Finite, x: Schema.Finite, y: Schema.Finite, isRtl: Schema.Boolean },
   AreaMeasured: {
-    left: Schema.Number,
-    top: Schema.Number,
-    width: Schema.Number,
-    height: Schema.Number
+    left: Schema.Finite,
+    top: Schema.Finite,
+    width: Schema.Finite,
+    height: Schema.Finite
   },
-  PointerMove: { pointerId: Schema.Number, x: Schema.Number, y: Schema.Number },
-  PointerEnd: { pointerId: Schema.optional(Schema.Number) }
+  PointerMove: { pointerId: Schema.Finite, x: Schema.Finite, y: Schema.Finite },
+  PointerEnd: { pointerId: Schema.optional(Schema.Finite) }
 })
 
 const areaRef = Html.ref("AreaPickerRoot", "div")

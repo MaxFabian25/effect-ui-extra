@@ -23,17 +23,8 @@ import {
   validateIdRefs
 } from "./aria.js"
 import { resolveDriver } from "./driver.js"
-import {
-  type A11yDriver,
-  type A11yTarget,
-  type ApgPattern,
-  type CheckPatternOptions,
-  type Direction,
-  type NodeLike,
-  type Orientation,
-  type PatternViolation,
-  PatternViolationError
-} from "./types.js"
+import { PatternViolationError } from './types.js';
+import type { A11yDriver, A11yTarget, ApgPattern, CheckPatternOptions, Direction, NodeLike, Orientation, PatternViolation } from './types.js';
 
 interface AuditCtx {
   readonly driver: A11yDriver
@@ -436,11 +427,11 @@ const checkTabs = Effect.fnUntraced(function*(ctx: AuditCtx) {
   const apg = "APG Tabs"
   const root = ctx.driver.root()
   const tablists = queryAllByRole(root, "tablist")
-  if (tablists.length === 0) {
+  const tablist = tablists[0]
+  if (tablist === undefined) {
     ctx.add("tablist-missing", apg, root, 'No element with role="tablist" found.')
     return
   }
-  const tablist = tablists[0]!
   ctx.violations.push(
     ...validateIdRefs(root, tablist, "aria-labelledby", ctx.pattern, apg)
   )
@@ -552,9 +543,11 @@ const checkTabs = Effect.fnUntraced(function*(ctx: AuditCtx) {
   if (ctx.options.staticOnly) return
 
   const focusableTabs = tabs.filter((t) => !isHardDisabled(t))
-  if (focusableTabs.length < 2) return
+  const firstTab = focusableTabs[0]
+  const lastTab = focusableTabs[focusableTabs.length - 1]
+  if (focusableTabs.length < 2 || firstTab === undefined || lastTab === undefined) return
 
-  const start = focusableTabs.find((t) => isTabStop(t)) ?? focusableTabs[0]!
+  const start = focusableTabs.find((t) => isTabStop(t)) ?? firstTab
   const startIdx = focusableTabs.indexOf(start)
   yield* ctx.driver.focus(start)
 
@@ -598,7 +591,6 @@ const checkTabs = Effect.fnUntraced(function*(ctx: AuditCtx) {
   const current = currentFocusedOrTabStop(ctx.driver, focusableTabs) ?? start
   yield* ctx.driver.keydown(current, "End")
   const afterEnd = currentFocusedOrTabStop(ctx.driver, focusableTabs)
-  const lastTab = focusableTabs[focusableTabs.length - 1]!
   if (afterEnd !== lastTab) {
     ctx.add(
       "keyboard-end",
@@ -609,7 +601,6 @@ const checkTabs = Effect.fnUntraced(function*(ctx: AuditCtx) {
   }
   yield* ctx.driver.keydown(afterEnd ?? lastTab, "Home")
   const afterHome = currentFocusedOrTabStop(ctx.driver, focusableTabs)
-  const firstTab = focusableTabs[0]!
   if (afterHome !== firstTab) {
     ctx.add(
       "keyboard-home",
@@ -644,11 +635,11 @@ const checkRadioGroup = Effect.fnUntraced(function*(ctx: AuditCtx) {
   const apg = "APG Radio Group"
   const root = ctx.driver.root()
   const groups = queryAllByRole(root, "radiogroup")
-  if (groups.length === 0) {
+  const group = groups[0]
+  if (group === undefined) {
     ctx.add("radiogroup-missing", apg, root, 'No element with role="radiogroup" found.')
     return
   }
-  const group = groups[0]!
   ctx.violations.push(
     ...checkAccessibleName(root, group, ctx.pattern, "radiogroup-accessible-name", apg),
     ...validateIdRefs(root, group, "aria-describedby", ctx.pattern, apg)
@@ -698,11 +689,12 @@ const checkRadioGroup = Effect.fnUntraced(function*(ctx: AuditCtx) {
   if (ctx.options.staticOnly) return
 
   const enabledRadios = radios.filter((r) => !isDisabled(r))
-  if (enabledRadios.length < 2) return
+  const firstRadio = enabledRadios[0]
+  if (enabledRadios.length < 2 || firstRadio === undefined) return
 
-  const start = enabledRadios.find((r) => isTabStop(r)) ?? enabledRadios[0]!
+  const start = enabledRadios.find((r) => isTabStop(r)) ?? firstRadio
   const startIdx = enabledRadios.indexOf(start)
-  const expectedNext = enabledRadios[(startIdx + 1) % enabledRadios.length]!
+  const expectedNext = enabledRadios[(startIdx + 1) % enabledRadios.length] ?? firstRadio
   const hNext = ctx.direction === "rtl" ? "ArrowLeft" : "ArrowRight"
   const hPrev = ctx.direction === "rtl" ? "ArrowRight" : "ArrowLeft"
 
@@ -744,7 +736,7 @@ const checkRadioGroup = Effect.fnUntraced(function*(ctx: AuditCtx) {
   // Vertical ArrowDown should also advance regardless of LTR/RTL
   const cur = currentFocusedOrTabStop(ctx.driver, enabledRadios) ?? start
   const curIdx = enabledRadios.indexOf(cur)
-  const expectedDown = enabledRadios[(curIdx + 1) % enabledRadios.length]!
+  const expectedDown = enabledRadios[(curIdx + 1) % enabledRadios.length] ?? firstRadio
   yield* ctx.driver.keydown(cur, "ArrowDown")
   const afterDown = currentFocusedOrTabStop(ctx.driver, enabledRadios)
   if (afterDown !== expectedDown) {
@@ -765,11 +757,11 @@ const checkToolbar = Effect.fnUntraced(function*(ctx: AuditCtx) {
   const apg = "APG Toolbar"
   const root = ctx.driver.root()
   const toolbars = queryAllByRole(root, "toolbar")
-  if (toolbars.length === 0) {
+  const toolbar = toolbars[0]
+  if (toolbar === undefined) {
     ctx.add("toolbar-missing", apg, root, 'No element with role="toolbar" found.')
     return
   }
-  const toolbar = toolbars[0]!
   ctx.violations.push(
     ...validateIdRefs(root, toolbar, "aria-labelledby", ctx.pattern, apg)
   )
@@ -815,9 +807,11 @@ const checkToolbar = Effect.fnUntraced(function*(ctx: AuditCtx) {
   if (ctx.options.staticOnly) return
 
   const focusable = items.filter((item) => !isHardDisabled(item))
-  if (focusable.length < 2) return
+  const firstFocusable = focusable[0]
+  const lastFocusable = focusable[focusable.length - 1]
+  if (focusable.length < 2 || firstFocusable === undefined || lastFocusable === undefined) return
 
-  const start = focusable.find((i) => isTabStop(i)) ?? focusable[0]!
+  const start = focusable.find((i) => isTabStop(i)) ?? firstFocusable
   const startIdx = focusable.indexOf(start)
   const nextKey = forwardKey(orientation, ctx.direction)
   const prevKey = backwardKey(orientation, ctx.direction)
@@ -825,7 +819,7 @@ const checkToolbar = Effect.fnUntraced(function*(ctx: AuditCtx) {
   yield* ctx.driver.focus(start)
   yield* ctx.driver.keydown(start, nextKey)
   const afterNext = currentFocusedOrTabStop(ctx.driver, focusable)
-  const expectedNext = focusable[(startIdx + 1) % focusable.length]!
+  const expectedNext = focusable[(startIdx + 1) % focusable.length] ?? firstFocusable
   if (afterNext !== expectedNext) {
     ctx.add(
       "keyboard-arrow-forward",
@@ -848,12 +842,12 @@ const checkToolbar = Effect.fnUntraced(function*(ctx: AuditCtx) {
 
   const cur = currentFocusedOrTabStop(ctx.driver, focusable) ?? start
   yield* ctx.driver.keydown(cur, "End")
-  if (currentFocusedOrTabStop(ctx.driver, focusable) !== focusable[focusable.length - 1]) {
+  if (currentFocusedOrTabStop(ctx.driver, focusable) !== lastFocusable) {
     ctx.add("keyboard-end", apg, cur, "Pressing End did not move focus to the last toolbar item.")
   }
-  yield* ctx.driver.keydown(focusable[focusable.length - 1]!, "Home")
-  if (currentFocusedOrTabStop(ctx.driver, focusable) !== focusable[0]) {
-    ctx.add("keyboard-home", apg, focusable[focusable.length - 1]!, "Pressing Home did not move focus to the first toolbar item.")
+  yield* ctx.driver.keydown(lastFocusable, "Home")
+  if (currentFocusedOrTabStop(ctx.driver, focusable) !== firstFocusable) {
+    ctx.add("keyboard-home", apg, lastFocusable, "Pressing Home did not move focus to the first toolbar item.")
   }
 })
 
@@ -1021,12 +1015,11 @@ const checkDialogLike = Effect.fnUntraced(function*(
     }
   }
 
-  if (dialogs.length === 0) {
+  const dialog = dialogs[0]
+  if (dialog === undefined) {
     ctx.add("role-missing", apg, root, `No open element with role="${role}" found.`)
     return
   }
-
-  const dialog = dialogs[0]!
   ctx.violations.push(
     ...checkAccessibleName(root, dialog, ctx.pattern, "dialog-accessible-name", apg),
     ...validateIdRefs(root, dialog, "aria-describedby", ctx.pattern, apg)
@@ -1103,11 +1096,11 @@ const checkListbox = Effect.fnUntraced(function*(ctx: AuditCtx) {
   const apg = "APG Listbox"
   const root = ctx.driver.root()
   const listboxes = queryAllByRole(root, "listbox")
-  if (listboxes.length === 0) {
+  const listbox = listboxes[0]
+  if (listbox === undefined) {
     ctx.add("listbox-missing", apg, root, 'No element with role="listbox" found.')
     return
   }
-  const listbox = listboxes[0]!
   ctx.violations.push(
     ...checkAccessibleName(root, listbox, ctx.pattern, "listbox-accessible-name", apg),
     ...validateIdRefs(root, listbox, "aria-activedescendant", ctx.pattern, apg)
@@ -1148,7 +1141,8 @@ const checkListbox = Effect.fnUntraced(function*(ctx: AuditCtx) {
   if (ctx.options.staticOnly) return
 
   const enabledOptions = options.filter((o) => !isDisabled(o))
-  if (enabledOptions.length < 2) return
+  const firstOption = enabledOptions[0]
+  if (enabledOptions.length < 2 || firstOption === undefined) return
 
   const currentHighlighted = (): NodeLike | undefined => {
     const ad = getAttr(listbox, "aria-activedescendant")
@@ -1156,7 +1150,7 @@ const checkListbox = Effect.fnUntraced(function*(ctx: AuditCtx) {
     return currentFocusedOrTabStop(ctx.driver, enabledOptions)
   }
 
-  const keyTarget = usesActiveDescendant ? listbox : (currentHighlighted() ?? enabledOptions[0]!)
+  const keyTarget = usesActiveDescendant ? listbox : (currentHighlighted() ?? firstOption)
   yield* ctx.driver.focus(keyTarget)
   const before = currentHighlighted()
   yield* ctx.driver.keydown(keyTarget, "ArrowDown")
@@ -1189,11 +1183,11 @@ const checkCombobox = Effect.fnUntraced(function*(ctx: AuditCtx) {
   const apg = "APG Combobox"
   let root = ctx.driver.root()
   const comboboxes = queryAllByRole(root, "combobox")
-  if (comboboxes.length === 0) {
+  const combobox = comboboxes[0]
+  if (combobox === undefined) {
     ctx.add("combobox-missing", apg, root, 'No element with role="combobox" found.')
     return
   }
-  const combobox = comboboxes[0]!
   ctx.violations.push(
     ...checkAccessibleName(root, combobox, ctx.pattern, "combobox-accessible-name", apg),
     ...validateIdRefs(root, combobox, "aria-describedby", ctx.pattern, apg)
@@ -1340,12 +1334,11 @@ const checkMenu = Effect.fnUntraced(function*(ctx: AuditCtx) {
     }
   }
 
-  if (menus.length === 0) {
+  const menu = menus[0]
+  if (menu === undefined) {
     ctx.add("menu-missing", apg, root, 'No open element with role="menu" found.')
     return
   }
-
-  const menu = menus[0]!
   if (trigger !== undefined) {
     if (getAttr(trigger, "aria-expanded") !== "true") {
       ctx.add(
@@ -1435,11 +1428,11 @@ const checkMenubar = Effect.fnUntraced(function*(ctx: AuditCtx) {
   const apg = "APG Menubar"
   const root = ctx.driver.root()
   const menubars = queryAllByRole(root, "menubar")
-  if (menubars.length === 0) {
+  const menubar = menubars[0]
+  if (menubar === undefined) {
     ctx.add("menubar-missing", apg, root, 'No element with role="menubar" found.')
     return
   }
-  const menubar = menubars[0]!
   const declaredOrientation = getAttr(menubar, "aria-orientation")
   const orientation: Orientation =
     ctx.options.orientation ??
@@ -1475,11 +1468,12 @@ const checkMenubar = Effect.fnUntraced(function*(ctx: AuditCtx) {
   if (ctx.options.staticOnly) return
 
   const focusable = items.filter((i) => !isHardDisabled(i))
-  if (focusable.length < 2) return
+  const firstFocusable = focusable[0]
+  if (focusable.length < 2 || firstFocusable === undefined) return
 
-  const start = focusable.find((i) => isTabStop(i)) ?? focusable[0]!
+  const start = focusable.find((i) => isTabStop(i)) ?? firstFocusable
   const startIdx = focusable.indexOf(start)
-  const expectedNext = focusable[(startIdx + 1) % focusable.length]!
+  const expectedNext = focusable[(startIdx + 1) % focusable.length] ?? firstFocusable
   const nextKey = forwardKey(orientation, ctx.direction)
   const prevKey = backwardKey(orientation, ctx.direction)
 
@@ -1515,11 +1509,11 @@ const checkTree = Effect.fnUntraced(function*(ctx: AuditCtx) {
   const apg = "APG Tree View"
   const root = ctx.driver.root()
   const trees = queryAllByRole(root, "tree")
-  if (trees.length === 0) {
+  const tree = trees[0]
+  if (tree === undefined) {
     ctx.add("tree-missing", apg, root, 'No element with role="tree" found.')
     return
   }
-  const tree = trees[0]!
   ctx.violations.push(
     ...checkAccessibleName(root, tree, ctx.pattern, "tree-accessible-name", apg)
   )
@@ -1557,9 +1551,11 @@ const checkTree = Effect.fnUntraced(function*(ctx: AuditCtx) {
   if (ctx.options.staticOnly) return
 
   const focusable = items.filter((i) => !isHardDisabled(i))
-  if (focusable.length < 2) return
+  const firstFocusable = focusable[0]
+  const lastFocusable = focusable[focusable.length - 1]
+  if (focusable.length < 2 || firstFocusable === undefined || lastFocusable === undefined) return
 
-  const start = focusable.find((i) => isTabStop(i)) ?? focusable[0]!
+  const start = focusable.find((i) => isTabStop(i)) ?? firstFocusable
   const startIdx = focusable.indexOf(start)
   yield* ctx.driver.focus(start)
   yield* ctx.driver.keydown(start, "ArrowDown")
@@ -1576,12 +1572,12 @@ const checkTree = Effect.fnUntraced(function*(ctx: AuditCtx) {
     )
   }
   yield* ctx.driver.keydown(afterDown ?? start, "End")
-  if (currentFocusedOrTabStop(ctx.driver, focusable) !== focusable[focusable.length - 1]) {
+  if (currentFocusedOrTabStop(ctx.driver, focusable) !== lastFocusable) {
     ctx.add("tree-end", apg, afterDown ?? start, "Pressing End did not move focus to the last visible treeitem.")
   }
-  yield* ctx.driver.keydown(focusable[focusable.length - 1]!, "Home")
-  if (currentFocusedOrTabStop(ctx.driver, focusable) !== focusable[0]) {
-    ctx.add("tree-home", apg, focusable[focusable.length - 1]!, "Pressing Home did not move focus to the first visible treeitem.")
+  yield* ctx.driver.keydown(lastFocusable, "Home")
+  if (currentFocusedOrTabStop(ctx.driver, focusable) !== firstFocusable) {
+    ctx.add("tree-home", apg, lastFocusable, "Pressing Home did not move focus to the first visible treeitem.")
   }
 })
 

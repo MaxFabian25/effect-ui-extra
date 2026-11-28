@@ -26,7 +26,7 @@ const normalizeWithMap = (input: string): NormalizedMap => {
   while (i < input.length) {
     const start = i
     i += 1
-    while (i < input.length && COMBINING_CHAR_RE.test(input[i]!)) {
+    while (i < input.length && COMBINING_CHAR_RE.test(input.charAt(i))) {
       i += 1
     }
     const cluster = input.slice(start, i)
@@ -47,19 +47,21 @@ export const normalizeText = (input: string): string =>
 
 const isWordBoundary = (text: string, index: number): boolean => {
   if (index <= 0) return true
-  const prev = text[index - 1]!
+  const prev = text.charAt(index - 1)
   return /[\s\-_/.:]/.test(prev)
 }
 
 const mergeSpans = (
   spans: ReadonlyArray<FuzzyRange>
 ): ReadonlyArray<FuzzyRange> => {
-  if (spans.length === 0) return []
+  const first = spans[0]
+  if (first === undefined) return []
   const ranges: Array<FuzzyRange> = []
-  let start = spans[0]!.start
-  let end = spans[0]!.end
+  let start = first.start
+  let end = first.end
   for (let i = 1; i < spans.length; i++) {
-    const s = spans[i]!
+    const s = spans[i]
+    if (s === undefined) continue
     if (s.start <= end) {
       end = Math.max(end, s.end)
     } else {
@@ -103,7 +105,7 @@ export const fuzzyMatch = (
 
   // 2. Prefix match
   if (haystack.startsWith(needle)) {
-    const origSpans = Array.from({ length: needle.length }, (_, i) => spanMap[i]!)
+    const origSpans = spanMap.slice(0, needle.length)
     return {
       score: Math.min(0.99, 0.9 + coverageBonus(needle.length, haystack.length)),
       ranges: mergeSpans(origSpans)
@@ -117,10 +119,7 @@ export const fuzzyMatch = (
     idx = haystack.indexOf(needle, idx + 1)
   ) {
     if (isWordBoundary(haystack, idx)) {
-      const origSpans = Array.from(
-        { length: needle.length },
-        (_, i) => spanMap[idx + i]!
-      )
+      const origSpans = spanMap.slice(idx, idx + needle.length)
       return {
         score: Math.min(0.89, 0.8 + coverageBonus(needle.length, haystack.length)),
         ranges: mergeSpans(origSpans)
@@ -131,10 +130,7 @@ export const fuzzyMatch = (
   // 4. Any contiguous substring match
   const subIdx = haystack.indexOf(needle)
   if (subIdx !== -1) {
-    const origSpans = Array.from(
-      { length: needle.length },
-      (_, i) => spanMap[subIdx + i]!
-    )
+    const origSpans = spanMap.slice(subIdx, subIdx + needle.length)
     return {
       score: Math.min(0.79, 0.7 + coverageBonus(needle.length, haystack.length)),
       ranges: mergeSpans(origSpans)
@@ -174,7 +170,12 @@ export const fuzzyMatch = (
   )
   return {
     score,
-    ranges: mergeSpans(matchedNorm.map((i) => spanMap[i]!))
+    ranges: mergeSpans(
+      matchedNorm.flatMap((i) => {
+        const span = spanMap[i]
+        return span !== undefined ? [span] : []
+      })
+    )
   }
 }
 
@@ -200,7 +201,8 @@ export const fuzzyFilter = <A>(
   }
   const scored: Array<{ readonly item: A; readonly match: FuzzyMatch; readonly index: number }> = []
   for (let i = 0; i < items.length; i++) {
-    const item = items[i]!
+    const item = items[i]
+    if (item === undefined) continue
     const primary = fuzzyMatch(trimmed, getText(item))
     let best = primary
     const keywords = getKeywords?.(item)

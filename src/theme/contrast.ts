@@ -1,9 +1,5 @@
-import {
-  type OklchColor,
-  oklchToSrgb,
-  parseColor,
-  srgbToLinear
-} from "./color.js"
+import { oklchToSrgb, parseColor, srgbToLinear } from './color.js';
+import type { OklchColor } from './color.js';
 
 const resolve = (input: OklchColor | string): OklchColor => {
   if (typeof input !== "string") return input

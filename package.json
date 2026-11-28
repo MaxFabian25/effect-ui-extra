@@ -105,13 +105,14 @@
   ],
   "scripts": {
     "check": "tsc --noEmit",
+    "lint": "effect-tsgo oxlint --type-aware",
     "build": "rm -rf dist && tsc -p tsconfig.build.json",
     "test": "bun test",
     "gen:docs": "bun scripts/gen-docs.ts",
     "check:docs": "bun scripts/gen-docs.ts --check",
     "check:consumer": "bun scripts/check-consumer.ts",
     "check:size": "bun scripts/check-size.ts",
-    "verify": "bun run check && bun run build && bun test && bun run check:docs && bun run check:consumer && bun run check:size"
+    "verify": "bun run check && bun run lint && bun run build && bun test && bun run check:docs && bun run check:consumer && bun run check:size"
   },
   "peerDependencies": {
     "@effect/ui": "*",
@@ -119,11 +120,15 @@
     "effect": "^4.1.4"
   },
   "devDependencies": {
+    "@effect/tsgo": "0.73.7",
     "@effect/ui": "https://pkg.pr.new/Effect-TS/ui/@effect/ui@22128c6",
     "@effect/ui-kit": "https://pkg.pr.new/Effect-TS/ui/@effect/ui-kit@22128c6",
+    "@oxlint/plugins": "1.95.0",
     "@types/bun": "1.4.5",
     "effect": "4.1.6",
     "happy-dom": "21.0.4",
-    "typescript": "5.9.3"
+    "oxlint": "1.95.0",
+    "oxlint-tsgolint": "7.0.2008",
+    "typescript": "7.0.2"
   }
 }

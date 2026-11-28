@@ -1,17 +1,18 @@
 import { HtmlLocator } from "@effect/ui/html/testing"
+import type { TestHost } from "@effect/ui/testing"
+import * as Predicate from "effect/Predicate"
 import type { ApgPattern, NodeLike, PatternViolation } from "./types.js"
 
 export const isDomElement = (node: unknown): node is globalThis.Element =>
   typeof node === "object" &&
   node !== null &&
-  (node as { readonly nodeType?: unknown }).nodeType === 1
+  "nodeType" in node &&
+  node.nodeType === 1
 
 export const isTestElement = (
   node: unknown
-): node is Exclude<NodeLike, globalThis.Element> =>
-  typeof node === "object" &&
-  node !== null &&
-  (node as { readonly _tag?: unknown })._tag === "Element"
+): node is TestHost.TestElement =>
+  Predicate.isTagged(node, "Element")
 
 export const getTag = (node: NodeLike): string =>
   isDomElement(node) ? node.localName.toLowerCase() : node.tag.toLowerCase()
@@ -23,7 +24,7 @@ export const getAttr = (node: NodeLike, name: string): string | undefined =>
 
 export const getProp = (node: NodeLike, name: string): unknown =>
   isDomElement(node)
-    ? (node as unknown as Record<string, unknown>)[name]
+    ? Reflect.get(node, name)
     : node.props[name]
 
 export const getChildren = (node: NodeLike): ReadonlyArray<NodeLike> => {
@@ -62,18 +63,36 @@ export const containsNode = (root: NodeLike, target: NodeLike): boolean => {
   return false
 }
 
-export const getRole = (root: NodeLike, node: NodeLike): string | undefined =>
-  HtmlLocator.roleOf(root as never, node as never)
+export const getRole = (root: NodeLike, node: NodeLike): string | undefined => {
+  if (isDomElement(root) && isDomElement(node)) {
+    return HtmlLocator.roleOf(root, node)
+  }
+  if (isTestElement(root) && isTestElement(node)) {
+    return HtmlLocator.roleOf(root, node)
+  }
+  return undefined
+}
 
-export const getName = (root: NodeLike, node: NodeLike): string =>
-  HtmlLocator.nameOf(root as never, node as never).trim()
+export const getName = (root: NodeLike, node: NodeLike): string => {
+  if (isDomElement(root) && isDomElement(node)) {
+    return HtmlLocator.nameOf(root, node).trim()
+  }
+  if (isTestElement(root) && isTestElement(node)) {
+    return HtmlLocator.nameOf(root, node).trim()
+  }
+  return ""
+}
 
 export const queryAllByRole = (
   root: NodeLike,
   role: string,
   options?: HtmlLocator.RoleOptions
-): ReadonlyArray<NodeLike> =>
-  HtmlLocator.queryAllByRole(root as never, role, options) as unknown as ReadonlyArray<NodeLike>
+): ReadonlyArray<NodeLike> => {
+  if (isDomElement(root)) {
+    return HtmlLocator.queryAllByRole(root, role, options)
+  }
+  return HtmlLocator.queryAllByRole(root, role, options).filter(isTestElement)
+}
 
 const isPopoverHidden = (node: NodeLike): boolean => {
   if (getAttr(node, "popover") === undefined) return false

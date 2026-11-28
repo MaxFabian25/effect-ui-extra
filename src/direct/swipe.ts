@@ -1,3 +1,5 @@
+import { Data } from "effect"
+
 export type SwipeSide = "start" | "end"
 
 export interface SwipeOpen {
@@ -96,6 +98,8 @@ export type SwipeReleaseOutcome =
   | { readonly _tag: "Opened"; readonly open: SwipeOpen }
   | { readonly _tag: "TriggeredFull"; readonly key: string; readonly side: SwipeSide }
 
+const SwipeReleaseOutcome = Data.taggedEnum<SwipeReleaseOutcome>()
+
 /**
  * Resolves a swipe gesture on pointer release using offset, flick velocity,
  * and full-swipe threshold.
@@ -105,9 +109,9 @@ export const resolveSwipeRelease = (
   velocityPxPerMs: number,
   config: SwipeConfig
 ): SwipeReleaseOutcome => {
-  if (draft === null || draft.side === null) return { _tag: "Closed" }
+  if (draft === null || draft.side === null) return SwipeReleaseOutcome.Closed()
   if (draft.full) {
-    return { _tag: "TriggeredFull", key: draft.key, side: draft.side }
+    return SwipeReleaseOutcome.TriggeredFull({ key: draft.key, side: draft.side })
   }
   const rtl = config.direction === "rtl"
   const flick = config.flickVelocity ?? 0.3
@@ -119,15 +123,15 @@ export const resolveSwipeRelease = (
   const directedVelocity = velocityPxPerMs * openSign
 
   if (directedVelocity >= flick) {
-    return { _tag: "Opened", open: { key: draft.key, side: draft.side } }
+    return SwipeReleaseOutcome.Opened({ open: { key: draft.key, side: draft.side } })
   }
   if (directedVelocity <= -flick) {
-    return { _tag: "Closed" }
+    return SwipeReleaseOutcome.Closed()
   }
   if (directedOffset >= width / 2) {
-    return { _tag: "Opened", open: { key: draft.key, side: draft.side } }
+    return SwipeReleaseOutcome.Opened({ open: { key: draft.key, side: draft.side } })
   }
-  return { _tag: "Closed" }
+  return SwipeReleaseOutcome.Closed()
 }
 
 /**

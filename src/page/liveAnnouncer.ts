@@ -1,8 +1,10 @@
 import { Subscription, UiSchema } from "@effect/ui"
 import { Html } from "@effect/ui/html"
 import * as Context from "effect/Context"
+import * as Data from "effect/Data"
 import * as Effect from "effect/Effect"
 import * as Layer from "effect/Layer"
+import * as Match from "effect/Match"
 import * as PubSub from "effect/PubSub"
 import * as Schema from "effect/Schema"
 import * as Stream from "effect/Stream"
@@ -11,11 +13,17 @@ export const Politeness = Schema.Literals(["polite", "assertive"])
 export type Politeness = typeof Politeness.Type
 
 export const Announcement = Schema.Struct({
-  id: Schema.Number,
+  id: Schema.Finite,
   message: Schema.String,
   politeness: Politeness
 })
 export type Announcement = typeof Announcement.Type
+
+type LiveAnnouncerEvent =
+  | { readonly _tag: "Announce"; readonly announcement: Announcement }
+  | { readonly _tag: "Clear" }
+
+const LiveAnnouncerEvent = Data.taggedEnum<LiveAnnouncerEvent>()
 
 export interface LiveAnnouncerService {
   /** Announces a screen-reader message with `"polite"` (default) or `"assertive"` priority. */
@@ -39,14 +47,11 @@ export class LiveAnnouncer extends Context.Service<
   LiveAnnouncerService
 >()("effect-ui-page/LiveAnnouncer") {}
 
-export const makeLiveAnnouncer = (): Effect.Effect<LiveAnnouncerService> =>
+export const makeLiveAnnouncer: Effect.Effect<LiveAnnouncerService> =
   Effect.gen(function*() {
     let seq = 0
     const log: Array<Announcement> = []
-    const pubsub = yield* PubSub.unbounded<
-      | { readonly _tag: "Announce"; readonly announcement: Announcement }
-      | { readonly _tag: "Clear" }
-    >()
+    const pubsub = yield* PubSub.unbounded<LiveAnnouncerEvent>()
 
     const announce = (
       message: string,
@@ -61,10 +66,10 @@ export const makeLiveAnnouncer = (): Effect.Effect<LiveAnnouncerService> =>
           politeness
         }
         log.push(announcement)
-        yield* PubSub.publish(pubsub, { _tag: "Announce", announcement })
+        yield* PubSub.publish(pubsub, LiveAnnouncerEvent.Announce({ announcement }))
       })
 
-    const clear: Effect.Effect<void> = PubSub.publish(pubsub, { _tag: "Clear" }).pipe(
+    const clear: Effect.Effect<void> = PubSub.publish(pubsub, LiveAnnouncerEvent.Clear()).pipe(
       Effect.asVoid
     )
 
@@ -76,8 +81,8 @@ export const makeLiveAnnouncer = (): Effect.Effect<LiveAnnouncerService> =>
     }
   })
 
-export const liveAnnouncerLayer = (): Layer.Layer<LiveAnnouncer> =>
-  Layer.effect(LiveAnnouncer, makeLiveAnnouncer())
+export const liveAnnouncerLayer: Layer.Layer<LiveAnnouncer> =
+  Layer.effect(LiveAnnouncer, makeLiveAnnouncer)
 
 // ---------------------------------------------------------------------------
 // LiveRegion component (visually hidden polite + assertive slots)
@@ -125,10 +130,13 @@ export const LiveRegion = Html.component({
         LiveAnnouncer.use((announcer) =>
           Effect.succeed(
             announcer.events.pipe(
-              Stream.map((ev) =>
-                ev._tag === "Clear"
-                  ? LiveMsg.Cleared()
-                  : LiveMsg.Received({ announcement: ev.announcement })
+              Stream.map(
+                Match.type<LiveAnnouncerEvent>().pipe(
+                  Match.tagsExhaustive({
+                    Clear: () => LiveMsg.Cleared(),
+                    Announce: ({ announcement }) => LiveMsg.Received({ announcement })
+                  })
+                )
               )
             )
           )

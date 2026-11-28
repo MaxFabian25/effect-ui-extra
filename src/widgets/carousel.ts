@@ -1,5 +1,6 @@
 import { Subscription, UiSchema } from "@effect/ui"
 import { Html, HtmlCommand, HtmlSubscription } from "@effect/ui/html"
+import * as Data from "effect/Data"
 import * as Duration from "effect/Duration"
 import * as Option from "effect/Option"
 import * as Schedule from "effect/Schedule"
@@ -10,7 +11,10 @@ import {
   isCarouselAutoplayActive,
   reduceCarousel
 } from "../motion/carousel.js"
+import type { CarouselEvent } from "../motion/carousel.js"
 import { resolveDir } from "./internal.js"
+
+const MotionCarouselEvent = Data.taggedEnum<CarouselEvent>()
 
 export const CarouselSlideSchema = Schema.Struct({
   id: Schema.String,
@@ -22,11 +26,11 @@ export type CarouselSlide = typeof CarouselSlideSchema.Type
 export const CarouselProps = Schema.Struct({
   label: Schema.String,
   slides: Schema.Array(CarouselSlideSchema),
-  index: Schema.optional(Schema.Number),
-  slidesPerPage: Schema.optional(Schema.Number),
+  index: Schema.optional(Schema.Finite),
+  slidesPerPage: Schema.optional(Schema.Finite),
   loop: Schema.optional(Schema.Boolean),
   autoplay: Schema.optional(Schema.Boolean),
-  autoplayIntervalMs: Schema.optional(Schema.Number),
+  autoplayIntervalMs: Schema.optional(Schema.Finite),
   reducedMotion: Schema.optional(Schema.Boolean),
   dir: Schema.optional(Schema.Literals(["ltr", "rtl"])),
   idPrefix: Schema.optional(Schema.String)
@@ -34,44 +38,44 @@ export const CarouselProps = Schema.Struct({
 export type CarouselProps = typeof CarouselProps.Type
 
 export const CarouselEvents = UiSchema.TaggedEnum({
-  IndexChanged: { index: Schema.Number },
+  IndexChanged: { index: Schema.Finite },
   AutoplayToggled: { paused: Schema.Boolean }
 })
 export type CarouselEvents = typeof CarouselEvents.Type
 
 const CarouselDragSchema = Schema.Struct({
-  pointerId: Schema.Number,
-  startX: Schema.Number,
-  lastX: Schema.Number,
-  viewportPx: Schema.Number
+  pointerId: Schema.Finite,
+  startX: Schema.Finite,
+  lastX: Schema.Finite,
+  viewportPx: Schema.Finite
 })
 
 const CarouselModel = Schema.Struct({
-  index: Schema.Number,
+  index: Schema.Finite,
   hovered: Schema.Boolean,
   focused: Schema.Boolean,
   pausedByUser: Schema.Boolean,
   pageHidden: Schema.Boolean,
   systemReducedMotion: Schema.Boolean,
-  dragOffsetPx: Schema.Number,
+  dragOffsetPx: Schema.Finite,
   drag: Schema.NullOr(CarouselDragSchema)
 })
 
 const CarouselMsg = UiSchema.TaggedEnum({
   Next: {},
   Previous: {},
-  GoTo: { index: Schema.Number },
+  GoTo: { index: Schema.Finite },
   SetHovered: { hovered: Schema.Boolean },
   SetFocused: { focused: Schema.Boolean },
   SetPageHidden: { hidden: Schema.Boolean },
   SetSystemReducedMotion: { reducedMotion: Schema.Boolean },
   TogglePause: {},
   AutoplayTick: {},
-  DragStart: { pointerId: Schema.Number, x: Schema.Number },
-  TrackMeasured: { width: Schema.Number },
-  DragMove: { pointerId: Schema.Number, x: Schema.Number, isRtl: Schema.Boolean },
-  DragEnd: { pointerId: Schema.Number, x: Schema.Number, isRtl: Schema.Boolean },
-  DragCancel: { pointerId: Schema.optional(Schema.Number) },
+  DragStart: { pointerId: Schema.Finite, x: Schema.Finite },
+  TrackMeasured: { width: Schema.Finite },
+  DragMove: { pointerId: Schema.Finite, x: Schema.Finite, isRtl: Schema.Boolean },
+  DragEnd: { pointerId: Schema.Finite, x: Schema.Finite, isRtl: Schema.Boolean },
+  DragCancel: { pointerId: Schema.optional(Schema.Finite) },
   FocusDone: {}
 })
 
@@ -178,7 +182,7 @@ export const Carousel = Html.component({
     Next: ($) => {
       const next = reduceCarousel(
         toMotionState($.model, $.props),
-        { _tag: "Next" },
+        MotionCarouselEvent.Next(),
         toMotionConfig($.model, $.props)
       )
       if (next.index === ($.props.index ?? $.model.index)) return $.model
@@ -189,7 +193,7 @@ export const Carousel = Html.component({
     Previous: ($) => {
       const next = reduceCarousel(
         toMotionState($.model, $.props),
-        { _tag: "Previous" },
+        MotionCarouselEvent.Previous(),
         toMotionConfig($.model, $.props)
       )
       if (next.index === ($.props.index ?? $.model.index)) return $.model
@@ -200,7 +204,7 @@ export const Carousel = Html.component({
     GoTo: ($, { index }) => {
       const next = reduceCarousel(
         toMotionState($.model, $.props),
-        { _tag: "GoTo", index },
+        MotionCarouselEvent.GoTo({ index }),
         toMotionConfig($.model, $.props)
       )
       return $.evolve({ index: next.index })
@@ -221,7 +225,7 @@ export const Carousel = Html.component({
     AutoplayTick: ($) => {
       const next = reduceCarousel(
         toMotionState($.model, $.props),
-        { _tag: "AutoplayTick" },
+        MotionCarouselEvent.AutoplayTick(),
         toMotionConfig($.model, $.props)
       )
       if (next.index === ($.props.index ?? $.model.index)) return $.model
@@ -251,7 +255,7 @@ export const Carousel = Html.component({
       const deltaPx = isRtl ? -rawDelta : rawDelta
       const next = reduceCarousel(
         toMotionState($.model, $.props),
-        { _tag: "DragMove", deltaPx, viewportPx: drag.viewportPx },
+        MotionCarouselEvent.DragMove({ deltaPx, viewportPx: drag.viewportPx }),
         toMotionConfig($.model, $.props)
       )
       return $.evolve({
@@ -266,7 +270,7 @@ export const Carousel = Html.component({
       const deltaPx = isRtl ? -rawDelta : rawDelta
       const moved = reduceCarousel(
         toMotionState($.model, $.props),
-        { _tag: "DragMove", deltaPx, viewportPx: drag.viewportPx },
+        MotionCarouselEvent.DragMove({ deltaPx, viewportPx: drag.viewportPx }),
         toMotionConfig($.model, $.props)
       )
       // Approximate velocity from final drag displacement for flick responsiveness
@@ -276,7 +280,7 @@ export const Carousel = Html.component({
           : 0
       const settled = reduceCarousel(
         moved,
-        { _tag: "DragEnd", velocityPxPerSec, viewportPx: drag.viewportPx },
+        MotionCarouselEvent.DragEnd({ velocityPxPerSec, viewportPx: drag.viewportPx }),
         toMotionConfig($.model, $.props)
       )
       const prevIdx = $.props.index ?? $.model.index
@@ -296,7 +300,7 @@ export const Carousel = Html.component({
       }
       const next = reduceCarousel(
         toMotionState($.model, $.props),
-        { _tag: "DragCancel" },
+        MotionCarouselEvent.DragCancel(),
         toMotionConfig($.model, $.props)
       )
       return $.evolve({ drag: null, dragOffsetPx: next.dragOffsetPx })

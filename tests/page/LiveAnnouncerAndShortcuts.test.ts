@@ -66,7 +66,7 @@ describe("LiveAnnouncer and LiveRegion", () => {
         })
       ).pipe(
         Effect.provide(
-          Layer.mergeAll(TestHost.layer(), TestClock.layer(), liveAnnouncerLayer())
+          Layer.mergeAll(TestHost.layer(), TestClock.layer(), liveAnnouncerLayer)
         )
       )
     ))
@@ -136,6 +136,6 @@ describe("Shortcut discovery, formatting, aria-keyshortcuts, and conflict detect
 
         // Closing the Scope unregisters every shortcut automatically
         expect(yield* registry.list).toEqual([])
-      }).pipe(Effect.provide(shortcutRegistryLayer()))
+      }).pipe(Effect.provide(shortcutRegistryLayer))
     ))
 })
