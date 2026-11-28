@@ -1,4 +1,5 @@
-import { type Component, UiSchema } from "@effect/ui"
+import { UiSchema } from '@effect/ui';
+import type { Component } from '@effect/ui';
 import {
   Accordion,
   AccordionItem,
@@ -18,7 +19,8 @@ import { BrowserHost, Html } from "@effect/ui/html"
 import { afterAll, beforeAll, describe, it } from "bun:test"
 import { Effect, Schema } from "effect"
 import { GlobalWindow } from "happy-dom"
-import { checkDirection, checkPattern, type Direction } from "../../src/a11y/index.js"
+import { checkDirection, checkPattern } from '../../src/a11y/index.js';
+import type { Direction } from '../../src/a11y/index.js';
 
 let win: GlobalWindow | undefined
 const savedGlobals = new Map<string, PropertyDescriptor | undefined>()
@@ -55,7 +57,7 @@ beforeAll(() => {
   win = new GlobalWindow({ url: "http://localhost/" })
   for (const key of domGlobalKeys) {
     savedGlobals.set(key, Object.getOwnPropertyDescriptor(globalThis, key))
-    const val = (win as unknown as Record<string, unknown>)[key]
+    const val: unknown = Reflect.get(win, key)
     if (val !== undefined) {
       Object.defineProperty(globalThis, key, {
         configurable: true,
@@ -64,7 +66,7 @@ beforeAll(() => {
       })
     }
   }
-  if (typeof (globalThis as Record<string, unknown>).ResizeObserver === "undefined") {
+  if (typeof Reflect.get(globalThis, "ResizeObserver") === "undefined") {
     Object.defineProperty(globalThis, "ResizeObserver", {
       configurable: true,
       writable: true,
@@ -77,50 +79,59 @@ beforeAll(() => {
   }
   // Minimal popover shim for happy-dom (matching @effect/ui-kit test utils)
   const showing = new Set<Element>()
-  const htmlProto = (win.HTMLElement.prototype as unknown as Record<string, unknown>)
-  const elProto = (win.Element.prototype as unknown as Record<string, unknown>)
-  const origMatches = elProto.matches as (this: Element, s: string) => boolean
-  htmlProto.showPopover = function(this: HTMLElement) {
+  const origMatches: unknown = Reflect.get(win.Element.prototype, "matches")
+  Reflect.set(win.HTMLElement.prototype, "showPopover", function(this: HTMLElement) {
     this.dispatchEvent(Object.assign(new Event("beforetoggle"), { newState: "open" }))
     showing.add(this)
     const field = this.localName === "dialog"
       ? ",input,button,select,textarea,a[href],[tabindex]:not([tabindex^='-'])"
       : ""
     this.querySelector<HTMLElement>("[autofocus]" + field)?.focus()
-  }
-  htmlProto.hidePopover = function(this: HTMLElement) {
+  })
+  Reflect.set(win.HTMLElement.prototype, "hidePopover", function(this: HTMLElement) {
     showing.delete(this)
-  }
-  elProto.matches = function(this: Element, selector: string) {
-    return selector === ":popover-open" ? showing.has(this) : origMatches.call(this, selector)
-  }
+  })
+  Reflect.set(win.Element.prototype, "matches", function(this: Element, selector: string) {
+    return selector === ":popover-open"
+      ? showing.has(this)
+      : typeof origMatches === "function" && Boolean(Reflect.apply(origMatches, this, [selector]))
+  })
   // Suppress WebKit false positive from happy-dom CSS.supports while preserving CSS.escape
-  const origCss = (win as unknown as Record<string, Record<string, unknown>>).CSS
+  const origCss: unknown = Reflect.get(win, "CSS")
+  const escapeFn: unknown =
+    typeof origCss === "object" && origCss !== null ? Reflect.get(origCss, "escape") : undefined
   Object.defineProperty(globalThis, "CSS", {
     configurable: true,
     writable: true,
     value: {
       supports: () => false,
       escape:
-        typeof origCss?.escape === "function"
-          ? origCss.escape.bind(origCss)
+        typeof escapeFn === "function"
+          ? (value: string) => String(Reflect.apply(escapeFn, origCss, [value]))
           : (value: string) => value.replace(/([^\w-])/g, "\\$1")
     }
   })
 })
 
-afterAll(() => {
-  win?.happyDOM.close()
+afterAll(async () => {
+  if (win !== undefined) {
+    await win.happyDOM.close()
+  }
   for (const [key, desc] of savedGlobals) {
     if (desc === undefined) {
-      delete (globalThis as Record<string, unknown>)[key]
+      Reflect.deleteProperty(globalThis, key)
     } else {
       Object.defineProperty(globalThis, key, desc)
     }
   }
 })
 
-const tick = Effect.promise(() => new Promise<void>((r) => setTimeout(r, 40)))
+const tick = Effect.promise(
+  () =>
+    new Promise<void>((r) => {
+      setTimeout(r, 40)
+    })
+)
 
 const mountDom = <Props, Model, Msg, Events>(
   component: Component.Members<
@@ -302,11 +313,11 @@ const ToolbarDomDemo = Html.component({
     })
 })
 
-const SliderMsg = UiSchema.TaggedEnum({ Moved: { value: Schema.Number } })
+const SliderMsg = UiSchema.TaggedEnum({ Moved: { value: Schema.Finite } })
 const SliderDomDemo = Html.component({
   name: "SliderDomDemo",
   props: Schema.Struct({ direction: Schema.Literals(["ltr", "rtl"]) }),
-  model: Schema.Number,
+  model: Schema.Finite,
   message: SliderMsg
 }).make({
   init: () => 40,
@@ -318,8 +329,10 @@ const SliderDomDemo = Html.component({
         Slider(h, {
           props: { value, min: 0, max: 100, step: 10 },
           onEmit: {
-            Moved: ({ value: next }) =>
-              SliderMsg.Moved({ value: Array.isArray(next) ? next[0]! : next }),
+            Moved: ({ value: next }) => {
+              const first: unknown = Array.isArray(next) ? next[0] : next
+              return SliderMsg.Moved({ value: typeof first === "number" ? first : 0 })
+            },
             Committed: () => undefined
           },
           view: (sl) =>
@@ -480,8 +493,10 @@ const ComboboxDomDemo = Html.component({
       onEmit: {
         RequestedOpen: () => ComboDomMsg.Opened(),
         RequestedClose: () => ComboDomMsg.Closed(),
-        Picked: ({ value }) =>
-          ComboDomMsg.Picked({ value: Array.isArray(value) ? (value[0] ?? null) : value }),
+        Picked: ({ value }) => {
+          const picked: unknown = Array.isArray(value) ? value[0] : value
+          return ComboDomMsg.Picked({ value: typeof picked === "string" ? picked : null })
+        },
         RequestedInputValue: ({ inputValue }) => ComboDomMsg.Typed({ inputValue }),
         Highlighted: () => undefined,
         Settled: () => undefined

@@ -5,9 +5,9 @@ import * as Schema from "effect/Schema"
 export const WaterfallSpanSchema = Schema.Struct({
   id: Schema.String,
   label: Schema.String,
-  startMs: Schema.Number,
-  durationMs: Schema.Number,
-  depth: Schema.optional(Schema.Number),
+  startMs: Schema.Finite,
+  durationMs: Schema.Finite,
+  depth: Schema.optional(Schema.Finite),
   status: Schema.optional(Schema.Literals(["ok", "error", "pending"])),
   category: Schema.optional(Schema.String)
 })
@@ -92,7 +92,7 @@ export const WaterfallProps = Schema.Struct({
   label: Schema.String,
   spans: Schema.Array(WaterfallSpanSchema),
   selectedId: Schema.optional(Schema.String),
-  tickCount: Schema.optional(Schema.Number)
+  tickCount: Schema.optional(Schema.Finite)
 })
 export type WaterfallProps = typeof WaterfallProps.Type
 
@@ -204,19 +204,25 @@ export const Waterfall = Html.component({
                     .on(
                       "keydown",
                       ({ key }) => {
-                        if (key === "ArrowDown" && idx + 1 < layout.bars.length) {
-                          return WaterfallMsg.Select({ id: layout.bars[idx + 1]!.span.id })
+                        if (key === "ArrowDown") {
+                          const next = layout.bars[idx + 1]
+                          if (next !== undefined) return WaterfallMsg.Select({ id: next.span.id })
                         }
-                        if (key === "ArrowUp" && idx > 0) {
-                          return WaterfallMsg.Select({ id: layout.bars[idx - 1]!.span.id })
+                        if (key === "ArrowUp") {
+                          const prev = layout.bars[idx - 1]
+                          if (prev !== undefined) return WaterfallMsg.Select({ id: prev.span.id })
                         }
-                        if (key === "Home" && layout.bars.length > 0) {
-                          return WaterfallMsg.Select({ id: layout.bars[0]!.span.id })
+                        if (key === "Home") {
+                          const first = layout.bars[0]
+                          if (first !== undefined) return WaterfallMsg.Select({ id: first.span.id })
                         }
-                        if (key === "End" && layout.bars.length > 0) {
-                          return WaterfallMsg.Select({
-                            id: layout.bars[layout.bars.length - 1]!.span.id
-                          })
+                        if (key === "End") {
+                          const last = layout.bars[layout.bars.length - 1]
+                          if (last !== undefined) {
+                            return WaterfallMsg.Select({
+                              id: last.span.id
+                            })
+                          }
                         }
                         return undefined
                       },

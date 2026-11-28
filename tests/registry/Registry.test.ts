@@ -1,7 +1,9 @@
+import type { Component } from "@effect/ui"
+import type { Html } from "@effect/ui/html"
 import { HtmlLocator, HtmlPlay } from "@effect/ui/html/testing"
 import { TestHost } from "@effect/ui/testing"
 import { describe, expect, it } from "bun:test"
-import { Effect, Layer } from "effect"
+import { Effect, Layer, Schema } from "effect"
 import { TestClock } from "effect/testing"
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
@@ -35,18 +37,65 @@ import {
   validateCustomRegistry,
   writeProjectUiConfig
 } from "../../src/registry/index.js"
+import type { JsonRpcResponse } from "../../src/registry/index.js"
 import { auditThemeContrast, themeContrastPairs } from "../../src/theme/index.js"
 
 const ROOT = resolve(import.meta.dir, "../..")
 
 const playLayer = Layer.mergeAll(
   TestHost.layer(),
-  A11yFocus.layer(),
+  A11yFocus.layer,
   TestClock.layer()
 )
 
-const runPlay = <A, E>(eff: Effect.Effect<A, E, any>) =>
-  Effect.runPromise(eff.pipe(Effect.provide(playLayer)) as Effect.Effect<A, E, never>)
+type PlayServices = Layer.Success<typeof playLayer>
+
+const runPlay = <A, E>(eff: Effect.Effect<A, E, PlayServices>) =>
+  Effect.runPromise(eff.pipe(Effect.provide(playLayer)))
+
+type DynamicHtmlComponent<Props> = Component.Members<
+  string,
+  Props,
+  unknown,
+  unknown,
+  unknown,
+  never,
+  Html.Elements,
+  unknown
+>
+
+const isDynamicHtmlComponent = <Props>(
+  value: unknown
+): value is DynamicHtmlComponent<Props> =>
+  typeof value === "function" &&
+  "name" in value &&
+  typeof Reflect.get(value, "name") === "string"
+
+const importComponent = async <Props>(
+  filePath: string,
+  exportName: string
+): Promise<DynamicHtmlComponent<Props>> => {
+  const mod: unknown = await import(filePath)
+  if (typeof mod !== "object" || mod === null) {
+    throw new Error(`Expected module object from ${filePath}`)
+  }
+  const exported: unknown = Reflect.get(mod, exportName)
+  if (!isDynamicHtmlComponent<Props>(exported)) {
+    throw new Error(`Expected Effect UI component export "${exportName}" from ${filePath}`)
+  }
+  return exported
+}
+
+const McpContentSchema = Schema.Struct({
+  content: Schema.Array(Schema.Struct({ text: Schema.String }))
+})
+
+const readMcpText = (res: JsonRpcResponse | null): string => {
+  const decoded = Schema.decodeUnknownSync(McpContentSchema)(res?.result)
+  const first = decoded.content[0]
+  if (first === undefined) throw new Error("Expected MCP text content")
+  return first.text
+}
 
 describe("Visual presets WCAG 2.1 AA audit", () => {
   it("audits all 8 visual presets and composed accent/baseColor presets with zero contrast failures", () => {
@@ -215,17 +264,59 @@ describe("Registry catalog and CLI workflow", () => {
       }
 
       // Live behavioral & SSR checks on materialized components
-      const { DataTable } = await import(join(tmp, "src/ui/dataTable.ts"))
-      const { Questionnaire } = await import(join(tmp, "src/ui/questionnaire.ts"))
-      const { DashboardBlock } = await import(join(tmp, "src/ui/blocks/dashboard.ts"))
-      const { AuthBlock } = await import(join(tmp, "src/ui/blocks/auth.ts"))
-      const { AiChatBlock } = await import(join(tmp, "src/ui/blocks/aiChat.ts"))
-      const { SettingsBlock } = await import(join(tmp, "src/ui/blocks/settings.ts"))
-      const { SignupBlock } = await import(join(tmp, "src/ui/blocks/signup.ts"))
-      const { OtpBlock } = await import(join(tmp, "src/ui/blocks/otp.ts"))
-      const { SidebarInsetBlock } = await import(join(tmp, "src/ui/blocks/sidebarInset.ts"))
-      const { SidebarIconsBlock } = await import(join(tmp, "src/ui/blocks/sidebarIcons.ts"))
-      const { CalendarPresetsBlock } = await import(join(tmp, "src/ui/blocks/calendarPresets.ts"))
+      const DataTable = await importComponent<{
+        readonly label: string
+        readonly selectable: boolean
+        readonly columns: ReadonlyArray<{ readonly key: string; readonly header: string }>
+        readonly rows: ReadonlyArray<{
+          readonly id: string
+          readonly cells: Readonly<Record<string, string>>
+        }>
+      }>(join(tmp, "src/ui/dataTable.ts"), "DataTable")
+      const Questionnaire = await importComponent<{
+        readonly label: string
+        readonly questions: ReadonlyArray<{
+          readonly id: string
+          readonly title: string
+          readonly choices: ReadonlyArray<{ readonly id: string; readonly label: string }>
+        }>
+      }>(join(tmp, "src/ui/questionnaire.ts"), "Questionnaire")
+      const DashboardBlock = await importComponent<Record<string, never>>(
+        join(tmp, "src/ui/blocks/dashboard.ts"),
+        "DashboardBlock"
+      )
+      const AuthBlock = await importComponent<Record<string, never>>(
+        join(tmp, "src/ui/blocks/auth.ts"),
+        "AuthBlock"
+      )
+      const AiChatBlock = await importComponent<Record<string, never>>(
+        join(tmp, "src/ui/blocks/aiChat.ts"),
+        "AiChatBlock"
+      )
+      const SettingsBlock = await importComponent<Record<string, never>>(
+        join(tmp, "src/ui/blocks/settings.ts"),
+        "SettingsBlock"
+      )
+      const SignupBlock = await importComponent<Record<string, never>>(
+        join(tmp, "src/ui/blocks/signup.ts"),
+        "SignupBlock"
+      )
+      const OtpBlock = await importComponent<Record<string, never>>(
+        join(tmp, "src/ui/blocks/otp.ts"),
+        "OtpBlock"
+      )
+      const SidebarInsetBlock = await importComponent<Record<string, never>>(
+        join(tmp, "src/ui/blocks/sidebarInset.ts"),
+        "SidebarInsetBlock"
+      )
+      const SidebarIconsBlock = await importComponent<Record<string, never>>(
+        join(tmp, "src/ui/blocks/sidebarIcons.ts"),
+        "SidebarIconsBlock"
+      )
+      const CalendarPresetsBlock = await importComponent<Record<string, never>>(
+        join(tmp, "src/ui/blocks/calendarPresets.ts"),
+        "CalendarPresetsBlock"
+      )
 
       await runPlay(
         Effect.gen(function*() {
@@ -359,10 +450,11 @@ describe("Registry catalog and CLI workflow", () => {
         files: [{ path: "remotePill.ts", content: "export const pill = 'remote'\n" }]
       }
       const remoteInstall = await runAddAsync(tmp, ["@remote/remote-pill"], {
-        fetchImpl: (async (url: string | URL | Request) => {
-          expect(String(url)).toBe("https://acme.example/r/remote-pill.json")
+        fetchImpl: async (url) => {
+          const urlStr = typeof url === "string" ? url : url instanceof URL ? url.href : url.url
+          expect(urlStr).toBe("https://acme.example/r/remote-pill.json")
           return new Response(JSON.stringify(remoteItem), { status: 200 })
-        }) as typeof fetch
+        }
       })
       expect(remoteInstall.missing).toEqual([])
       expect(existsSync(join(tmp, "src/ui/remotePill.ts"))).toBe(true)
@@ -400,13 +492,19 @@ describe("Registry catalog and CLI workflow", () => {
   it("serves JSON-RPC 2.0 MCP tools for registry discovery, add commands, presets, and audit checklist", () => {
     const init = handleMcpRequest({ jsonrpc: "2.0", id: 1, method: "initialize" })
     expect(init?.error).toBeUndefined()
-    expect((init?.result as { serverInfo: { name: string } }).serverInfo.name).toBe("effect-ui-registry")
+    const initResult = Schema.decodeUnknownSync(
+      Schema.Struct({ serverInfo: Schema.Struct({ name: Schema.String }) })
+    )(init?.result)
+    expect(initResult.serverInfo.name).toBe("effect-ui-registry")
 
     expect(handleMcpRequest({ jsonrpc: "2.0", method: "notifications/initialized" })).toBeNull()
     expect(handleMcpRequest({ jsonrpc: "2.0", id: 2, method: "ping" })?.result).toEqual({})
 
     const tools = handleMcpRequest({ jsonrpc: "2.0", id: 3, method: "tools/list" })
-    expect((tools?.result as { tools: ReadonlyArray<unknown> }).tools.length).toBe(MCP_TOOL_DEFINITIONS.length)
+    const toolsResult = Schema.decodeUnknownSync(
+      Schema.Struct({ tools: Schema.Array(Schema.Unknown) })
+    )(tools?.result)
+    expect(toolsResult.tools.length).toBe(MCP_TOOL_DEFINITIONS.length)
 
     const listCall = handleMcpRequest({
       jsonrpc: "2.0",
@@ -414,8 +512,10 @@ describe("Registry catalog and CLI workflow", () => {
       method: "tools/call",
       params: { name: "list_items", arguments: { category: "blocks" } }
     })
-    const listText = (listCall?.result as { content: ReadonlyArray<{ text: string }> }).content[0]!.text
-    expect(JSON.parse(listText).count).toBe(9)
+    const listPayload = Schema.decodeUnknownSync(Schema.Struct({ count: Schema.Finite }))(
+      JSON.parse(readMcpText(listCall))
+    )
+    expect(listPayload.count).toBe(9)
 
     const searchCall = handleMcpRequest({
       jsonrpc: "2.0",
@@ -423,7 +523,7 @@ describe("Registry catalog and CLI workflow", () => {
       method: "tools/call",
       params: { name: "search_items", arguments: { query: "accordion" } }
     })
-    expect((searchCall?.result as { content: ReadonlyArray<{ text: string }> }).content[0]!.text).toContain("accordion")
+    expect(readMcpText(searchCall)).toContain("accordion")
 
     const viewCall = handleMcpRequest({
       jsonrpc: "2.0",
@@ -431,7 +531,9 @@ describe("Registry catalog and CLI workflow", () => {
       method: "tools/call",
       params: { name: "view_items", arguments: { names: ["dialog", "bubble"] } }
     })
-    const viewPayload = JSON.parse((viewCall?.result as { content: ReadonlyArray<{ text: string }> }).content[0]!.text)
+    const viewPayload = Schema.decodeUnknownSync(
+      Schema.Struct({ items: Schema.Array(Schema.Unknown) })
+    )(JSON.parse(readMcpText(viewCall)))
     expect(viewPayload.items.length).toBe(2)
 
     const addCall = handleMcpRequest({
@@ -440,7 +542,9 @@ describe("Registry catalog and CLI workflow", () => {
       method: "tools/call",
       params: { name: "get_add_command", arguments: { names: ["block-dashboard"] } }
     })
-    const addPayload = JSON.parse((addCall?.result as { content: ReadonlyArray<{ text: string }> }).content[0]!.text)
+    const addPayload = Schema.decodeUnknownSync(
+      Schema.Struct({ command: Schema.String, resolvedItems: Schema.Array(Schema.String) })
+    )(JSON.parse(readMcpText(addCall)))
     expect(addPayload.command).toBe("bunx effect-ui add block-dashboard")
     expect(addPayload.resolvedItems).toContain("sidebar")
 
@@ -450,7 +554,10 @@ describe("Registry catalog and CLI workflow", () => {
       method: "tools/call",
       params: { name: "list_presets", arguments: {} }
     })
-    expect(JSON.parse((presetsCall?.result as { content: ReadonlyArray<{ text: string }> }).content[0]!.text).presets.length).toBe(8)
+    const presetsPayload = Schema.decodeUnknownSync(
+      Schema.Struct({ presets: Schema.Array(Schema.Unknown) })
+    )(JSON.parse(readMcpText(presetsCall)))
+    expect(presetsPayload.presets.length).toBe(8)
 
     const composeCall = handleMcpRequest({
       jsonrpc: "2.0",
@@ -458,7 +565,10 @@ describe("Registry catalog and CLI workflow", () => {
       method: "tools/call",
       params: { name: "compose_preset", arguments: { style: "rhea", baseColor: "stone", accent: "violet", radius: "lg" } }
     })
-    expect(JSON.parse((composeCall?.result as { content: ReadonlyArray<{ text: string }> }).content[0]!.text).code).toBe("v1-rhea-stone-violet-lg")
+    const composePayload = Schema.decodeUnknownSync(Schema.Struct({ code: Schema.String }))(
+      JSON.parse(readMcpText(composeCall))
+    )
+    expect(composePayload.code).toBe("v1-rhea-stone-violet-lg")
 
     const docsCall = handleMcpRequest({
       jsonrpc: "2.0",
@@ -466,7 +576,10 @@ describe("Registry catalog and CLI workflow", () => {
       method: "tools/call",
       params: { name: "get_item_docs", arguments: { name: "chart-radar" } }
     })
-    expect(JSON.parse((docsCall?.result as { content: ReadonlyArray<{ text: string }> }).content[0]!.text).docs).toContain("radarChart")
+    const docsPayload = Schema.decodeUnknownSync(Schema.Struct({ docs: Schema.String }))(
+      JSON.parse(readMcpText(docsCall))
+    )
+    expect(docsPayload.docs).toContain("radarChart")
 
     const auditCall = handleMcpRequest({
       jsonrpc: "2.0",
@@ -474,10 +587,18 @@ describe("Registry catalog and CLI workflow", () => {
       method: "tools/call",
       params: { name: "get_audit_checklist", arguments: {} }
     })
-    expect(JSON.parse((auditCall?.result as { content: ReadonlyArray<{ text: string }> }).content[0]!.text).gates.length).toBe(4)
+    const auditPayload = Schema.decodeUnknownSync(
+      Schema.Struct({ gates: Schema.Array(Schema.Unknown) })
+    )(JSON.parse(readMcpText(auditCall)))
+    expect(auditPayload.gates.length).toBe(4)
 
     // Parse error and unknown method
-    expect(JSON.parse(handleMcpLine("{not-json")!).error.code).toBe(-32700)
+    const badLine = handleMcpLine("{not-json")
+    if (badLine === null) throw new Error("Expected JSON-RPC parse error response")
+    const parseErrPayload = Schema.decodeUnknownSync(
+      Schema.Struct({ error: Schema.Struct({ code: Schema.Finite }) })
+    )(JSON.parse(badLine))
+    expect(parseErrPayload.error.code).toBe(-32700)
     expect(handleMcpRequest({ jsonrpc: "2.0", id: 10, method: "nope" })?.error?.code).toBe(-32601)
   })
 })

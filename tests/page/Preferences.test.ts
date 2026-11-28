@@ -3,6 +3,7 @@ import { Html, HtmlServer } from "@effect/ui/html"
 import { HtmlPlay } from "@effect/ui/html/testing"
 import { Locator, TestHost } from "@effect/ui/testing"
 import { describe, expect, it } from "bun:test"
+import { runInNewContext } from "node:vm"
 import { Effect, Layer, Schema } from "effect"
 import { TestClock } from "effect/testing"
 import { GlobalWindow } from "happy-dom"
@@ -39,7 +40,7 @@ describe("Preferences, ColorScheme, and zero-FOUC SSR script", () => {
     expect(() =>
       definePreference({
         key: "bad",
-        attribute: "class" as `data-${string}`,
+        attribute: "data-BAD!",
         values: ["a"] as const,
         defaultValue: "a"
       })
@@ -54,12 +55,13 @@ describe("Preferences, ColorScheme, and zero-FOUC SSR script", () => {
       })
     ).toThrow(/Invalid preference key/)
 
+    const values: readonly [string, ...Array<string>] = ["a", "b"]
     expect(() =>
       definePreference({
         key: "ok",
         attribute: "data-ok",
-        values: ["a", "b"] as const,
-        defaultValue: "c" as "a"
+        values,
+        defaultValue: "c"
       })
     ).toThrow(/defaultValue/)
   })
@@ -151,7 +153,7 @@ describe("Preferences, ColorScheme, and zero-FOUC SSR script", () => {
     expect(resolveColorScheme("dark", "unknown")).toBe("dark")
   })
 
-  it("preferencesScript executes cleanly before paint in happy-dom and blocks disallowed/XSS values", () => {
+  it("preferencesScript executes cleanly before paint in happy-dom and blocks disallowed/XSS values", async () => {
     const win = new GlobalWindow({ url: "http://localhost/" })
     try {
       win.localStorage.setItem("color-scheme", "dark")
@@ -164,8 +166,7 @@ describe("Preferences, ColorScheme, and zero-FOUC SSR script", () => {
       win.document.head.appendChild(meta)
 
       const body = preferencesScriptBody([ColorScheme, Density, CookieTheme])
-      const fn = new Function("window", "document", body)
-      fn(win, win.document)
+      runInNewContext(body, { window: win, document: win.document })
 
       expect(win.document.documentElement.getAttribute("data-color-scheme")).toBe("dark")
       expect(meta.getAttribute("content")).toBe("dark")
@@ -179,7 +180,7 @@ describe("Preferences, ColorScheme, and zero-FOUC SSR script", () => {
       expect(tag).toEndWith("</script>")
       expect(tag.slice(1, -9)).not.toContain("</script>")
     } finally {
-      win.happyDOM.close()
+      await win.happyDOM.close()
     }
   })
 })

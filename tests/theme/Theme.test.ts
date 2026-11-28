@@ -39,18 +39,22 @@ describe("OKLCH / sRGB / Display-P3 color engine", () => {
     for (const hex of ["#000000", "#ffffff", "#2563eb", "#dc2626", "#16a34a", "#f59e0b"]) {
       const parsed = parseColor(hex)
       expect(parsed).toBeDefined()
-      expect(formatHex(parsed!)).toBe(hex)
+      if (parsed !== undefined) {
+        expect(formatHex(parsed)).toBe(hex)
+      }
     }
   })
 
   test("parseColor handles oklch, percentage L, alpha, rgb, and rejects invalid strings", () => {
     const a = parseColor("oklch(50% 0.16 260 / 50%)")
     expect(a).toEqual({ l: 0.5, c: 0.16, h: 260, alpha: 0.5 })
-    expect(formatOklch(a!)).toBe("oklch(0.5 0.16 260 / 0.5)")
+    if (a !== undefined) {
+      expect(formatOklch(a)).toBe("oklch(0.5 0.16 260 / 0.5)")
+    }
 
     const b = parseColor("rgba(37, 99, 235, 0.8)")
     expect(b).toBeDefined()
-    expect(b!.alpha).toBe(0.8)
+    expect(b?.alpha).toBe(0.8)
 
     expect(parseColor("not-a-color")).toBeUndefined()
     expect(parseColor("#12345")).toBeUndefined()
@@ -137,11 +141,14 @@ describe("Default OKLCH theme tokens and @layer effect-ui stylesheet", () => {
       ["dark", DEFAULT_DARK_TOKENS]
     ] as const) {
       for (const [name, value] of Object.entries(tokens)) {
+        if (typeof value !== "string") continue
         const parsed = parseColor(value)
         expect(parsed, `${mode}.${name} should parse`).toBeDefined()
-        expect(isInSrgbGamut(parsed!), `${mode}.${name} (${value}) should be in sRGB gamut`).toBe(
-          true
-        )
+        if (parsed !== undefined) {
+          expect(isInSrgbGamut(parsed), `${mode}.${name} (${value}) should be in sRGB gamut`).toBe(
+            true
+          )
+        }
       }
     }
   })
@@ -223,9 +230,24 @@ describe("Default OKLCH theme tokens and @layer effect-ui stylesheet", () => {
     // Zero ::before/::after icon-content hacks (universal box-sizing selector is allowed).
     expect(stylesheet).not.toMatch(/(?<![\w-])content\s*:/)
 
-    for (const key of Object.keys(TOKEN_CSS_NAMES) as ReadonlyArray<keyof typeof TOKEN_CSS_NAMES>) {
-      const cssVar = TOKEN_CSS_NAMES[key]
-      const expected = `${cssVar}: light-dark(${DEFAULT_LIGHT_TOKENS[key]}, ${DEFAULT_DARK_TOKENS[key]});`
+    const tokenPairs: ReadonlyArray<readonly [string, string, string]> = [
+      [TOKEN_CSS_NAMES.background, DEFAULT_LIGHT_TOKENS.background, DEFAULT_DARK_TOKENS.background],
+      [TOKEN_CSS_NAMES.surface, DEFAULT_LIGHT_TOKENS.surface, DEFAULT_DARK_TOKENS.surface],
+      [TOKEN_CSS_NAMES.muted, DEFAULT_LIGHT_TOKENS.muted, DEFAULT_DARK_TOKENS.muted],
+      [TOKEN_CSS_NAMES.foreground, DEFAULT_LIGHT_TOKENS.foreground, DEFAULT_DARK_TOKENS.foreground],
+      [TOKEN_CSS_NAMES.mutedForeground, DEFAULT_LIGHT_TOKENS.mutedForeground, DEFAULT_DARK_TOKENS.mutedForeground],
+      [TOKEN_CSS_NAMES.border, DEFAULT_LIGHT_TOKENS.border, DEFAULT_DARK_TOKENS.border],
+      [TOKEN_CSS_NAMES.inputBorder, DEFAULT_LIGHT_TOKENS.inputBorder, DEFAULT_DARK_TOKENS.inputBorder],
+      [TOKEN_CSS_NAMES.primary, DEFAULT_LIGHT_TOKENS.primary, DEFAULT_DARK_TOKENS.primary],
+      [TOKEN_CSS_NAMES.primaryForeground, DEFAULT_LIGHT_TOKENS.primaryForeground, DEFAULT_DARK_TOKENS.primaryForeground],
+      [TOKEN_CSS_NAMES.accent, DEFAULT_LIGHT_TOKENS.accent, DEFAULT_DARK_TOKENS.accent],
+      [TOKEN_CSS_NAMES.accentForeground, DEFAULT_LIGHT_TOKENS.accentForeground, DEFAULT_DARK_TOKENS.accentForeground],
+      [TOKEN_CSS_NAMES.destructive, DEFAULT_LIGHT_TOKENS.destructive, DEFAULT_DARK_TOKENS.destructive],
+      [TOKEN_CSS_NAMES.destructiveForeground, DEFAULT_LIGHT_TOKENS.destructiveForeground, DEFAULT_DARK_TOKENS.destructiveForeground],
+      [TOKEN_CSS_NAMES.ring, DEFAULT_LIGHT_TOKENS.ring, DEFAULT_DARK_TOKENS.ring]
+    ]
+    for (const [cssVar, lightVal, darkVal] of tokenPairs) {
+      const expected = `${cssVar}: light-dark(${lightVal}, ${darkVal});`
       expect(stylesheet).toContain(expected)
     }
   })
@@ -248,16 +270,19 @@ describe("Default OKLCH theme tokens and @layer effect-ui stylesheet", () => {
     expect(presets.length).toBe(8)
 
     // Maia light primary and destructive hues stay separated by >= 15 degrees
-    const maiaPrimary = parseColor(VISUAL_PRESETS.maia.light.primary)!
-    const maiaDest = parseColor(VISUAL_PRESETS.maia.light.destructive)!
+    const maiaPrimary = parseColor(VISUAL_PRESETS.maia.light.primary)
+    const maiaDest = parseColor(VISUAL_PRESETS.maia.light.destructive)
+    if (maiaPrimary === undefined || maiaDest === undefined) {
+      throw new Error("Expected Maia light primary and destructive colors to parse")
+    }
     expect(maiaPrimary.h).toBeGreaterThanOrEqual(42)
     expect(maiaDest.h).toBeLessThanOrEqual(22)
     expect(Math.abs(maiaPrimary.h - maiaDest.h)).toBeGreaterThanOrEqual(15)
 
     for (const preset of presets) {
       for (const chart of [...preset.chartLight, ...preset.chartDark]) {
-        const parsed = parseColor(chart)!
-        expect(isInSrgbGamut(parsed), `${preset.name} chart ${chart}`).toBe(true)
+        const parsed = parseColor(chart)
+        expect(parsed !== undefined && isInSrgbGamut(parsed), `${preset.name} chart ${chart}`).toBe(true)
       }
       const css = generatePresetCss(preset.name)
       expect(css).toContain("@media (prefers-reduced-motion: reduce)")
@@ -276,10 +301,12 @@ describe("Default OKLCH theme tokens and @layer effect-ui stylesheet", () => {
         for (const accent of accents) {
           const composed = composeVisualPreset({ style, baseColor, accent, radius: "md" })
           for (const mode of ["light", "dark"] as const) {
-            for (const [k, v] of Object.entries(composed[mode])) {
+            const entries: ReadonlyArray<readonly [string, unknown]> = Object.entries(composed[mode])
+            for (const [k, v] of entries) {
+              const parsed = typeof v === "string" ? parseColor(v) : undefined
               expect(
-                isInSrgbGamut(parseColor(v)!),
-                `${style}/${baseColor}/${accent} ${mode}.${k}=${v}`
+                parsed !== undefined && isInSrgbGamut(parsed),
+                `${style}/${baseColor}/${accent} ${mode}.${k}=${String(v)}`
               ).toBe(true)
             }
             expect(

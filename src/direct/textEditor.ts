@@ -59,12 +59,12 @@ export const findWordBoundary = (
 ): number => {
   let i = clampOffset(text, offset)
   if (direction === "backward") {
-    while (i > 0 && !isWordChar(text[i - 1]!)) i--
-    while (i > 0 && isWordChar(text[i - 1]!)) i--
+    while (i > 0 && !isWordChar(text.charAt(i - 1))) i--
+    while (i > 0 && isWordChar(text.charAt(i - 1))) i--
     return i
   }
-  while (i < text.length && !isWordChar(text[i]!)) i++
-  while (i < text.length && isWordChar(text[i]!)) i++
+  while (i < text.length && !isWordChar(text.charAt(i))) i++
+  while (i < text.length && isWordChar(text.charAt(i))) i++
   return i
 }
 

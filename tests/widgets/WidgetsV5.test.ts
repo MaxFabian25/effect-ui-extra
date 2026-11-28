@@ -21,7 +21,7 @@ import {
 
 const playLayer = Layer.mergeAll(
   TestHost.layer(),
-  A11yFocus.layer(),
+  A11yFocus.layer,
   TestClock.layer()
 )
 

@@ -2,9 +2,12 @@ import { Command, Subscription, UiSchema } from "@effect/ui"
 import { AlertDialog, Dialog } from "@effect/ui-kit"
 import { Html } from "@effect/ui/html"
 import * as Context from "effect/Context"
+import * as Data from "effect/Data"
 import * as Deferred from "effect/Deferred"
 import * as Effect from "effect/Effect"
 import * as Layer from "effect/Layer"
+import * as Match from "effect/Match"
+import * as Predicate from "effect/Predicate"
 import * as PubSub from "effect/PubSub"
 import * as Schema from "effect/Schema"
 import * as Stream from "effect/Stream"
@@ -27,8 +30,7 @@ export interface PromptOptions {
   readonly cancelLabel?: string | undefined
 }
 
-export const ConfirmOverlayEntry = Schema.Struct({
-  _tag: Schema.Literal("Confirm"),
+export const ConfirmOverlayEntry = Schema.TaggedStruct("Confirm", {
   id: Schema.String,
   title: Schema.String,
   description: Schema.String,
@@ -37,8 +39,7 @@ export const ConfirmOverlayEntry = Schema.Struct({
   destructive: Schema.Boolean
 })
 
-export const PromptOverlayEntry = Schema.Struct({
-  _tag: Schema.Literal("Prompt"),
+export const PromptOverlayEntry = Schema.TaggedStruct("Prompt", {
   id: Schema.String,
   title: Schema.String,
   description: Schema.NullOr(Schema.String),
@@ -55,6 +56,8 @@ export type OverlayEntry = typeof OverlayEntry.Type
 export type OverlayResult =
   | { readonly _tag: "Confirmed"; readonly accepted: boolean }
   | { readonly _tag: "Prompted"; readonly value: string | null }
+
+const OverlayResultEnum = Data.taggedEnum<OverlayResult>()
 
 export interface OverlaysService {
   /**
@@ -90,7 +93,7 @@ interface InternalItem {
   readonly cancel: Effect.Effect<void>
 }
 
-export const makeOverlays = (): Effect.Effect<OverlaysService> =>
+export const makeOverlays: Effect.Effect<OverlaysService> =
   Effect.gen(function*() {
     let seq = 0
     let items: Array<InternalItem> = []
@@ -138,19 +141,21 @@ export const makeOverlays = (): Effect.Effect<OverlaysService> =>
       Effect.gen(function*() {
         const id = `overlay-${++seq}`
         const deferred = yield* Deferred.make<boolean>()
-        const entry: OverlayEntry = {
-          _tag: "Confirm",
+        const entry: OverlayEntry = ConfirmOverlayEntry.make({
           id,
           title: options.title,
           description: options.description,
           confirmLabel: options.confirmLabel ?? "Confirm",
           cancelLabel: options.cancelLabel ?? "Cancel",
           destructive: options.destructive ?? false
-        }
+        })
         return yield* enqueue(
           entry,
           deferred,
-          (res) => (res._tag === "Confirmed" ? res.accepted : false),
+          Match.type<OverlayResult>().pipe(
+            Match.tag("Confirmed", (res) => res.accepted),
+            Match.orElse(() => false)
+          ),
           false
         )
       })
@@ -159,8 +164,7 @@ export const makeOverlays = (): Effect.Effect<OverlaysService> =>
       Effect.gen(function*() {
         const id = `overlay-${++seq}`
         const deferred = yield* Deferred.make<string | null>()
-        const entry: OverlayEntry = {
-          _tag: "Prompt",
+        const entry: OverlayEntry = PromptOverlayEntry.make({
           id,
           title: options.title,
           description: options.description ?? null,
@@ -169,11 +173,14 @@ export const makeOverlays = (): Effect.Effect<OverlaysService> =>
           placeholder: options.placeholder ?? null,
           confirmLabel: options.confirmLabel ?? "Submit",
           cancelLabel: options.cancelLabel ?? "Cancel"
-        }
+        })
         return yield* enqueue(
           entry,
           deferred,
-          (res) => (res._tag === "Prompted" ? res.value : null),
+          Match.type<OverlayResult>().pipe(
+            Match.tag("Prompted", (res) => res.value),
+            Match.orElse(() => null)
+          ),
           null
         )
       })
@@ -222,16 +229,16 @@ export class ResolveOverlay extends Command.Service<ResolveOverlay>()(
         const overlays = yield* Overlays
         return ({ accepted, id, kind, value }) => {
           if (kind === "confirm") {
-            return overlays.resolve(id, {
-              _tag: "Confirmed",
-              accepted: accepted ?? false
-            })
+            return overlays.resolve(
+              id,
+              OverlayResultEnum.Confirmed({ accepted: accepted ?? false })
+            )
           }
           if (kind === "prompt") {
-            return overlays.resolve(id, {
-              _tag: "Prompted",
-              value: value ?? null
-            })
+            return overlays.resolve(
+              id,
+              OverlayResultEnum.Prompted({ value: value ?? null })
+            )
           }
           return overlays.dismiss(id)
         }
@@ -239,9 +246,9 @@ export class ResolveOverlay extends Command.Service<ResolveOverlay>()(
     )
 }
 
-export const overlaysLayer = (): Layer.Layer<Overlays | ResolveOverlay> =>
+export const overlaysLayer: Layer.Layer<Overlays | ResolveOverlay> =
   ResolveOverlay.layer.pipe(
-    Layer.provideMerge(Layer.effect(Overlays, makeOverlays()))
+    Layer.provideMerge(Layer.effect(Overlays, makeOverlays))
   )
 
 // ---------------------------------------------------------------------------
@@ -293,7 +300,7 @@ export const OverlayHost = Html.component({
       if (active === undefined) {
         return $.set({ entries, draft: "", draftForId: null })
       }
-      if (active._tag === "Prompt" && $.model.draftForId !== active.id) {
+      if (Predicate.isTagged(active, "Prompt") && $.model.draftForId !== active.id) {
         return $.set({
           entries,
           draft: active.defaultValue,
@@ -330,7 +337,7 @@ export const OverlayHost = Html.component({
     const active = model.entries[0]
     if (active === undefined) return h.div.attrs({ "data-overlay-host": "" })
 
-    if (active._tag === "Confirm") {
+    if (Predicate.isTagged(active, "Confirm")) {
       return h.div.attrs({ "data-overlay-host": "" }).children(
         AlertDialog(h, {
           key: active.id,

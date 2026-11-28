@@ -1,6 +1,7 @@
 import * as Duration from "effect/Duration"
 import * as Effect from "effect/Effect"
 import * as Fiber from "effect/Fiber"
+import * as Predicate from "effect/Predicate"
 import * as Ref from "effect/Ref"
 
 export type AsyncOptionsStatus = "idle" | "loading" | "ready" | "error"
@@ -94,7 +95,7 @@ export const makeAsyncOptionsLoader = <A, E = never>(
             const latest = yield* Ref.get(stateRef)
             if (latest.requestId !== requestId) return
 
-            if (result._tag === "Success") {
+            if (Predicate.isTagged(result, "Success")) {
               yield* setState({
                 query,
                 status: "ready",

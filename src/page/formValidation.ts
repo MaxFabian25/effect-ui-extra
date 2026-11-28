@@ -1,3 +1,5 @@
+import { Match } from "effect"
+
 export type ValidationMode = "onSubmit" | "onBlur" | "onChange"
 
 export interface FieldValidationEntry {
@@ -45,79 +47,79 @@ const emptyField = (): FieldValidationEntry => ({
 export const reduceFormValidation = (
   state: FormValidationState,
   event: FormValidationEvent
-): FormValidationState => {
-  switch (event._tag) {
-    case "Changed": {
-      const prev = state.fields[event.name] ?? emptyField()
-      return {
-        ...state,
-        fields: {
-          ...state.fields,
-          [event.name]: {
-            ...prev,
-            dirty: true,
-            clientError: event.clientError,
-            serverError: null
+): FormValidationState =>
+  Match.value(event).pipe(
+    Match.tagsExhaustive({
+      Changed: (ev) => {
+        const prev = state.fields[ev.name] ?? emptyField()
+        return {
+          ...state,
+          fields: {
+            ...state.fields,
+            [ev.name]: {
+              ...prev,
+              dirty: true,
+              clientError: ev.clientError,
+              serverError: null
+            }
           }
         }
-      }
-    }
-    case "Blurred": {
-      const prev = state.fields[event.name] ?? emptyField()
-      return {
-        ...state,
-        fields: {
-          ...state.fields,
-          [event.name]: {
+      },
+      Blurred: (ev) => {
+        const prev = state.fields[ev.name] ?? emptyField()
+        return {
+          ...state,
+          fields: {
+            ...state.fields,
+            [ev.name]: {
+              ...prev,
+              touched: true,
+              hasShownError:
+                prev.hasShownError ||
+                ev.clientError !== null ||
+                prev.serverError !== null,
+              clientError: ev.clientError
+            }
+          }
+        }
+      },
+      Submitted: (ev) => {
+        const nextFields: Record<string, FieldValidationEntry> = { ...state.fields }
+        for (const [name, err] of Object.entries(ev.clientErrors)) {
+          const prev = nextFields[name] ?? emptyField()
+          nextFields[name] = {
             ...prev,
             touched: true,
-            hasShownError:
-              prev.hasShownError ||
-              event.clientError !== null ||
-              prev.serverError !== null,
-            clientError: event.clientError
+            hasShownError: prev.hasShownError || err !== null,
+            clientError: err
           }
         }
-      }
-    }
-    case "Submitted": {
-      const nextFields: Record<string, FieldValidationEntry> = { ...state.fields }
-      for (const [name, err] of Object.entries(event.clientErrors)) {
-        const prev = nextFields[name] ?? emptyField()
-        nextFields[name] = {
-          ...prev,
-          touched: true,
-          hasShownError: prev.hasShownError || err !== null,
-          clientError: err
+        return {
+          ...state,
+          submitted: true,
+          fields: nextFields
         }
-      }
-      return {
-        ...state,
-        submitted: true,
-        fields: nextFields
-      }
-    }
-    case "ServerErrorsReceived": {
-      const nextFields: Record<string, FieldValidationEntry> = { ...state.fields }
-      for (const [name, err] of Object.entries(event.errors)) {
-        const prev = nextFields[name] ?? emptyField()
-        nextFields[name] = {
-          ...prev,
-          touched: true,
-          hasShownError: prev.hasShownError || err !== null,
-          serverError: err
+      },
+      ServerErrorsReceived: (ev) => {
+        const nextFields: Record<string, FieldValidationEntry> = { ...state.fields }
+        for (const [name, err] of Object.entries(ev.errors)) {
+          const prev = nextFields[name] ?? emptyField()
+          nextFields[name] = {
+            ...prev,
+            touched: true,
+            hasShownError: prev.hasShownError || err !== null,
+            serverError: err
+          }
         }
-      }
-      return {
-        ...state,
-        submitted: true,
-        fields: nextFields
-      }
-    }
-    case "Reset":
-      return initialFormValidationState(state.mode)
-  }
-}
+        return {
+          ...state,
+          submitted: true,
+          fields: nextFields
+        }
+      },
+      Reset: () => initialFormValidationState(state.mode)
+    })
+  )
 
 /**
  * Returns the error string to display for `name` according to the active

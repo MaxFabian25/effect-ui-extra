@@ -22,11 +22,12 @@ import { TestHost } from "@effect/ui/testing"
 import { describe, it } from "bun:test"
 import { Effect, Layer, Schema } from "effect"
 import { TestClock } from "effect/testing"
-import { A11yFocus, checkDirection, checkPattern, type Direction } from "../../src/a11y/index.js"
+import { A11yFocus, checkDirection, checkPattern } from '../../src/a11y/index.js';
+import type { Direction } from '../../src/a11y/index.js';
 
 const testLayer = Layer.mergeAll(
   TestHost.layer(),
-  A11yFocus.layer(),
+  A11yFocus.layer,
   TestClock.layer()
 )
 
@@ -275,14 +276,14 @@ const ToolbarDemo = Html.component({
 // ---------------------------------------------------------------------------
 // 8. Slider (with DirectionProvider + orientation)
 // ---------------------------------------------------------------------------
-const SliderMsg = UiSchema.TaggedEnum({ Moved: { value: Schema.Number } })
+const SliderMsg = UiSchema.TaggedEnum({ Moved: { value: Schema.Finite } })
 const SliderDemo = Html.component({
   name: "SliderDemo",
   props: Schema.Struct({
     direction: Schema.Literals(["ltr", "rtl"]),
     orientation: Schema.optional(Schema.Literals(["horizontal", "vertical"]))
   }),
-  model: Schema.Number,
+  model: Schema.Finite,
   message: SliderMsg
 }).make({
   init: () => 50,
@@ -300,8 +301,10 @@ const SliderDemo = Html.component({
             orientation: h.props.orientation
           },
           onEmit: {
-            Moved: ({ value: next }) =>
-              SliderMsg.Moved({ value: Array.isArray(next) ? next[0]! : next }),
+            Moved: ({ value: next }) => {
+              const first: unknown = Array.isArray(next) ? next[0] : next
+              return SliderMsg.Moved({ value: typeof first === "number" ? first : 0 })
+            },
             Committed: () => undefined
           },
           view: (sl) =>
@@ -478,8 +481,10 @@ const ComboboxDemo = Html.component({
       onEmit: {
         RequestedOpen: () => ComboMsg.Opened(),
         RequestedClose: () => ComboMsg.Closed(),
-        Picked: ({ value }) =>
-          ComboMsg.Picked({ value: Array.isArray(value) ? (value[0] ?? null) : value }),
+        Picked: ({ value }) => {
+          const picked: unknown = Array.isArray(value) ? value[0] : value
+          return ComboMsg.Picked({ value: typeof picked === "string" ? picked : null })
+        },
         RequestedInputValue: ({ inputValue }) => ComboMsg.Typed({ inputValue }),
         Highlighted: () => undefined,
         Settled: () => undefined

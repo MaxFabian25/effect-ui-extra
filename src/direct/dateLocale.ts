@@ -33,16 +33,16 @@ const FW_EXTENSION_MAP: Readonly<Record<string, WeekdayIndex>> = {
 export const firstDayOfWeek = (locale: string): WeekdayIndex => {
   const lower = locale.trim().toLowerCase()
   const fwMatch = /-u-(?:[a-z0-9]+-)*fw-([a-z]{3})\b/.exec(lower)
-  if (fwMatch !== null) {
-    const override = FW_EXTENSION_MAP[fwMatch[1]!]
+  const fwKey = fwMatch?.[1]
+  if (fwKey !== undefined) {
+    const override = FW_EXTENSION_MAP[fwKey]
     if (override !== undefined) return override
   }
 
   const base = lower.split("-u-")[0] ?? lower
   const subtags = base.split("-")
   let region: string | undefined
-  for (let i = 1; i < subtags.length; i++) {
-    const tag = subtags[i]!
+  for (const tag of subtags.slice(1)) {
     if (/^[a-z]{2}$/.test(tag)) {
       region = tag.toUpperCase()
       break

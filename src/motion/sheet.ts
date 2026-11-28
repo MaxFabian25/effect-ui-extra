@@ -1,3 +1,4 @@
+import { Match } from "effect"
 import { findSnapIndex, rubberBand } from "./kinematics.js"
 
 export type SheetPhase = "closed" | "dragging" | "snapping" | "open"
@@ -39,7 +40,7 @@ export const initialSheetState = (
   const idx = Math.max(0, Math.min(config.snapPoints.length - 1, openIndex))
   return {
     phase: "open",
-    position: config.snapPoints[idx]!,
+    position: config.snapPoints[idx] ?? 0,
     snapIndex: idx,
     velocity: 0
   }
@@ -55,88 +56,93 @@ export const reduceSheet = (
 ): SheetState => {
   const snaps = config.snapPoints
   const dismissible = config.dismissible ?? true
-  const maxPos = snaps.length > 0 ? snaps[snaps.length - 1]! : 0
-  const minPos = dismissible || snaps.length === 0 ? 0 : snaps[0]!
+  const maxPos = snaps[snaps.length - 1] ?? 0
+  const minPos = dismissible ? 0 : (snaps[0] ?? 0)
 
-  switch (event._tag) {
-    case "Open": {
-      if (snaps.length === 0) return state
-      const idx = Math.max(
-        0,
-        Math.min(snaps.length - 1, event.snapIndex ?? snaps.length - 1)
-      )
-      return {
-        phase: "snapping",
-        position: snaps[idx]!,
-        snapIndex: idx,
+  return Match.value(event).pipe(
+    Match.tagsExhaustive({
+      Open: (ev) => {
+        if (snaps.length === 0) return state
+        const idx = Math.max(
+          0,
+          Math.min(snaps.length - 1, ev.snapIndex ?? snaps.length - 1)
+        )
+        return {
+          phase: "snapping" as const,
+          position: snaps[idx] ?? 0,
+          snapIndex: idx,
+          velocity: 0
+        }
+      },
+      Close: () => ({
+        phase: "snapping" as const,
+        position: 0,
+        snapIndex: -1,
         velocity: 0
-      }
-    }
-    case "Close":
-      return { phase: "snapping", position: 0, snapIndex: -1, velocity: 0 }
-    case "DragStart": {
-      const startPos = event.currentPosition ?? state.position
-      return {
-        phase: "dragging",
-        position: startPos,
-        rawPosition: startPos,
-        snapIndex: state.snapIndex,
-        velocity: 0
-      }
-    }
-    case "DragMove": {
-      if (state.phase !== "dragging") return state
-      const nextRaw = (state.rawPosition ?? state.position) + event.delta
-      const next = rubberBand(
-        nextRaw,
-        minPos,
-        maxPos,
-        config.resistance ?? 220
-      )
-      return {
-        phase: "dragging",
-        position: next,
-        rawPosition: nextRaw,
-        snapIndex: state.snapIndex,
-        velocity: event.velocity
-      }
-    }
-    case "DragEnd": {
-      const targets = dismissible ? [0, ...snaps] : [...snaps]
-      if (targets.length === 0) {
-        return { phase: "closed", position: 0, snapIndex: -1, velocity: 0 }
-      }
-      const picked = findSnapIndex(state.position, event.velocity, targets)
-      const targetPos = targets[picked]!
-      const snapIndex = dismissible ? picked - 1 : picked
-      return {
-        phase: "snapping",
-        position: targetPos,
-        snapIndex,
-        velocity: event.velocity
-      }
-    }
-    case "DragCancel": {
-      if (state.phase !== "dragging") return state
-      const targetPos =
-        state.snapIndex >= 0 && state.snapIndex < snaps.length
-          ? snaps[state.snapIndex]!
-          : 0
-      return {
-        phase: "snapping",
-        position: targetPos,
-        snapIndex: state.snapIndex,
-        velocity: 0
-      }
-    }
-    case "Settled":
-      return {
-        phase: state.snapIndex < 0 ? "closed" : "open",
+      }),
+      DragStart: (ev) => {
+        const startPos = ev.currentPosition ?? state.position
+        return {
+          phase: "dragging" as const,
+          position: startPos,
+          rawPosition: startPos,
+          snapIndex: state.snapIndex,
+          velocity: 0
+        }
+      },
+      DragMove: (ev) => {
+        if (state.phase !== "dragging") return state
+        const nextRaw = (state.rawPosition ?? state.position) + ev.delta
+        const next = rubberBand(
+          nextRaw,
+          minPos,
+          maxPos,
+          config.resistance ?? 220
+        )
+        return {
+          phase: "dragging" as const,
+          position: next,
+          rawPosition: nextRaw,
+          snapIndex: state.snapIndex,
+          velocity: ev.velocity
+        }
+      },
+      DragEnd: (ev) => {
+        const targets = dismissible ? [0, ...snaps] : [...snaps]
+        if (targets.length === 0) {
+          return { phase: "closed" as const, position: 0, snapIndex: -1, velocity: 0 }
+        }
+        const picked = findSnapIndex(state.position, ev.velocity, targets)
+        const targetPos = targets[picked] ?? 0
+        const snapIndex = dismissible ? picked - 1 : picked
+        return {
+          phase: "snapping" as const,
+          position: targetPos,
+          snapIndex,
+          velocity: ev.velocity
+        }
+      },
+      DragCancel: () => {
+        if (state.phase !== "dragging") return state
+        const targetPos =
+          state.snapIndex >= 0 && state.snapIndex < snaps.length
+            ? (snaps[state.snapIndex] ?? 0)
+            : 0
+        return {
+          phase: "snapping" as const,
+          position: targetPos,
+          snapIndex: state.snapIndex,
+          velocity: 0
+        }
+      },
+      Settled: () => ({
+        phase: state.snapIndex < 0 ? ("closed" as const) : ("open" as const),
         position: state.position,
         snapIndex: state.snapIndex,
         velocity: 0
-      }
-  }
+      })
+    })
+  )
 }
 
 /**

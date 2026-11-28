@@ -53,7 +53,7 @@ export const TokenInputProps = Schema.Struct({
   tokens: Schema.Array(Schema.String),
   placeholder: Schema.optional(Schema.String),
   allowDuplicates: Schema.optional(Schema.Boolean),
-  maxTokens: Schema.optional(Schema.Number),
+  maxTokens: Schema.optional(Schema.Finite),
   dir: Schema.optional(Schema.Literals(["ltr", "rtl"])),
   idPrefix: Schema.optional(Schema.String)
 })
@@ -67,8 +67,8 @@ export type TokenInputEvents = typeof TokenInputEvents.Type
 const TokenInputMsg = UiSchema.TaggedEnum({
   InputChanged: { value: Schema.String },
   CommittedDraft: {},
-  HighlightedChip: { index: Schema.NullOr(Schema.Number) },
-  RemovedChip: { index: Schema.Number },
+  HighlightedChip: { index: Schema.NullOr(Schema.Finite) },
+  RemovedChip: { index: Schema.Finite },
   FocusDone: {}
 })
 
@@ -95,7 +95,7 @@ export const TokenInput = Html.component({
   props: TokenInputProps,
   model: Schema.Struct({
     draft: Schema.String,
-    highlightedIndex: Schema.NullOr(Schema.Number),
+    highlightedIndex: Schema.NullOr(Schema.Finite),
     announcement: Schema.String
   }),
   message: TokenInputMsg,

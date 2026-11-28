@@ -144,20 +144,23 @@ export const SegmentedControl = Html.component({
                     ? "ArrowRight"
                     : "ArrowLeft"
 
+                const firstEnabled = enabled[0]
+                const lastEnabled = enabled[enabled.length - 1]
+                if (firstEnabled === undefined || lastEnabled === undefined) return undefined
                 if (key === nextKey || (orientation === "horizontal" && key === "ArrowDown")) {
-                  const next = enabled[(idx + 1) % enabled.length]!
+                  const next = enabled[(idx + 1) % enabled.length] ?? firstEnabled
                   return SegmentedMsg.Selected({ value: next.value })
                 }
                 if (key === prevKey || (orientation === "horizontal" && key === "ArrowUp")) {
-                  const prev = enabled[(idx - 1 + enabled.length) % enabled.length]!
+                  const prev = enabled[(idx - 1 + enabled.length) % enabled.length] ?? lastEnabled
                   return SegmentedMsg.Selected({ value: prev.value })
                 }
                 if (key === "Home") {
-                  return SegmentedMsg.Selected({ value: enabled[0]!.value })
+                  return SegmentedMsg.Selected({ value: firstEnabled.value })
                 }
                 if (key === "End") {
                   return SegmentedMsg.Selected({
-                    value: enabled[enabled.length - 1]!.value
+                    value: lastEnabled.value
                   })
                 }
                 if (key === " " || key === "Enter") {

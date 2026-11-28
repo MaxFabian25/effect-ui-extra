@@ -18,7 +18,7 @@ export const createVelocityTracker = (windowMs = 120): VelocityTracker => {
 
   const prune = (nowMs: number) => {
     const cutoff = nowMs - windowMs
-    while (samples.length > 0 && samples[0]!.timeMs < cutoff) {
+    while (samples[0] !== undefined && samples[0].timeMs < cutoff) {
       samples.shift()
     }
   }
@@ -29,13 +29,13 @@ export const createVelocityTracker = (windowMs = 120): VelocityTracker => {
       samples.push({ value, timeMs })
     },
     velocity: (nowMs) => {
-      if (samples.length < 2) return 0
-      const latest = samples[samples.length - 1]!
+      const latest = samples[samples.length - 1]
+      if (samples.length < 2 || latest === undefined) return 0
       const refTime = nowMs ?? latest.timeMs
       prune(refTime)
-      if (samples.length < 2) return 0
-      const oldest = samples[0]!
-      const newest = samples[samples.length - 1]!
+      const oldest = samples[0]
+      const newest = samples[samples.length - 1]
+      if (samples.length < 2 || oldest === undefined || newest === undefined) return 0
       const dtSec = (newest.timeMs - oldest.timeMs) / 1000
       if (dtSec <= 0) return 0
       return (newest.value - oldest.value) / dtSec
@@ -66,11 +66,14 @@ export const nearestIndex = (
   points: ReadonlyArray<number>,
   target: number
 ): number => {
-  if (points.length === 0) return -1
+  const first = points[0]
+  if (first === undefined) return -1
   let bestIdx = 0
-  let bestDist = Math.abs(points[0]! - target)
+  let bestDist = Math.abs(first - target)
   for (let i = 1; i < points.length; i++) {
-    const dist = Math.abs(points[i]! - target)
+    const point = points[i]
+    if (point === undefined) continue
+    const dist = Math.abs(point - target)
     if (dist < bestDist) {
       bestDist = dist
       bestIdx = i

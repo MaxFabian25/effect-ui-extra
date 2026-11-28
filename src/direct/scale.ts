@@ -64,7 +64,8 @@ export const snapToStep = (
   const snapped = min + steps * step
   // Normalize IEEE 754 drift to match step decimal precision
   const stepStr = String(step)
-  const decimals = stepStr.includes(".") ? stepStr.split(".")[1]!.length : 0
+  const fracPart = stepStr.split(".")[1]
+  const decimals = fracPart === undefined ? 0 : fracPart.length
   const rounded = Number(snapped.toFixed(decimals))
   return Math.max(min, Math.min(max, rounded))
 }

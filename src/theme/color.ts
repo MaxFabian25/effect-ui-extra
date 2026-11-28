@@ -167,10 +167,14 @@ export const parseColor = (input: string): OklchColor | undefined => {
   if (s.startsWith("#")) {
     const hex = s.slice(1)
     if (hex.length === 3 || hex.length === 4) {
-      const r = Number.parseInt(hex[0]! + hex[0]!, 16)
-      const g = Number.parseInt(hex[1]! + hex[1]!, 16)
-      const b = Number.parseInt(hex[2]! + hex[2]!, 16)
-      const a = hex.length === 4 ? Number.parseInt(hex[3]! + hex[3]!, 16) : 255
+      const h0 = hex.charAt(0)
+      const h1 = hex.charAt(1)
+      const h2 = hex.charAt(2)
+      const h3 = hex.charAt(3)
+      const r = Number.parseInt(h0 + h0, 16)
+      const g = Number.parseInt(h1 + h1, 16)
+      const b = Number.parseInt(h2 + h2, 16)
+      const a = hex.length === 4 ? Number.parseInt(h3 + h3, 16) : 255
       if ([r, g, b, a].some(Number.isNaN)) return undefined
       return srgbToOklch({ r: r / 255, g: g / 255, b: b / 255, alpha: a / 255 })
     }
@@ -187,11 +191,11 @@ export const parseColor = (input: string): OklchColor | undefined => {
 
   const oklchMatch = /^oklch\(\s*([\d.]+%?)\s+([\d.]+)\s+([\d.]+)(?:deg)?(?:\s*\/\s*([\d.]+%?))?\s*\)$/.exec(s)
   if (oklchMatch !== null) {
-    const rawL = oklchMatch[1]!
+    const [, rawL, rawC, rawH, rawA] = oklchMatch
+    if (rawL === undefined || rawC === undefined || rawH === undefined) return undefined
     const l = rawL.endsWith("%") ? Number.parseFloat(rawL) / 100 : Number.parseFloat(rawL)
-    const c = Number.parseFloat(oklchMatch[2]!)
-    const h = Number.parseFloat(oklchMatch[3]!)
-    const rawA = oklchMatch[4]
+    const c = Number.parseFloat(rawC)
+    const h = Number.parseFloat(rawH)
     const alpha =
       rawA === undefined
         ? 1
@@ -204,10 +208,11 @@ export const parseColor = (input: string): OklchColor | undefined => {
 
   const rgbMatch = /^rgba?\(\s*([\d.]+)[,\s]+([\d.]+)[,\s]+([\d.]+)(?:\s*[,/]\s*([\d.]+%?))?\s*\)$/.exec(s)
   if (rgbMatch !== null) {
-    const r = Number.parseFloat(rgbMatch[1]!) / 255
-    const g = Number.parseFloat(rgbMatch[2]!) / 255
-    const b = Number.parseFloat(rgbMatch[3]!) / 255
-    const rawA = rgbMatch[4]
+    const [, rawR, rawG, rawB, rawA] = rgbMatch
+    if (rawR === undefined || rawG === undefined || rawB === undefined) return undefined
+    const r = Number.parseFloat(rawR) / 255
+    const g = Number.parseFloat(rawG) / 255
+    const b = Number.parseFloat(rawB) / 255
     const alpha =
       rawA === undefined
         ? 1
@@ -305,9 +310,8 @@ export const generateScale = (
     900: 0.5,
     950: 0.35
   }
-  const out = {} as Record<ScaleStep, OklchColor>
-  for (const step of SCALE_STEPS) {
-    out[step] = clampToGamut(
+  const stepColor = (step: ScaleStep): OklchColor =>
+    clampToGamut(
       {
         l: lightnessByStep[step],
         c: peakChroma * chromaWeight[step],
@@ -316,6 +320,17 @@ export const generateScale = (
       },
       gamut
     )
+  return {
+    50: stepColor(50),
+    100: stepColor(100),
+    200: stepColor(200),
+    300: stepColor(300),
+    400: stepColor(400),
+    500: stepColor(500),
+    600: stepColor(600),
+    700: stepColor(700),
+    800: stepColor(800),
+    900: stepColor(900),
+    950: stepColor(950)
   }
-  return out
 }

@@ -2,7 +2,8 @@ import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from "no
 import { dirname, join, resolve } from "node:path"
 import * as Schema from "effect/Schema"
 import { getRegistryItem } from "./catalog.js"
-import { type RegistryItem, RegistryItemSchema } from "./schema.js"
+import { RegistryItemSchema } from './schema.js';
+import type { RegistryItem } from './schema.js';
 
 export const CustomRegistryManifestSchema = Schema.Struct({
   name: Schema.String,
@@ -234,7 +235,7 @@ export const loadNamespacedItemAsync = async (
   cwd: string,
   registries: Readonly<Record<string, string>> | undefined,
   spec: string,
-  fetchImpl: typeof fetch = fetch
+  fetchImpl: (input: string | URL | Request, init?: RequestInit) => Promise<Response> = fetch
 ): Promise<RegistryItem | undefined> => {
   const ref = parseNamespacedItem(spec)
   if (ref === undefined) return undefined

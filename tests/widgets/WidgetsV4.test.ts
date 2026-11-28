@@ -23,7 +23,7 @@ import {
 
 const playLayer = Layer.mergeAll(
   TestHost.layer(),
-  A11yFocus.layer(),
+  A11yFocus.layer,
   TestClock.layer()
 )
 
@@ -254,10 +254,10 @@ describe("Waterfall widget and layout math", () => {
           { id: "b", label: "b", startMs: 150, durationMs: 150 }
         ])
         expect(layout.totalDurationMs).toBe(200)
-        expect(layout.bars[0]!.leftPct).toBe(0)
-        expect(layout.bars[0]!.widthPct).toBe(25)
-        expect(layout.bars[1]!.leftPct).toBe(25)
-        expect(layout.bars[1]!.widthPct).toBe(75)
+        expect(layout.bars[0]?.leftPct).toBe(0)
+        expect(layout.bars[0]?.widthPct).toBe(25)
+        expect(layout.bars[1]?.leftPct).toBe(25)
+        expect(layout.bars[1]?.widthPct).toBe(75)
         expect(layout.ticks.length).toBe(5)
         expect(formatDurationMs(1250)).toBe("1.25s")
         expect(formatDurationMs(42)).toBe("42ms")

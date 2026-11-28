@@ -1,4 +1,5 @@
-import { UiSchema, type View } from "@effect/ui"
+import { UiSchema } from '@effect/ui';
+import type { View } from '@effect/ui';
 import { Html, HtmlCommand } from "@effect/ui/html"
 import * as Schema from "effect/Schema"
 import { recoverFocusKey } from "./focusRecovery.js"
@@ -89,7 +90,8 @@ const flattenVisible = (
       .filter((n) => n.children !== undefined && n.children.length > 0 && !n.disabled)
       .map((n) => n.value)
     for (let i = 0; i < list.length; i++) {
-      const node = list[i]!
+      const node = list[i]
+      if (node === undefined) continue
       const hasChildren = node.children !== undefined && node.children.length > 0
       visible.push({
         node,
@@ -101,7 +103,7 @@ const flattenVisible = (
         siblingBranches
       })
       if (hasChildren && expandedSet.has(node.value)) {
-        walkVisible(node.children!, node.value, level + 1)
+        walkVisible(node.children, node.value, level + 1)
       }
     }
   }
@@ -252,8 +254,9 @@ export const Tree = Html.component({
     const renderList = (
       list: ReadonlyArray<TreeNode>
     ): ReadonlyArray<View.Content<typeof TreeMsg.Type>> =>
-      list.map((node) => {
-        const meta = metaByValue.get(node.value)!
+      list.flatMap((node) => {
+        const meta = metaByValue.get(node.value)
+        if (meta === undefined) return []
         const isBranch = meta.hasChildren
         const isExpanded = isBranch && expandedSet.has(node.value)
         const isSelected = p.selected === node.value
@@ -293,20 +296,22 @@ export const Tree = Html.component({
             ({ key }) => {
               if (node.disabled) return undefined
               const idx = visibleKeys.indexOf(node.value)
+              const firstKey = visibleKeys[0]
+              const lastKey = visibleKeys[visibleKeys.length - 1]
               if (key === "ArrowDown" && idx !== -1) {
-                const next = visibleKeys[Math.min(visibleKeys.length - 1, idx + 1)]!
-                return TreeMsg.MovedFocus({ value: next })
+                const next = visibleKeys[Math.min(visibleKeys.length - 1, idx + 1)]
+                if (next !== undefined) return TreeMsg.MovedFocus({ value: next })
               }
               if (key === "ArrowUp" && idx !== -1) {
-                const prev = visibleKeys[Math.max(0, idx - 1)]!
-                return TreeMsg.MovedFocus({ value: prev })
+                const prev = visibleKeys[Math.max(0, idx - 1)]
+                if (prev !== undefined) return TreeMsg.MovedFocus({ value: prev })
               }
-              if (key === "Home" && visibleKeys.length > 0) {
-                return TreeMsg.MovedFocus({ value: visibleKeys[0]! })
+              if (key === "Home" && firstKey !== undefined) {
+                return TreeMsg.MovedFocus({ value: firstKey })
               }
-              if (key === "End" && visibleKeys.length > 0) {
+              if (key === "End" && lastKey !== undefined) {
                 return TreeMsg.MovedFocus({
-                  value: visibleKeys[visibleKeys.length - 1]!
+                  value: lastKey
                 })
               }
               const isRtl = resolveDir(p.dir) === "rtl"

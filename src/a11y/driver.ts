@@ -1,9 +1,9 @@
-import type { Locator, TestHost } from "@effect/ui/testing"
+import { Locator } from "@effect/ui/testing"
+import type { Play } from "@effect/ui/testing"
 import * as Effect from "effect/Effect"
 import * as Exit from "effect/Exit"
 import * as Option from "effect/Option"
 import {
-  containsNode,
   describeNode,
   getAttr,
   getParent,
@@ -12,7 +12,8 @@ import {
   isHardDisabled,
   isTestElement
 } from "./aria.js"
-import { FocusTracker, type FocusTrackerService } from "./focus.js"
+import { FocusTracker } from "./focus.js"
+import type { FocusTrackerService } from "./focus.js"
 import type {
   A11yDriver,
   A11yTarget,
@@ -26,13 +27,13 @@ const isDomTarget = (target: A11yTarget): target is DomTarget =>
   typeof target === "object" &&
   target !== null &&
   "container" in target &&
-  isDomElement((target as DomTarget).container)
+  isDomElement((target).container)
 
 const isPlayTarget = (target: A11yTarget): target is AnyHtmlPlay =>
   typeof target === "object" &&
   target !== null &&
   "root" in target &&
-  typeof (target as AnyHtmlPlay).keydown === "function"
+  typeof (target).keydown === "function"
 
 const exactLocator = (
   root: NodeLike,
@@ -40,18 +41,15 @@ const exactLocator = (
 ): Locator.Locator => ({
   description: describeNode(root, node),
   all: <N extends Locator.Node>(searchRoot: N): ReadonlyArray<N> =>
-    containsNode(searchRoot as unknown as NodeLike, node)
-      ? [node as unknown as N]
-      : []
+    Locator.elements(searchRoot).filter((el) => Object.is(el, node))
 })
 
 const hasPreventDefaultKeydown = (node: NodeLike): boolean => {
   if (!isTestElement(node)) return false
   for (let at: NodeLike | undefined = node; at !== undefined; at = getParent(at)) {
     if (!isTestElement(at)) continue
-    const el = at as unknown as TestHost.TestElement
-    if (Object.hasOwn(el.handlers, "keydown")) {
-      return el.eventOptions.keydown?.preventDefault === true
+    if (Object.hasOwn(at.handlers, "keydown")) {
+      return at.eventOptions.keydown?.preventDefault === true
     }
   }
   return false
@@ -85,7 +83,7 @@ const makePlayDriver = (
     tracker?.activeElement() ?? localActive
 
   const runStep = (
-    step: Effect.Effect<void, unknown, never>
+    step: Effect.Effect<void, Play.StepError, never>
   ): Effect.Effect<{ readonly reached: boolean; readonly handled: boolean }> =>
     Effect.gen(function*() {
       const exit = yield* Effect.exit(step)
@@ -128,10 +126,10 @@ const makePlayDriver = (
       localActive = node
       if (tracker !== undefined && isTestElement(node)) {
         const prev = tracker.activeElement()
-        if (prev !== undefined && prev !== (node as unknown as TestHost.TestElement)) {
+        if (prev !== undefined && prev !== node) {
           yield* runStep(play.blur(exactLocator(play.root.container, prev)))
         }
-        tracker.focus(node as unknown as TestHost.TestElement)
+        tracker.focus(node)
       }
       const loc = exactLocator(play.root.container, node)
       const res = yield* runStep(play.focus(loc))
@@ -204,7 +202,10 @@ const makePlayDriver = (
 }
 
 const defaultDomSettle: Effect.Effect<void> = Effect.promise(
-  () => new Promise<void>((resolve) => setTimeout(resolve, 25))
+  () =>
+    new Promise<void>((resolve) => {
+      setTimeout(resolve, 25)
+    })
 )
 
 const makeDomDriver = (
@@ -267,8 +268,8 @@ const makeDomDriver = (
   const focus = (node: NodeLike): Effect.Effect<boolean> =>
     Effect.gen(function*() {
       if (!isDomElement(node) || isHardDisabled(node)) return false
-      if (typeof (node as HTMLElement).focus === "function") {
-        ;(node as HTMLElement).focus()
+      if (typeof HTMLElement !== "undefined" && node instanceof HTMLElement) {
+        node.focus()
       }
       yield* settle
       return doc.activeElement === node
@@ -307,8 +308,13 @@ const makeDomDriver = (
           yield* settle
           return true
         }
-        if (key === " " && isNativeCheckbox(node)) {
-          ;(node as HTMLInputElement).checked = !(node as HTMLInputElement).checked
+        if (
+          key === " " &&
+          isNativeCheckbox(node) &&
+          typeof HTMLInputElement !== "undefined" &&
+          node instanceof HTMLInputElement
+        ) {
+          node.checked = !node.checked
           node.dispatchEvent(new Event("input", { bubbles: true }))
           node.dispatchEvent(new Event("change", { bubbles: true }))
           yield* settle

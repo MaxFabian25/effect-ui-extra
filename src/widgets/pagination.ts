@@ -42,9 +42,10 @@ export const buildPaginationRange = (
     ),
     boundaryCount + 2
   )
+  const firstEndPage = endPages[0]
   const siblingsEnd = Math.min(
     Math.max(page + siblingCount, boundaryCount + siblingCount * 2 + 2),
-    endPages.length > 0 ? endPages[0]! - 2 : total - 1
+    firstEndPage !== undefined ? firstEndPage - 2 : total - 1
   )
 
   const tokens: Array<PaginationToken> = [...startPages]
@@ -69,20 +70,20 @@ export const buildPaginationRange = (
 
 export const PaginationProps = Schema.Struct({
   label: Schema.optional(Schema.String),
-  page: Schema.Number,
-  totalPages: Schema.Number,
-  siblingCount: Schema.optional(Schema.Number),
-  boundaryCount: Schema.optional(Schema.Number)
+  page: Schema.Finite,
+  totalPages: Schema.Finite,
+  siblingCount: Schema.optional(Schema.Finite),
+  boundaryCount: Schema.optional(Schema.Finite)
 })
 export type PaginationProps = typeof PaginationProps.Type
 
 export const PaginationEvents = UiSchema.TaggedEnum({
-  PageChanged: { page: Schema.Number }
+  PageChanged: { page: Schema.Finite }
 })
 export type PaginationEvents = typeof PaginationEvents.Type
 
 const PaginationMsg = UiSchema.TaggedEnum({
-  GoTo: { page: Schema.Number }
+  GoTo: { page: Schema.Finite }
 })
 
 /**

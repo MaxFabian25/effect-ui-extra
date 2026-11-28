@@ -9,7 +9,7 @@ import {
 } from "../../src/page/index.js"
 
 const makeLayer = (options?: Parameters<typeof pageHistoryLayer>[0]) =>
-  pageHistoryLayer(options).pipe(Layer.provideMerge(pageObserverLayer()))
+  pageHistoryLayer(options).pipe(Layer.provideMerge(pageObserverLayer))
 
 describe("PageObserver and PageHistory (coalesced Undo/Redo, redaction, and undoAgent)", () => {
   it("coalesces drag steps into one committed change and drops no-op drags", () =>
@@ -76,7 +76,7 @@ describe("PageObserver and PageHistory (coalesced Undo/Redo, redaction, and undo
           expect(log[0]?.previous).toBe(20)
           expect(log[0]?.value).toBe(65)
         })
-      ).pipe(Effect.provide(pageObserverLayer()))
+      ).pipe(Effect.provide(pageObserverLayer))
     ))
 
   it("supports coalesced undo/redo, checkpoints, branching after seek, and never re-records history changes", () =>

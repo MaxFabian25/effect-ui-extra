@@ -1,3 +1,4 @@
+import { Match } from "effect"
 import { findSnapIndex, rubberBand } from "./kinematics.js"
 
 export interface CarouselConfig {
@@ -109,72 +110,67 @@ export const reduceCarousel = (
           index: clampIndex(state.index, pageCount, false)
         }
 
-  switch (event._tag) {
-    case "Next":
-      return {
+  return Match.value(event).pipe(
+    Match.tagsExhaustive({
+      Next: () => ({
         ...base,
         index: clampIndex(base.index + 1, pageCount, loop),
         dragOffsetPx: 0
-      }
-    case "Previous":
-      return {
+      }),
+      Previous: () => ({
         ...base,
         index: clampIndex(base.index - 1, pageCount, loop),
         dragOffsetPx: 0
-      }
-    case "GoTo":
-      return {
+      }),
+      GoTo: (ev) => ({
         ...base,
-        index: clampIndex(event.index, pageCount, loop),
+        index: clampIndex(ev.index, pageCount, loop),
         dragOffsetPx: 0
-      }
-    case "DragStart":
-      return { ...base, dragging: true, dragOffsetPx: 0 }
-    case "DragMove": {
-      if (!base.dragging || pageCount <= 1) return base
-      const vp = Math.max(1, event.viewportPx)
-      const currentPos = base.index * vp
-      const rawPos = currentPos - event.deltaPx
-      const maxPos = (pageCount - 1) * vp
-      const damped = loop
-        ? rawPos
-        : rubberBand(rawPos, 0, maxPos, vp * 0.5)
-      return {
-        ...base,
-        dragOffsetPx: currentPos - damped
-      }
-    }
-    case "DragEnd": {
-      if (!base.dragging) return base
-      if (pageCount <= 1) {
-        return { ...base, dragging: false, dragOffsetPx: 0 }
-      }
-      const vp = Math.max(1, event.viewportPx)
-      const currentPos = base.index * vp - base.dragOffsetPx
-      const snaps = Array.from({ length: pageCount }, (_, i) => i * vp)
-      // Negating drag velocity maps leftward flick (< 0) to positive forward scroll
-      const nextIdx = findSnapIndex(currentPos, -event.velocityPxPerSec, snaps)
-      return {
-        ...base,
-        dragging: false,
-        dragOffsetPx: 0,
-        index: clampIndex(nextIdx, pageCount, loop)
-      }
-    }
-    case "DragCancel":
-      if (!base.dragging) return base
-      return { ...base, dragging: false, dragOffsetPx: 0 }
-    case "SetHovered":
-      return { ...base, hovered: event.hovered }
-    case "SetFocused":
-      return { ...base, focused: event.focused }
-    case "TogglePause":
-      return { ...base, pausedByUser: !base.pausedByUser }
-    case "AutoplayTick":
-      if (!isCarouselAutoplayActive(base, config)) return base
-      return {
-        ...base,
-        index: clampIndex(base.index + 1, pageCount, true)
-      }
-  }
+      }),
+      DragStart: () => ({ ...base, dragging: true, dragOffsetPx: 0 }),
+      DragMove: (ev) => {
+        if (!base.dragging || pageCount <= 1) return base
+        const vp = Math.max(1, ev.viewportPx)
+        const currentPos = base.index * vp
+        const rawPos = currentPos - ev.deltaPx
+        const maxPos = (pageCount - 1) * vp
+        const damped = loop
+          ? rawPos
+          : rubberBand(rawPos, 0, maxPos, vp * 0.5)
+        return {
+          ...base,
+          dragOffsetPx: currentPos - damped
+        }
+      },
+      DragEnd: (ev) => {
+        if (!base.dragging) return base
+        if (pageCount <= 1) {
+          return { ...base, dragging: false, dragOffsetPx: 0 }
+        }
+        const vp = Math.max(1, ev.viewportPx)
+        const currentPos = base.index * vp - base.dragOffsetPx
+        const snaps = Array.from({ length: pageCount }, (_, i) => i * vp)
+        // Negating drag velocity maps leftward flick (< 0) to positive forward scroll
+        const nextIdx = findSnapIndex(currentPos, -ev.velocityPxPerSec, snaps)
+        return {
+          ...base,
+          dragging: false,
+          dragOffsetPx: 0,
+          index: clampIndex(nextIdx, pageCount, loop)
+        }
+      },
+      DragCancel: () =>
+        !base.dragging ? base : { ...base, dragging: false, dragOffsetPx: 0 },
+      SetHovered: (ev) => ({ ...base, hovered: ev.hovered }),
+      SetFocused: (ev) => ({ ...base, focused: ev.focused }),
+      TogglePause: () => ({ ...base, pausedByUser: !base.pausedByUser }),
+      AutoplayTick: () =>
+        !isCarouselAutoplayActive(base, config)
+          ? base
+          : {
+              ...base,
+              index: clampIndex(base.index + 1, pageCount, true)
+            }
+    })
+  )
 }

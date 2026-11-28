@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test"
+import * as Data from "effect/Data"
 import {
   computeSafePolygon,
   createVelocityTracker,
@@ -17,6 +18,10 @@ import {
   solveSpring,
   springLinearEasing
 } from "../../src/motion/index.js"
+import type { PresenceEvent, SheetEvent } from "../../src/motion/index.js"
+
+const SheetEv = Data.taggedEnum<SheetEvent>()
+const PresenceEv = Data.taggedEnum<PresenceEvent>()
 
 describe("Analytical spring physics and CSS linear() easing", () => {
   test("underdamped spring overshoots target then settles cleanly at target", () => {
@@ -118,24 +123,24 @@ describe("Draggable Sheet state machine and Presence lifecycle", () => {
     let s = initialSheetState(cfg)
     expect(s.phase).toBe("closed")
 
-    s = reduceSheet(s, { _tag: "Open", snapIndex: 0 }, cfg)
+    s = reduceSheet(s, SheetEv.Open({ snapIndex: 0 }), cfg)
     expect(s).toEqual({ phase: "snapping", position: 240, snapIndex: 0, velocity: 0 })
-    s = reduceSheet(s, { _tag: "Settled" }, cfg)
+    s = reduceSheet(s, SheetEv.Settled(), cfg)
     expect(s.phase).toBe("open")
     expect(sheetBackdropProgress(s.position, 560)).toBeCloseTo(240 / 560, 4)
 
     // Drag up past max -> rubber-band damps overshoot
-    s = reduceSheet(s, { _tag: "DragStart" }, cfg)
-    s = reduceSheet(s, { _tag: "DragMove", delta: 400, velocity: 1200 }, cfg)
+    s = reduceSheet(s, SheetEv.DragStart({}), cfg)
+    s = reduceSheet(s, SheetEv.DragMove({ delta: 400, velocity: 1200 }), cfg)
     expect(s.position).toBeGreaterThan(560)
     expect(s.position).toBeLessThan(640)
 
     // Flick strongly downward to dismiss
-    s = reduceSheet(s, { _tag: "DragMove", delta: -450, velocity: -2500 }, cfg)
-    s = reduceSheet(s, { _tag: "DragEnd", velocity: -2500 }, cfg)
+    s = reduceSheet(s, SheetEv.DragMove({ delta: -450, velocity: -2500 }), cfg)
+    s = reduceSheet(s, SheetEv.DragEnd({ velocity: -2500 }), cfg)
     expect(s.snapIndex).toBe(-1)
     expect(s.position).toBe(0)
-    s = reduceSheet(s, { _tag: "Settled" }, cfg)
+    s = reduceSheet(s, SheetEv.Settled(), cfg)
     expect(s.phase).toBe("closed")
   })
 
@@ -143,53 +148,59 @@ describe("Draggable Sheet state machine and Presence lifecycle", () => {
     let p = initialPresenceState(false)
     expect(p).toEqual({ phase: "unmounted", mounted: false, dataState: "closed" })
 
-    p = reducePresence(p, { _tag: "SetOpen", open: true })
+    p = reducePresence(p, PresenceEv.SetOpen({ open: true }))
     expect(p).toEqual({ phase: "entering", mounted: true, dataState: "closed" })
 
-    p = reducePresence(p, { _tag: "EnterFrame" })
+    p = reducePresence(p, PresenceEv.EnterFrame())
     expect(p).toEqual({ phase: "open", mounted: true, dataState: "open" })
 
-    p = reducePresence(p, { _tag: "SetOpen", open: false })
+    p = reducePresence(p, PresenceEv.SetOpen({ open: false }))
     expect(p).toEqual({ phase: "exiting", mounted: true, dataState: "closed" })
 
-    p = reducePresence(p, { _tag: "AnimationEnd" })
+    p = reducePresence(p, PresenceEv.AnimationEnd())
     expect(p).toEqual({ phase: "unmounted", mounted: false, dataState: "closed" })
 
     // Reduced motion jumps straight to open and unmounted by default
-    p = reducePresence(p, { _tag: "SetOpen", open: true, reducedMotion: true })
+    p = reducePresence(p, PresenceEv.SetOpen({ open: true, reducedMotion: true }))
     expect(p).toEqual({ phase: "open", mounted: true, dataState: "open" })
-    p = reducePresence(p, { _tag: "SetOpen", open: false, reducedMotion: true })
+    p = reducePresence(p, PresenceEv.SetOpen({ open: false, reducedMotion: true }))
     expect(p).toEqual({ phase: "unmounted", mounted: false, dataState: "closed" })
 
     // Opt-in fade mode preserves enter/exit phases for gentle opacity fades
-    p = reducePresence(p, { _tag: "SetOpen", open: true, reducedMotion: true, reducedMotionMode: "fade" })
+    p = reducePresence(
+      p,
+      PresenceEv.SetOpen({ open: true, reducedMotion: true, reducedMotionMode: "fade" })
+    )
     expect(p).toEqual({ phase: "entering", mounted: true, dataState: "closed" })
-    p = reducePresence(p, { _tag: "EnterFrame" })
-    p = reducePresence(p, { _tag: "SetOpen", open: false, reducedMotion: true, reducedMotionMode: "fade" })
+    p = reducePresence(p, PresenceEv.EnterFrame())
+    p = reducePresence(
+      p,
+      PresenceEv.SetOpen({ open: false, reducedMotion: true, reducedMotionMode: "fade" })
+    )
     expect(p).toEqual({ phase: "exiting", mounted: true, dataState: "closed" })
   })
 
   test("reduceSheet accumulates undamped rawPosition across drag frames without compounding rubberBand", () => {
     const cfg = { snapPoints: [240, 560], dismissible: true, resistance: 220 }
-    let single = reduceSheet(initialSheetState(cfg, 1), { _tag: "DragStart" }, cfg)
-    single = reduceSheet(single, { _tag: "DragMove", delta: 100, velocity: 400 }, cfg)
+    let single = reduceSheet(initialSheetState(cfg, 1), SheetEv.DragStart({}), cfg)
+    single = reduceSheet(single, SheetEv.DragMove({ delta: 100, velocity: 400 }), cfg)
 
-    let multi = reduceSheet(initialSheetState(cfg, 1), { _tag: "DragStart" }, cfg)
+    let multi = reduceSheet(initialSheetState(cfg, 1), SheetEv.DragStart({}), cfg)
     for (let i = 0; i < 100; i++) {
-      multi = reduceSheet(multi, { _tag: "DragMove", delta: 1, velocity: 400 }, cfg)
+      multi = reduceSheet(multi, SheetEv.DragMove({ delta: 1, velocity: 400 }), cfg)
     }
     expect(multi.position).toBeCloseTo(single.position, 6)
 
     // DragMove outside dragging phase is ignored; DragStart accepts live currentPosition
     const open = initialSheetState(cfg, 0)
-    expect(reduceSheet(open, { _tag: "DragMove", delta: 50, velocity: 100 }, cfg)).toEqual(open)
-    const caught = reduceSheet(open, { _tag: "DragStart", currentPosition: 310 }, cfg)
+    expect(reduceSheet(open, SheetEv.DragMove({ delta: 50, velocity: 100 }), cfg)).toEqual(open)
+    const caught = reduceSheet(open, SheetEv.DragStart({ currentPosition: 310 }), cfg)
     expect(caught.position).toBe(310)
     expect(caught.rawPosition).toBe(310)
 
     // DragCancel aborts drag cleanly with zero velocity back to pre-drag snapIndex
-    const moved = reduceSheet(caught, { _tag: "DragMove", delta: -120, velocity: -900 }, cfg)
-    const cancelled = reduceSheet(moved, { _tag: "DragCancel" }, cfg)
+    const moved = reduceSheet(caught, SheetEv.DragMove({ delta: -120, velocity: -900 }), cfg)
+    const cancelled = reduceSheet(moved, SheetEv.DragCancel(), cfg)
     expect(cancelled).toEqual({ phase: "snapping", position: 240, snapIndex: 0, velocity: 0 })
   })
 })

@@ -78,7 +78,7 @@ const isHiddenOrInert = (el: HTMLElement): boolean => {
 /** Returns `true` when `el` is keyboard-reachable via Tab in its current DOM state. */
 export const isTabbable = (el: HTMLElement): boolean => {
   if (isHiddenOrInert(el)) return false
-  if ((el as HTMLButtonElement).disabled === true || isDisabledByFieldset(el)) return false
+  if (("disabled" in el && el.disabled === true) || isDisabledByFieldset(el)) return false
   const tabIndexAttr = el.getAttribute("tabindex")
   if (tabIndexAttr !== null) {
     const parsed = Number.parseInt(tabIndexAttr, 10)
@@ -87,7 +87,7 @@ export const isTabbable = (el: HTMLElement): boolean => {
   }
   const tag = el.tagName.toLowerCase()
   if (tag === "a" || tag === "area") return el.hasAttribute("href")
-  if (tag === "input") return (el as HTMLInputElement).type !== "hidden"
+  if (tag === "input") return el.getAttribute("type")?.toLowerCase() !== "hidden"
   if (tag === "button" || tag === "select" || tag === "textarea" || tag === "iframe") return true
   if (tag === "summary") return el.parentElement?.tagName.toLowerCase() === "details"
   return el.getAttribute("contenteditable") !== null && el.getAttribute("contenteditable") !== "false"
@@ -99,7 +99,7 @@ export const isTabbable = (el: HTMLElement): boolean => {
  * tabbable elements).
  */
 export const getTabbables = (root: ParentNode): ReadonlyArray<HTMLElement> => {
-  const candidates = Array.from(root.querySelectorAll(TABBABLE_SELECTOR)) as Array<HTMLElement>
+  const candidates = Array.from(root.querySelectorAll<HTMLElement>(TABBABLE_SELECTOR))
   const valid = candidates.filter(isTabbable)
   const positive: Array<{ readonly el: HTMLElement; readonly idx: number; readonly order: number }> = []
   const regular: Array<HTMLElement> = []
@@ -126,15 +126,17 @@ export const findNextTabbable = (
   options?: { readonly wrap?: boolean | undefined }
 ): HTMLElement | null => {
   const list = getTabbables(root)
-  if (list.length === 0) return null
-  if (current === null) return direction === "next" ? list[0]! : list[list.length - 1]!
+  const first = list[0]
+  const last = list[list.length - 1]
+  if (first === undefined || last === undefined) return null
+  if (current === null) return direction === "next" ? first : last
   const idx = list.indexOf(current)
-  if (idx === -1) return direction === "next" ? list[0]! : list[list.length - 1]!
+  if (idx === -1) return direction === "next" ? first : last
   const delta = direction === "next" ? 1 : -1
   const rawNext = idx + delta
-  if (rawNext >= 0 && rawNext < list.length) return list[rawNext]!
+  if (rawNext >= 0 && rawNext < list.length) return list[rawNext] ?? null
   if (options?.wrap === true) {
-    return list[(rawNext + list.length) % list.length]!
+    return list[(rawNext + list.length) % list.length] ?? null
   }
   return null
 }
@@ -149,7 +151,10 @@ export const preserveFocusAcrossUpdate = (
   mutate: () => void,
   resolveTarget?: () => HTMLElement | null
 ): boolean => {
-  const prev = doc.activeElement as HTMLElement | null
+  const prev =
+    typeof HTMLElement !== "undefined" && doc.activeElement instanceof HTMLElement
+      ? doc.activeElement
+      : null
   mutate()
   const target = resolveTarget !== undefined ? resolveTarget() : prev
   if (target !== null && doc.contains(target) && doc.activeElement !== target) {

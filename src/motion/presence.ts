@@ -1,3 +1,5 @@
+import { Match } from "effect"
+
 export type PresencePhase =
   | "unmounted"
   | "entering"
@@ -36,31 +38,32 @@ export const initialPresenceState = (open: boolean): PresenceState => ({
 export const reducePresence = (
   state: PresenceState,
   event: PresenceEvent
-): PresenceState => {
-  switch (event._tag) {
-    case "SetOpen": {
-      const skipPhases =
-        event.reducedMotion === true && event.reducedMotionMode !== "fade"
-      if (event.open) {
-        if (state.phase === "open") return state
-        if (skipPhases) {
-          return { phase: "open", mounted: true, dataState: "open" }
+): PresenceState =>
+  Match.value(event).pipe(
+    Match.tagsExhaustive({
+      SetOpen: (ev) => {
+        const skipPhases =
+          ev.reducedMotion === true && ev.reducedMotionMode !== "fade"
+        if (ev.open) {
+          if (state.phase === "open") return state
+          if (skipPhases) {
+            return { phase: "open" as const, mounted: true, dataState: "open" as const }
+          }
+          return { phase: "entering" as const, mounted: true, dataState: "closed" as const }
         }
-        return { phase: "entering", mounted: true, dataState: "closed" }
-      }
-      if (state.phase === "unmounted") return state
-      if (skipPhases) {
-        return { phase: "unmounted", mounted: false, dataState: "closed" }
-      }
-      return { phase: "exiting", mounted: true, dataState: "closed" }
-    }
-    case "EnterFrame":
-      return state.phase === "entering"
-        ? { phase: "open", mounted: true, dataState: "open" }
-        : state
-    case "AnimationEnd":
-      return state.phase === "exiting"
-        ? { phase: "unmounted", mounted: false, dataState: "closed" }
-        : state
-  }
-}
+        if (state.phase === "unmounted") return state
+        if (skipPhases) {
+          return { phase: "unmounted" as const, mounted: false, dataState: "closed" as const }
+        }
+        return { phase: "exiting" as const, mounted: true, dataState: "closed" as const }
+      },
+      EnterFrame: () =>
+        state.phase === "entering"
+          ? { phase: "open" as const, mounted: true, dataState: "open" as const }
+          : state,
+      AnimationEnd: () =>
+        state.phase === "exiting"
+          ? { phase: "unmounted" as const, mounted: false, dataState: "closed" as const }
+          : state
+    })
+  )

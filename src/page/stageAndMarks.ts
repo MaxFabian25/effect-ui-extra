@@ -58,7 +58,8 @@ export const createHistoryStage = (): HistoryStage => {
       const count = buffer.length
       if (onRevert !== undefined) {
         for (let i = buffer.length - 1; i >= 0; i--) {
-          onRevert(buffer[i]!)
+          const item = buffer[i]
+          if (item !== undefined) onRevert(item)
         }
       }
       buffer = []

@@ -6,7 +6,7 @@ Version: `0.5.1` (generated from `src/` via `bun run gen:docs`; read `llms.txt` 
 
 1. **Import by subpath.** Prefer `effect-ui-extra/widgets`, `effect-ui-extra/page`, `effect-ui-extra/a11y`, `effect-ui-extra/direct`, `effect-ui-extra/theme`, `effect-ui-extra/theme/effect-ui.css`, and `effect-ui-extra/motion` over the root barrel so unused modules stay out of client bundles.
 2. **Pair zero-FOUC theme persistence with the layered stylesheet.** Inline `preferencesScript()` from `effect-ui-extra/page` in SSR `<head>` and import `effect-ui-extra/theme/effect-ui.css`; both coordinate on `:root[data-color-scheme="light"|"dark"]`.
-3. **Run all four built-in audits in UI tests.** Under `bun test` with `TestHost.layer()`, `A11yFocus.layer()`, and `TestClock.layer()`:
+3. **Run all four built-in audits in UI tests.** Under `bun test` with `TestHost.layer()`, `A11yFocus.layer`, and `TestClock.layer()`:
    - `checkPattern(play, pattern)` and `checkDirection(...)` from `effect-ui-extra/a11y`
    - `checkAccessibleNames(play)` from `effect-ui-extra/a11y`
    - `checkServer(Component, props)` from `effect-ui-extra/page`

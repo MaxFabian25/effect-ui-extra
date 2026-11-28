@@ -5,13 +5,13 @@ import * as Schema from "effect/Schema"
 
 export const CropRectSchema = Schema.Struct({
   /** Normalized `[0, 1]` left offset within the source image. */
-  x: Schema.Number,
+  x: Schema.Finite,
   /** Normalized `[0, 1]` top offset within the source image. */
-  y: Schema.Number,
+  y: Schema.Finite,
   /** Normalized `(0, 1]` crop width within the source image. */
-  width: Schema.Number,
+  width: Schema.Finite,
   /** Normalized `(0, 1]` crop height within the source image. */
-  height: Schema.Number
+  height: Schema.Finite
 })
 export type CropRect = typeof CropRectSchema.Type
 
@@ -134,13 +134,13 @@ export const ImageCropperProps = Schema.Struct({
   label: Schema.String,
   src: Schema.String,
   alt: Schema.String,
-  imageWidth: Schema.Number,
-  imageHeight: Schema.Number,
+  imageWidth: Schema.Finite,
+  imageHeight: Schema.Finite,
   crop: Schema.optional(CropRectSchema),
-  aspectRatio: Schema.optional(Schema.Number),
-  step: Schema.optional(Schema.Number),
-  minWidth: Schema.optional(Schema.Number),
-  minHeight: Schema.optional(Schema.Number),
+  aspectRatio: Schema.optional(Schema.Finite),
+  step: Schema.optional(Schema.Finite),
+  minWidth: Schema.optional(Schema.Finite),
+  minHeight: Schema.optional(Schema.Finite),
   idPrefix: Schema.optional(Schema.String)
 })
 export type ImageCropperProps = typeof ImageCropperProps.Type
@@ -151,12 +151,12 @@ export const ImageCropperEvents = UiSchema.TaggedEnum({
 export type ImageCropperEvents = typeof ImageCropperEvents.Type
 
 const CropperDragSchema = Schema.Struct({
-  pointerId: Schema.Number,
-  startX: Schema.Number,
-  startY: Schema.Number,
+  pointerId: Schema.Finite,
+  startX: Schema.Finite,
+  startY: Schema.Finite,
   startCrop: CropRectSchema,
-  width: Schema.Number,
-  height: Schema.Number
+  width: Schema.Finite,
+  height: Schema.Finite
 })
 
 const ImageCropperModel = Schema.Struct({
@@ -165,14 +165,14 @@ const ImageCropperModel = Schema.Struct({
 })
 
 const ImageCropperMsg = UiSchema.TaggedEnum({
-  Move: { dx: Schema.Number, dy: Schema.Number },
-  Resize: { dw: Schema.Number, dh: Schema.Number },
-  Zoom: { factor: Schema.Number },
+  Move: { dx: Schema.Finite, dy: Schema.Finite },
+  Resize: { dw: Schema.Finite, dh: Schema.Finite },
+  Zoom: { factor: Schema.Finite },
   Reset: {},
-  DragStart: { pointerId: Schema.Number, x: Schema.Number, y: Schema.Number },
-  ContainerMeasured: { width: Schema.Number, height: Schema.Number },
-  DragMove: { pointerId: Schema.Number, x: Schema.Number, y: Schema.Number },
-  DragEnd: { pointerId: Schema.optional(Schema.Number) }
+  DragStart: { pointerId: Schema.Finite, x: Schema.Finite, y: Schema.Finite },
+  ContainerMeasured: { width: Schema.Finite, height: Schema.Finite },
+  DragMove: { pointerId: Schema.Finite, x: Schema.Finite, y: Schema.Finite },
+  DragEnd: { pointerId: Schema.optional(Schema.Finite) }
 })
 
 const containerRef = Html.ref("ImageCropperRoot", "div")

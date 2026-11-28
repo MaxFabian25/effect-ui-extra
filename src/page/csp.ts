@@ -2,7 +2,8 @@ import * as Context from "effect/Context"
 import * as Effect from "effect/Effect"
 import * as Layer from "effect/Layer"
 import * as Option from "effect/Option"
-import { type PreferenceSpec, preferencesScript } from "./preferences.js"
+import { preferencesScript } from './preferences.js';
+import type { PreferenceSpec } from './preferences.js';
 
 export interface CspConfig {
   /** Nonce applied to inline `<script>` and `<style>` elements. */

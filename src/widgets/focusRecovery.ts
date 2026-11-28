@@ -50,12 +50,12 @@ export const recoverFocusKey = <K extends string>({
   const oldIdx = previousOrder.indexOf(lostKey)
   if (oldIdx !== -1) {
     for (let i = oldIdx + 1; i < previousOrder.length; i++) {
-      const candidate = previousOrder[i]!
-      if (nextSet.has(candidate)) return candidate
+      const candidate = previousOrder[i]
+      if (candidate !== undefined && nextSet.has(candidate)) return candidate
     }
     for (let i = oldIdx - 1; i >= 0; i--) {
-      const candidate = previousOrder[i]!
-      if (nextSet.has(candidate)) return candidate
+      const candidate = previousOrder[i]
+      if (candidate !== undefined && nextSet.has(candidate)) return candidate
     }
   }
 

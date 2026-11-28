@@ -1,14 +1,8 @@
 import * as Effect from "effect/Effect"
 import type { Scope } from "effect/Scope"
 import { auditPattern } from "./checkPattern.js"
-import {
-  type A11yTarget,
-  type ApgPattern,
-  type CheckPatternOptions,
-  type Direction,
-  type PatternViolation,
-  PatternViolationError
-} from "./types.js"
+import { PatternViolationError } from './types.js';
+import type { A11yTarget, ApgPattern, CheckPatternOptions, Direction, PatternViolation } from './types.js';
 
 export type DirectionAuditResult = {
   readonly ltr: ReadonlyArray<PatternViolation>
@@ -57,8 +51,6 @@ export const checkDirection = <E, R>(
       ...rtl.map((v) => ({ ...v, rule: `rtl:${v.rule}` }))
     ]
     if (tagged.length > 0) {
-      return yield* Effect.fail(
-        new PatternViolationError({ pattern, violations: tagged })
-      )
+      return yield* new PatternViolationError({ pattern, violations: tagged })
     }
   })

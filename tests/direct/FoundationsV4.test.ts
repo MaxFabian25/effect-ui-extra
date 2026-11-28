@@ -119,7 +119,8 @@ describe("CLDR firstDayOfWeek and PlainDate math", () => {
     expect(firstDayOfWeek("dv-MV")).toBe(5)
     expect(firstDayOfWeek("en-US-u-fw-mon")).toBe(1)
 
-    const d = parsePlainDate("2026-02-28")!
+    const d = parsePlainDate("2026-02-28")
+    if (d === undefined) throw new Error("expected valid PlainDate")
     expect(d).toEqual({ year: 2026, month: 2, day: 28 })
     expect(parsePlainDate("2026-02-29")).toBeUndefined() // 2026 is not a leap year
     const next = addDays(d, 1)

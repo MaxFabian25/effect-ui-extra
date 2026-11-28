@@ -51,8 +51,8 @@ export const computeListboxRange = (
   const hi = Math.max(aIdx, tIdx)
   const out: Array<string> = []
   for (let i = lo; i <= hi; i++) {
-    const item = items[i]!
-    if (!item.disabled) out.push(item.value)
+    const item = items[i]
+    if (item !== undefined && !item.disabled) out.push(item.value)
   }
   return out
 }
@@ -227,24 +227,28 @@ export const Listbox = Html.component({
                   return ListboxMsg.SelectedAll()
                 }
                 const idx = enabled.indexOf(item.value)
-                if (idx === -1) return undefined
+                const firstEnabled = enabled[0]
+                const lastEnabled = enabled[enabled.length - 1]
+                if (idx === -1 || firstEnabled === undefined || lastEnabled === undefined) {
+                  return undefined
+                }
                 if (key === "ArrowDown") {
-                  const next = enabled[Math.min(enabled.length - 1, idx + 1)]!
+                  const next = enabled[Math.min(enabled.length - 1, idx + 1)] ?? lastEnabled
                   return ListboxMsg.MovedFocus({ value: next, selectRange: shift })
                 }
                 if (key === "ArrowUp") {
-                  const prev = enabled[Math.max(0, idx - 1)]!
+                  const prev = enabled[Math.max(0, idx - 1)] ?? firstEnabled
                   return ListboxMsg.MovedFocus({ value: prev, selectRange: shift })
                 }
                 if (key === "Home") {
                   return ListboxMsg.MovedFocus({
-                    value: enabled[0]!,
+                    value: firstEnabled,
                     selectRange: shift
                   })
                 }
                 if (key === "End") {
                   return ListboxMsg.MovedFocus({
-                    value: enabled[enabled.length - 1]!,
+                    value: lastEnabled,
                     selectRange: shift
                   })
                 }

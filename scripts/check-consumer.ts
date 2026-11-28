@@ -10,8 +10,13 @@ import {
 } from "node:fs"
 import { tmpdir } from "node:os"
 import { join, resolve } from "node:path"
+import { Schema } from "effect"
 
 const ROOT = resolve(import.meta.dir, "..")
+const PackageJsonSchema = Schema.Record(Schema.String, Schema.Unknown)
+const PublishConfigSchema = Schema.Struct({
+  exports: Schema.optional(Schema.Unknown)
+})
 const tmpBase = mkdtempSync(join(tmpdir(), "effect-ui-extra-consumer-"))
 
 const run = (cmd: ReadonlyArray<string>, cwd: string) => {
@@ -44,11 +49,9 @@ try {
       }
     }
 
-    const rawPkg = JSON.parse(readFileSync(resolve(ROOT, "package.json"), "utf8")) as {
-      exports: unknown
-      publishConfig?: { exports?: unknown }
-      [key: string]: unknown
-    }
+    const rawPkg = Schema.decodeUnknownSync(PackageJsonSchema)(
+      JSON.parse(readFileSync(resolve(ROOT, "package.json"), "utf8"))
+    )
 
     if (mode === "git-source") {
       // Simulate github: install where dist/ is absent
@@ -62,9 +65,13 @@ try {
       }
       cpSync(resolve(ROOT, "dist"), join(pkgDir, "dist"), { recursive: true })
       cpSync(resolve(ROOT, "styles"), join(pkgDir, "styles"), { recursive: true })
+      const publishConfig =
+        rawPkg["publishConfig"] !== undefined
+          ? Schema.decodeUnknownSync(PublishConfigSchema)(rawPkg["publishConfig"])
+          : undefined
       const publishedPkg = {
         ...rawPkg,
-        exports: rawPkg.publishConfig?.exports ?? rawPkg.exports
+        exports: publishConfig?.exports ?? rawPkg["exports"]
       }
       writeFileSync(join(pkgDir, "package.json"), JSON.stringify(publishedPkg, null, 2))
     }
@@ -82,6 +89,7 @@ try {
             module: "NodeNext",
             moduleResolution: "NodeNext",
             lib: ["ES2022", "DOM"],
+            types: ["bun"],
             strict: true,
             exactOptionalPropertyTypes: true,
             noUncheckedIndexedAccess: true,

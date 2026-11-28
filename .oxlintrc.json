@@ -1,0 +1,80 @@
+{
+  "$schema": "./node_modules/@effect/tsgo/oxlint-schema.json",
+  "extends": [
+    "./node_modules/@effect/tsgo/oxlint-presets/recommended.json"
+  ],
+  "plugins": [
+    "eslint",
+    "typescript",
+    "unicorn",
+    "oxc",
+    "import",
+    "promise"
+  ],
+  "jsPlugins": [
+    {
+      "name": "anti-slop",
+      "specifier": "./tools/oxlint/anti-slop/index.ts"
+    }
+  ],
+  "categories": {
+    "correctness": "error"
+  },
+  "options": {
+    "typeAware": true,
+    "denyWarnings": true,
+    "reportUnusedDisableDirectives": "error"
+  },
+  "ignorePatterns": [
+    "dist/**",
+    "tools/oxlint/anti-slop/**"
+  ],
+  "overrides": [
+    {
+      "files": ["**/*.{js,jsx,mjs,cjs}"],
+      "rules": {
+        "typescript/no-unsafe-argument": "off",
+        "typescript/no-unsafe-assignment": "off",
+        "typescript/no-unsafe-call": "off",
+        "typescript/no-unsafe-member-access": "off",
+        "typescript/no-unsafe-return": "off",
+        "typescript/no-unsafe-type-assertion": "off",
+        "typescript/use-unknown-in-catch-callback-variable": "off"
+      }
+    }
+  ],
+  "rules": {
+    "effecttsgo/experimental-api-usage": "off",
+    "effecttsgo/unstable-api-usage": "off",
+    "eqeqeq": "error",
+    "import/no-self-import": "error",
+    "import/consistent-type-specifier-style": ["error", "prefer-top-level"],
+    "no-eval": "error",
+    "no-promise-executor-return": "error",
+    "oxc/no-accumulating-spread": "error",
+    "typescript/consistent-type-imports": "error",
+    "typescript/no-confusing-non-null-assertion": "error",
+    "typescript/no-floating-promises": "error",
+    "typescript/no-misused-promises": "error",
+    "typescript/no-non-null-assertion": "error",
+    "typescript/no-unnecessary-type-assertion": "error",
+    "typescript/no-unsafe-argument": "error",
+    "typescript/no-unsafe-assignment": "error",
+    "typescript/no-unsafe-call": "error",
+    "typescript/no-unsafe-member-access": "error",
+    "typescript/no-unsafe-return": "error",
+    "typescript/no-unsafe-type-assertion": "error",
+    "typescript/only-throw-error": "error",
+    "typescript/switch-exhaustiveness-check": "error",
+    "typescript/unbound-method": "error",
+    "typescript/use-unknown-in-catch-callback-variable": "error",
+    "unicorn/prefer-set-has": "error",
+    "anti-slop/no-chained-type-assertions": "error",
+    "anti-slop/require-safety-comment-for-type-assertion": "error",
+    "anti-slop/no-manual-effect-error-tag": "error",
+    "anti-slop/no-manual-tag-comparison": "error",
+    "anti-slop/no-manual-tagged-construction": "error",
+    "anti-slop/no-service-constructor-imports": "error",
+    "anti-slop/prefer-effect-match": "error"
+  }
+}

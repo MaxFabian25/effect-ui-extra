@@ -1,8 +1,10 @@
 import { createInterface } from "node:readline"
+import { Schema } from "effect"
 import { getRegistryItem, listRegistryItems, resolveRegistryTree } from "./catalog.js"
 import { formatItemDocs } from "./cli.js"
 import { encodePresetCode, listVisualPresets } from "./presets.js"
-import { decodePresetSpec, type RegistryCategory } from "./schema.js"
+import { decodePresetSpec, RegistryCategorySchema } from "./schema.js"
+import type { RegistryCategory } from "./schema.js"
 
 export interface JsonRpcRequest {
   readonly jsonrpc?: string | undefined
@@ -132,30 +134,45 @@ const textResult = (payload: unknown, isError = false) => ({
   ...(isError ? { isError: true } : {})
 })
 
-const VALID_CATEGORIES: ReadonlySet<string> = new Set([
-  "primitives",
-  "layout",
-  "data",
-  "ai",
-  "blocks"
-])
-
 const readStringArray = (value: unknown): ReadonlyArray<string> | undefined => {
   if (!Array.isArray(value)) return undefined
   if (!value.every((v) => typeof v === "string")) return undefined
   return value
 }
 
+const isRegistryCategory = Schema.is(RegistryCategorySchema)
+
+const isPlainRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null && !Array.isArray(value)
+
+const parseJsonRpcRequest = (raw: unknown): JsonRpcRequest | undefined => {
+  if (!isPlainRecord(raw)) return undefined
+  if (typeof raw["method"] !== "string") return undefined
+  const rawId = raw["id"]
+  const id =
+    rawId === null || typeof rawId === "string" || typeof rawId === "number"
+      ? rawId
+      : undefined
+  const rawParams = raw["params"]
+  const params = isPlainRecord(rawParams) ? rawParams : undefined
+  const jsonrpc = typeof raw["jsonrpc"] === "string" ? raw["jsonrpc"] : undefined
+  return { jsonrpc, id, method: raw["method"], params }
+}
+
 const callTool = (name: string, args: Record<string, unknown>) => {
   switch (name) {
     case "list_items": {
       const rawCat = typeof args.category === "string" ? args.category : undefined
-      if (rawCat !== undefined && !VALID_CATEGORIES.has(rawCat)) {
-        return textResult({ error: `Invalid category: ${rawCat}` }, true)
+      let category: RegistryCategory | undefined
+      if (rawCat !== undefined) {
+        if (!isRegistryCategory(rawCat)) {
+          return textResult({ error: `Invalid category: ${rawCat}` }, true)
+        }
+        category = rawCat
       }
       const search = typeof args.search === "string" ? args.search : undefined
       const items = listRegistryItems({
-        category: rawCat as RegistryCategory | undefined,
+        category,
         search
       }).map((i) => ({
         name: i.name,
@@ -274,14 +291,14 @@ const callTool = (name: string, args: Record<string, unknown>) => {
  * for notifications that expect no response.
  */
 export const handleMcpRequest = (raw: unknown): JsonRpcResponse | null => {
-  if (typeof raw !== "object" || raw === null || !("method" in raw)) {
+  const req = parseJsonRpcRequest(raw)
+  if (req === undefined) {
     return {
       jsonrpc: "2.0",
       id: null,
       error: { code: -32600, message: "Invalid Request" }
     }
   }
-  const req = raw as JsonRpcRequest
   const id = req.id ?? null
 
   if (req.method === "notifications/initialized") {
@@ -313,10 +330,7 @@ export const handleMcpRequest = (raw: unknown): JsonRpcResponse | null => {
     case "tools/call": {
       const params = req.params ?? {}
       const toolName = typeof params.name === "string" ? params.name : ""
-      const toolArgs =
-        typeof params.arguments === "object" && params.arguments !== null
-          ? (params.arguments as Record<string, unknown>)
-          : {}
+      const toolArgs = isPlainRecord(params.arguments) ? params.arguments : {}
       return {
         jsonrpc: "2.0",
         id,

@@ -1,5 +1,6 @@
 import type { Component, View } from "@effect/ui"
-import { Html, HtmlServer } from "@effect/ui/html"
+import type { BrowserHost, Html } from "@effect/ui/html"
+import { HtmlServer } from "@effect/ui/html"
 import * as Clock from "effect/Clock"
 import * as Data from "effect/Data"
 import * as Duration from "effect/Duration"
@@ -60,19 +61,21 @@ export const auditServer = <
   Model,
   Msg,
   Events,
-  R
+  R,
+  V extends View.Elements = Html.Elements
 >(
-  component: Component.Members<
-    Name,
-    Props,
-    Model,
-    Msg,
-    Events,
-    R,
-    Html.Elements,
-    any,
-    never
-  >,
+  component:
+    & Component.Members<
+      Name,
+      Props,
+      Model,
+      Msg,
+      Events,
+      R,
+      V,
+      any
+    >
+    & BrowserHost.HtmlRoot<V>,
   props: Props,
   options: CheckServerOptions = {}
 ): Effect.Effect<
@@ -81,7 +84,7 @@ export const auditServer = <
     readonly violations: ReadonlyArray<ServerPurityViolation>
   },
   never,
-  R
+  Exclude<R, Html.Host>
 > =>
   Effect.suspend(() => {
     const forbidClock = options.forbidClock ?? true
@@ -106,7 +109,7 @@ export const auditServer = <
       Object.defineProperty(target, key, { configurable: true, ...descriptor })
       restores.push(() => {
         if (original === undefined) {
-          delete (target as Record<string, unknown>)[key]
+          Reflect.deleteProperty(target, key)
         } else {
           Object.defineProperty(target, key, original)
         }
@@ -193,7 +196,7 @@ export const auditServer = <
 
     const restore = Effect.sync(() => {
       for (let i = restores.length - 1; i >= 0; i--) {
-        restores[i]!()
+        restores[i]?.()
       }
     })
 
@@ -201,23 +204,11 @@ export const auditServer = <
       install,
       () =>
         Effect.gen(function*() {
-          const rendered = (yield* (HtmlServer.renderToHtml(
-            component as Component.Members<
-              Name,
-              Props,
-              Model,
-              Msg,
-              Events,
-              R,
-              View.Elements,
-              any,
-              never
-            > & {
-              readonly elements?: Html.Elements
-            } as never,
-            props as never,
+          const rendered = yield* HtmlServer.renderToHtml(
+            component,
+            props,
             options.renderOptions
-          ) as Effect.Effect<HtmlServer.Rendered<Model>, never, R>).pipe(
+          ).pipe(
             Effect.provideService(Clock.Clock, isolatedClock),
             Effect.catchDefect((defect) => {
               record({
@@ -227,9 +218,9 @@ export const auditServer = <
                   defect instanceof Error ? defect.message : String(defect)
                 }`
               })
-              return Effect.succeed(undefined)
+              return Effect.undefined
             })
-          )) as HtmlServer.Rendered<Model> | undefined
+          )
 
           if (rendered !== undefined) {
             const serialized = HtmlServer.serializeState(rendered.state)
@@ -243,7 +234,7 @@ export const auditServer = <
           }
 
           return {
-            rendered: rendered as HtmlServer.Rendered<Model> | undefined,
+            rendered,
             violations
           }
         }),
@@ -262,28 +253,33 @@ export const checkServer = <
   Model,
   Msg,
   Events,
-  R
+  R,
+  V extends View.Elements = Html.Elements
 >(
-  component: Component.Members<
-    Name,
-    Props,
-    Model,
-    Msg,
-    Events,
-    R,
-    Html.Elements,
-    any,
-    never
-  >,
+  component:
+    & Component.Members<
+      Name,
+      Props,
+      Model,
+      Msg,
+      Events,
+      R,
+      V,
+      any
+    >
+    & BrowserHost.HtmlRoot<V>,
   props: Props,
   options: CheckServerOptions = {}
-): Effect.Effect<HtmlServer.Rendered<Model>, ServerPurityError, R> =>
+): Effect.Effect<HtmlServer.Rendered<Model>, ServerPurityError, Exclude<R, Html.Host>> =>
   Effect.flatMap(auditServer(component, props, options), ({ rendered, violations }) =>
     violations.length === 0 && rendered !== undefined
       ? Effect.succeed(rendered)
       : Effect.fail(
           new ServerPurityError({
-            componentName: (component as { readonly name?: string }).name ?? "Component",
+            componentName:
+              "name" in component && typeof component.name === "string"
+                ? component.name
+                : "Component",
             violations
           })
         )

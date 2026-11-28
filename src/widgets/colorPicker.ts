@@ -28,7 +28,7 @@ export type ColorPickerEvents = typeof ColorPickerEvents.Type
 const ColorPickerMsg = UiSchema.TaggedEnum({
   ChannelChanged: {
     channel: Schema.Literals(["l", "c", "h"]),
-    value: Schema.Number
+    value: Schema.Finite
   },
   DraftEdited: { raw: Schema.String },
   DraftCommitted: {},

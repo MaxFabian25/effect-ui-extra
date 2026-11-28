@@ -7,49 +7,49 @@ import { resolveDir } from "./internal.js"
 export const PaneSpec = Schema.Struct({
   id: Schema.String,
   label: Schema.String,
-  minSize: Schema.optional(Schema.Number),
-  maxSize: Schema.optional(Schema.Number),
+  minSize: Schema.optional(Schema.Finite),
+  maxSize: Schema.optional(Schema.Finite),
   collapsible: Schema.optional(Schema.Boolean),
-  collapsedSize: Schema.optional(Schema.Number)
+  collapsedSize: Schema.optional(Schema.Finite)
 })
 export type PaneSpec = typeof PaneSpec.Type
 
 export const ResizableProps = Schema.Struct({
   panes: Schema.Array(PaneSpec),
-  sizes: Schema.Array(Schema.Number),
+  sizes: Schema.Array(Schema.Finite),
   orientation: Schema.optional(Schema.Literals(["horizontal", "vertical"])),
   dir: Schema.optional(Schema.Literals(["ltr", "rtl"])),
-  step: Schema.optional(Schema.Number),
-  largeStep: Schema.optional(Schema.Number),
+  step: Schema.optional(Schema.Finite),
+  largeStep: Schema.optional(Schema.Finite),
   idPrefix: Schema.optional(Schema.String)
 })
 export type ResizableProps = typeof ResizableProps.Type
 
 export const ResizableEvents = UiSchema.TaggedEnum({
-  Resized: { sizes: Schema.Array(Schema.Number) }
+  Resized: { sizes: Schema.Array(Schema.Finite) }
 })
 export type ResizableEvents = typeof ResizableEvents.Type
 
 const DragState = Schema.Struct({
-  handleIndex: Schema.Number,
-  pointerId: Schema.Number,
-  startPos: Schema.Number,
-  startSizes: Schema.Array(Schema.Number),
-  containerSize: Schema.Number
+  handleIndex: Schema.Finite,
+  pointerId: Schema.Finite,
+  startPos: Schema.Finite,
+  startSizes: Schema.Array(Schema.Finite),
+  containerSize: Schema.Finite
 })
 
 const ResizableMsg = UiSchema.TaggedEnum({
-  Adjusted: { handleIndex: Schema.Number, delta: Schema.Number },
-  SetEdge: { handleIndex: Schema.Number, edge: Schema.Literals(["min", "max"]) },
-  ToggledCollapse: { handleIndex: Schema.Number },
+  Adjusted: { handleIndex: Schema.Finite, delta: Schema.Finite },
+  SetEdge: { handleIndex: Schema.Finite, edge: Schema.Literals(["min", "max"]) },
+  ToggledCollapse: { handleIndex: Schema.Finite },
   DragStarted: {
-    handleIndex: Schema.Number,
-    pointerId: Schema.Number,
-    startPos: Schema.Number
+    handleIndex: Schema.Finite,
+    pointerId: Schema.Finite,
+    startPos: Schema.Finite
   },
-  Measured: { size: Schema.Number },
-  DragMoved: { pointerId: Schema.Number, pos: Schema.Number, isRtl: Schema.Boolean },
-  DragEnded: { pointerId: Schema.optional(Schema.Number) }
+  Measured: { size: Schema.Finite },
+  DragMoved: { pointerId: Schema.Finite, pos: Schema.Finite, isRtl: Schema.Boolean },
+  DragEnded: { pointerId: Schema.optional(Schema.Finite) }
 })
 
 const containerRef = Html.ref("ResizableRoot", "div")
@@ -72,8 +72,9 @@ export const resizePanes = (
   const rightSpec = panes[handleIndex + 1]
   if (leftSpec === undefined || rightSpec === undefined) return sizes
 
-  const leftCurr = sizes[handleIndex]!
-  const rightCurr = sizes[handleIndex + 1]!
+  const leftCurr = sizes[handleIndex]
+  const rightCurr = sizes[handleIndex + 1]
+  if (leftCurr === undefined || rightCurr === undefined) return sizes
   const pairTotal = leftCurr + rightCurr
 
   const leftMin = leftSpec.minSize ?? 5
@@ -111,7 +112,7 @@ export const Resizable = Html.component({
   props: ResizableProps,
   model: Schema.Struct({
     /** Stores pre-collapse size per pane id so Enter restores cleanly. */
-    restoredSizes: Schema.Record(Schema.String, Schema.Number),
+    restoredSizes: Schema.Record(Schema.String, Schema.Finite),
     drag: Schema.NullOr(DragState)
   }),
   message: ResizableMsg,
@@ -239,7 +240,8 @@ export const Resizable = Html.component({
 
     const children = []
     for (let i = 0; i < p.panes.length; i++) {
-      const pane = p.panes[i]!
+      const pane = p.panes[i]
+      if (pane === undefined) continue
       const size = p.sizes[i] ?? 50
       const paneId = `${prefix}-pane-${pane.id}`
       children.push(

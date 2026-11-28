@@ -1,3 +1,5 @@
+import { Data, Match } from "effect"
+
 export interface TouchPoint {
   readonly x: number
   readonly y: number
@@ -30,6 +32,8 @@ export type IosTouchGuardEvent =
   | { readonly _tag: "TouchEnd"; readonly nowMs: number; readonly insideModal: boolean }
   | { readonly _tag: "TouchCancel" }
 
+const IosTouchEvent = Data.taggedEnum<IosTouchGuardEvent>()
+
 export interface IosTouchGuardDecision {
   readonly state: IosTouchGuardState
   /** Prevent default on `touchmove` to block iOS background scroll bleed. */
@@ -60,75 +64,76 @@ export const reduceIosTouchGuard = (
   const tolerance = Math.max(0, config.jitterTolerancePx ?? 10)
   const dedupeMs = Math.max(0, config.dedupeWindowMs ?? 400)
 
-  switch (event._tag) {
-    case "TouchStart": {
-      if (!event.insideModal) {
+  return Match.value(event).pipe(
+    Match.tagsExhaustive({
+      TouchStart: (ev) => {
+        if (!ev.insideModal) {
+          return {
+            state: { ...state, active: false, start: null, wobblingTap: false, moved: false },
+            preventDefault: false,
+            synthesizeClick: false
+          }
+        }
         return {
-          state: { ...state, active: false, start: null, wobblingTap: false, moved: false },
+          state: {
+            ...state,
+            active: true,
+            start: ev.point,
+            wobblingTap: true,
+            moved: false
+          },
           preventDefault: false,
           synthesizeClick: false
         }
-      }
-      return {
-        state: {
-          ...state,
-          active: true,
-          start: event.point,
-          wobblingTap: true,
-          moved: false
-        },
-        preventDefault: false,
-        synthesizeClick: false
-      }
-    }
-    case "TouchMove": {
-      if (!state.active || state.start === null) {
-        return { state, preventDefault: false, synthesizeClick: false }
-      }
-      const dx = event.point.x - state.start.x
-      const dy = event.point.y - state.start.y
-      const dist = Math.hypot(dx, dy)
-      if (dist <= tolerance) {
+      },
+      TouchMove: (ev) => {
+        if (!state.active || state.start === null) {
+          return { state, preventDefault: false, synthesizeClick: false }
+        }
+        const dx = ev.point.x - state.start.x
+        const dy = ev.point.y - state.start.y
+        const dist = Math.hypot(dx, dy)
+        if (dist <= tolerance) {
+          return {
+            state: { ...state, moved: true, wobblingTap: true },
+            preventDefault: true,
+            synthesizeClick: false
+          }
+        }
         return {
-          state: { ...state, moved: true, wobblingTap: true },
-          preventDefault: true,
+          state: { ...state, moved: true, wobblingTap: false },
+          preventDefault: false,
           synthesizeClick: false
         }
-      }
-      return {
-        state: { ...state, moved: true, wobblingTap: false },
-        preventDefault: false,
-        synthesizeClick: false
-      }
-    }
-    case "TouchEnd": {
-      if (!state.active) {
-        return { state, preventDefault: false, synthesizeClick: false }
-      }
-      const withinDedupe =
-        state.lastSyntheticClickMs !== null &&
-        event.nowMs - state.lastSyntheticClickMs < dedupeMs
-      const shouldClick =
-        event.insideModal && state.wobblingTap && state.moved && !withinDedupe
-      return {
-        state: {
-          active: false,
-          start: null,
-          wobblingTap: false,
-          moved: false,
-          lastSyntheticClickMs: shouldClick ? event.nowMs : state.lastSyntheticClickMs
-        },
-        preventDefault: false,
-        synthesizeClick: shouldClick
-      }
-    }
-    case "TouchCancel":
-      return {
+      },
+      TouchEnd: (ev) => {
+        if (!state.active) {
+          return { state, preventDefault: false, synthesizeClick: false }
+        }
+        const withinDedupe =
+          state.lastSyntheticClickMs !== null &&
+          ev.nowMs - state.lastSyntheticClickMs < dedupeMs
+        const shouldClick =
+          ev.insideModal && state.wobblingTap && state.moved && !withinDedupe
+        return {
+          state: {
+            active: false,
+            start: null,
+            wobblingTap: false,
+            moved: false,
+            lastSyntheticClickMs: shouldClick ? ev.nowMs : state.lastSyntheticClickMs
+          },
+          preventDefault: false,
+          synthesizeClick: shouldClick
+        }
+      },
+      TouchCancel: () => ({
         state: { ...state, active: false, start: null, wobblingTap: false, moved: false },
         preventDefault: false,
         synthesizeClick: false
-      }
-  }
+      })
+    })
+  )
 }
 
 const INTERACTIVE_SELECTOR = [
@@ -167,7 +172,7 @@ export const resolveInteractiveTapTarget = (
   if (disabledAncestor !== null && modalRoot.contains(disabledAncestor)) return null
   const match = el.closest(INTERACTIVE_SELECTOR)
   if (match === null || !modalRoot.contains(match)) return null
-  return match as HTMLElement
+  return typeof HTMLElement !== "undefined" && match instanceof HTMLElement ? match : null
 }
 
 /**
@@ -183,27 +188,27 @@ export const bindIosModalTouchGuard = (
   const dedupeMs = Math.max(0, config.dedupeWindowMs ?? 400)
 
   const onTouchStart = (ev: TouchEvent) => {
-    if (ev.touches.length !== 1) {
-      state = reduceIosTouchGuard(state, { _tag: "TouchCancel" }, config).state
+    const t = ev.touches.length === 1 ? ev.touches[0] : undefined
+    if (t === undefined) {
+      state = reduceIosTouchGuard(state, IosTouchEvent.TouchCancel(), config).state
       startTarget = null
       return
     }
-    const t = ev.touches[0]!
     const insideModal = ev.target instanceof Node && modalRoot.contains(ev.target)
     startTarget = ev.target
     state = reduceIosTouchGuard(
       state,
-      { _tag: "TouchStart", point: { x: t.clientX, y: t.clientY }, insideModal },
+      IosTouchEvent.TouchStart({ point: { x: t.clientX, y: t.clientY }, insideModal }),
       config
     ).state
   }
 
   const onTouchMove = (ev: TouchEvent) => {
-    if (!state.active || ev.touches.length !== 1) return
-    const t = ev.touches[0]!
+    const t = ev.touches.length === 1 ? ev.touches[0] : undefined
+    if (!state.active || t === undefined) return
     const decision = reduceIosTouchGuard(
       state,
-      { _tag: "TouchMove", point: { x: t.clientX, y: t.clientY } },
+      IosTouchEvent.TouchMove({ point: { x: t.clientX, y: t.clientY } }),
       config
     )
     state = decision.state
@@ -217,7 +222,7 @@ export const bindIosModalTouchGuard = (
     const insideModal = ev.target instanceof Node && modalRoot.contains(ev.target)
     const decision = reduceIosTouchGuard(
       state,
-      { _tag: "TouchEnd", nowMs: Date.now(), insideModal },
+      IosTouchEvent.TouchEnd({ nowMs: Date.now(), insideModal }),
       config
     )
     state = decision.state
@@ -232,7 +237,7 @@ export const bindIosModalTouchGuard = (
   }
 
   const onTouchCancel = () => {
-    state = reduceIosTouchGuard(state, { _tag: "TouchCancel" }, config).state
+    state = reduceIosTouchGuard(state, IosTouchEvent.TouchCancel(), config).state
     startTarget = null
   }
 

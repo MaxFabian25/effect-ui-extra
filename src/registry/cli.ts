@@ -1,12 +1,8 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs"
 import { dirname, resolve } from "node:path"
-import {
-  diffRegistryContent,
-  type FileDiffSummary,
-  getRegistryItem,
-  listRegistryItems,
-  resolveRegistryTree
-} from "./catalog.js"
+import { Schema } from "effect"
+import { diffRegistryContent, getRegistryItem, listRegistryItems, resolveRegistryTree } from "./catalog.js"
+import type { FileDiffSummary } from "./catalog.js"
 import {
   buildCustomRegistry,
   loadNamespacedItemAsync,
@@ -29,13 +25,11 @@ import {
   decodeProjectUiConfig,
   DEFAULT_UI_CONFIG,
   encodeProjectUiConfig,
-  type IconPack,
-  type PresetName,
-  type PresetSpec,
-  type ProjectUiConfig,
-  type RegistryCategory,
-  type RegistryItem
+  RegistryCategorySchema
 } from "./schema.js"
+import type { IconPack, PresetName, PresetSpec, ProjectUiConfig, RegistryCategory, RegistryItem } from "./schema.js"
+
+const isRegistryCategory = Schema.is(RegistryCategorySchema)
 
 export const CONFIG_FILENAME = "effect-ui.json"
 
@@ -89,13 +83,15 @@ export const runInit = (
   writeFileSync(absIcons, generateIconModule(iconPack), "utf8")
   written.push(iconsRel)
 
-  const cnItem = getRegistryItem("cn")!
-  for (const file of cnItem.files) {
-    const rel = `${dir}/${file.path}`
-    const abs = resolve(cwd, rel)
-    mkdirSync(dirname(abs), { recursive: true })
-    writeFileSync(abs, file.content, "utf8")
-    written.push(rel)
+  const cnItem = getRegistryItem("cn")
+  if (cnItem !== undefined) {
+    for (const file of cnItem.files) {
+      const rel = `${dir}/${file.path}`
+      const abs = resolve(cwd, rel)
+      mkdirSync(dirname(abs), { recursive: true })
+      writeFileSync(abs, file.content, "utf8")
+      written.push(rel)
+    }
   }
 
   const config: ProjectUiConfig = {
@@ -213,7 +209,7 @@ export const runAddAsync = async (
   names: ReadonlyArray<string>,
   options?: {
     readonly overwrite?: boolean | undefined
-    readonly fetchImpl?: typeof fetch | undefined
+    readonly fetchImpl?: ((input: string | URL | Request, init?: RequestInit) => Promise<Response>) | undefined
   }
 ): Promise<AddResult> => {
   const config = readProjectUiConfig(cwd)
@@ -335,7 +331,9 @@ export const formatItemDocs = (name: string): string | undefined => {
   const plan = resolveRegistryTree([name])
   const exportsList = item.files
     .flatMap((f) =>
-      [...f.content.matchAll(/export (?:const|function|type|interface) (\w+)/g)].map((m) => m[1]!)
+      [...f.content.matchAll(/export (?:const|function|type|interface) (\w+)/g)].flatMap((m) =>
+        m[1] !== undefined ? [m[1]] : []
+      )
     )
     .filter((v, idx, arr) => arr.indexOf(v) === idx)
   return [
@@ -372,7 +370,7 @@ export const runDiff = (
 
 export const runPreset = (
   cwd: string,
-  presetNameOrCode: PresetName | string
+  presetNameOrCode: string
 ): { readonly preset: PresetName; readonly cssPath: string; readonly presetCode?: string | undefined } => {
   const config = readProjectUiConfig(cwd)
   const absCss = resolve(cwd, config.cssPath)
@@ -456,7 +454,11 @@ export const runCli = (argv: ReadonlyArray<string>, cwd: string): CliResult => {
         }
       }
       case "list": {
-        const category = getFlag(rest, "--category") as RegistryCategory | undefined
+        const rawCategory = getFlag(rest, "--category")
+        if (rawCategory !== undefined && !isRegistryCategory(rawCategory)) {
+          return { exitCode: 1, stdout: "", stderr: `Unknown category: ${rawCategory}\n` }
+        }
+        const category: RegistryCategory | undefined = rawCategory
         const search = getFlag(rest, "--search")
         const items = listRegistryItems({ category, search })
         const lines = items.map((i) => `${i.name.padEnd(22)} [${i.category.padEnd(10)}] ${i.description}`)

@@ -1,8 +1,10 @@
 import { readFileSync, writeFileSync } from "node:fs"
 import { resolve } from "node:path"
+import { Schema } from "effect"
 
 const ROOT = resolve(import.meta.dir, "..")
 const BUDGET_PATH = resolve(ROOT, "size-budget.json")
+const SizeBudgetSchema = Schema.Record(Schema.String, Schema.Finite)
 
 interface SizeTarget {
   readonly key: string
@@ -54,32 +56,40 @@ const measureTarget = async (target: SizeTarget): Promise<{ readonly raw: number
 }
 
 const writeBudget = process.argv.includes("--write")
-const measured: Record<string, { readonly raw: number; readonly gzip: number }> = {}
+const measured = new Map<string, { readonly raw: number; readonly gzip: number }>()
 for (const t of TARGETS) {
-  measured[t.key] = await measureTarget(t)
+  measured.set(t.key, await measureTarget(t))
+}
+
+const getMeasured = (key: string): { readonly raw: number; readonly gzip: number } => {
+  const entry = measured.get(key)
+  if (entry === undefined) throw new Error(`Missing measurement for ${key}`)
+  return entry
 }
 
 if (writeBudget) {
   const budget: Record<string, number> = {}
   for (const t of TARGETS) {
-    const gz = measured[t.key]!.gzip
+    const gz = getMeasured(t.key).gzip
     // Round up to nearest 256 bytes with ~20% headroom so minor fixes do not flake while real bloat trips CI
     budget[t.key] = Math.ceil((gz * 1.2) / 256) * 256
   }
   writeFileSync(BUDGET_PATH, `${JSON.stringify(budget, null, 2)}\n`, "utf8")
   console.log("Wrote size-budget.json:")
   for (const t of TARGETS) {
-    const m = measured[t.key]!
+    const m = getMeasured(t.key)
     console.log(`  ${t.key.padEnd(38)} raw=${String(m.raw).padStart(6)}B  gzip=${String(m.gzip).padStart(5)}B  budget=${budget[t.key]}B`)
   }
   process.exit(0)
 }
 
-const budget = JSON.parse(readFileSync(BUDGET_PATH, "utf8")) as Readonly<Record<string, number>>
+const budget = Schema.decodeUnknownSync(SizeBudgetSchema)(
+  JSON.parse(readFileSync(BUDGET_PATH, "utf8"))
+)
 let failed = false
 
 for (const t of TARGETS) {
-  const m = measured[t.key]!
+  const m = getMeasured(t.key)
   const limit = budget[t.key]
   if (limit === undefined) {
     console.error(`MISSING BUDGET for ${t.key}`)
