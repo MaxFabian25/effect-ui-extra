@@ -2,6 +2,7 @@ import { UiSchema, type View } from "@effect/ui"
 import { Html } from "@effect/ui/html"
 import * as Schema from "effect/Schema"
 import { fuzzyFilter, type FuzzyRange } from "./fuzzy.js"
+import { safeIdToken } from "./internal.js"
 
 export const CommandItem = Schema.Struct({
   value: Schema.String,
@@ -108,13 +109,6 @@ export const Command = Html.component({
       (i) => i.label,
       (i) => i.keywords
     )
-    const enabledMatches = matches.filter((m) => !m.item.disabled)
-    const active =
-      enabledMatches.find((m) => m.item.value === model.activeValue)?.item.value ??
-      enabledMatches[0]?.item.value ??
-      null
-    const activeOptionId = active !== null ? `${prefix}-opt-${active}` : undefined
-
     // Group matches preserving relevance order of first appearance
     const grouped = new Map<string, Array<(typeof matches)[number]>>()
     for (const m of matches) {
@@ -124,12 +118,21 @@ export const Command = Html.component({
       grouped.set(g, list)
     }
 
+    const orderedMatches = Array.from(grouped.values()).flat()
+    const enabledMatches = orderedMatches.filter((m) => !m.item.disabled)
+    const active =
+      enabledMatches.find((m) => m.item.value === model.activeValue)?.item.value ??
+      enabledMatches[0]?.item.value ??
+      null
+    const activeOptionId =
+      active !== null ? `${prefix}-opt-${safeIdToken(active)}` : undefined
+
     const renderOption = (m: (typeof matches)[number]) => {
       const isHighlighted = !m.item.disabled && active === m.item.value
       return h.div
         .key(m.item.value)
         .attrs({
-          id: `${prefix}-opt-${m.item.value}`,
+          id: `${prefix}-opt-${safeIdToken(m.item.value)}`,
           role: "option",
           "aria-selected": String(isHighlighted),
           ...(m.item.disabled
@@ -159,6 +162,10 @@ export const Command = Html.component({
           "aria-expanded": String(p.open),
           "aria-autocomplete": "list",
           "aria-haspopup": "listbox",
+          autocomplete: "off",
+          autocapitalize: "none",
+          autocorrect: "off",
+          spellcheck: "false",
           ...(p.open ? { "aria-controls": listId } : {}),
           ...(p.open && activeOptionId !== undefined
             ? { "aria-activedescendant": activeOptionId }
@@ -212,19 +219,25 @@ export const Command = Html.component({
             .attrs({ id: listId, role: "listbox", "aria-label": p.label })
             .children(
               ...(matches.length === 0
-                ? [h.div.attrs({ "data-command-empty": "" }).children(p.emptyText ?? "No results found.")]
-                : Array.from(grouped.entries()).map(([groupName, entries], gi) => {
+                ? [
+                    h.div
+                      .attrs({ role: "status", "data-command-empty": "" })
+                      .children(p.emptyText ?? "No matching commands")
+                  ]
+                : Array.from(grouped.entries()).flatMap(([groupName, entries], gi) => {
                     if (groupName === "") {
-                      return h.div.key(`ungrouped-${gi}`).children(...entries.map(renderOption))
+                      return entries.map(renderOption)
                     }
                     const headingId = `${prefix}-group-${gi}`
-                    return h.div
-                      .key(`group-${groupName}`)
-                      .attrs({ role: "group", "aria-labelledby": headingId })
-                      .children(
-                        h.div.attrs({ id: headingId, "data-command-group-heading": "" }).children(groupName),
-                        ...entries.map(renderOption)
-                      )
+                    return [
+                      h.div
+                        .key(`group-${groupName}`)
+                        .attrs({ role: "group", "aria-labelledby": headingId })
+                        .children(
+                          h.div.attrs({ id: headingId, "data-command-group-heading": "" }).children(groupName),
+                          ...entries.map(renderOption)
+                        )
+                    ]
                   }))
             )
         : undefined

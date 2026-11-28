@@ -1,6 +1,7 @@
 import { UiSchema } from "@effect/ui"
 import { Html, HtmlCommand } from "@effect/ui/html"
 import * as Schema from "effect/Schema"
+import { resolveDir, safeIdToken } from "./internal.js"
 
 export interface IndicatorRect {
   readonly left: number
@@ -90,7 +91,6 @@ export const SegmentedControl = Html.component({
   view: (h) => {
     const p = h.props
     const orientation = p.orientation ?? "horizontal"
-    const isRtl = (p.dir ?? "ltr") === "rtl"
     const prefix = p.idPrefix ?? "seg"
     const enabled = p.options.filter((o) => !o.disabled)
     const activeValue = enabled.some((o) => o.value === p.value)
@@ -102,7 +102,7 @@ export const SegmentedControl = Html.component({
         role: "radiogroup",
         "aria-label": p.label,
         "aria-orientation": orientation,
-        dir: p.dir,
+        ...(p.dir !== undefined ? { dir: p.dir } : {}),
         "data-segmented-control": ""
       })
       .children(
@@ -113,7 +113,7 @@ export const SegmentedControl = Html.component({
             .key(opt.value)
             .ref(segmentRef(opt.value))
             .attrs({
-              id: `${prefix}-${opt.value}`,
+              id: `${prefix}-${safeIdToken(opt.value)}`,
               type: "button",
               role: "radio",
               "aria-checked": String(checked),
@@ -130,6 +130,7 @@ export const SegmentedControl = Html.component({
                 const idx = enabled.findIndex((o) => o.value === opt.value)
                 if (idx === -1) return undefined
 
+                const isRtl = resolveDir(p.dir) === "rtl"
                 const nextKey =
                   orientation === "vertical"
                     ? "ArrowDown"

@@ -1,6 +1,7 @@
 import { UiSchema } from "@effect/ui"
 import { Html, HtmlCommand } from "@effect/ui/html"
 import * as Schema from "effect/Schema"
+import { closeIcon, resolveDir } from "./internal.js"
 
 export const parseTokenText = (
   raw: string,
@@ -53,6 +54,7 @@ export const TokenInputProps = Schema.Struct({
   placeholder: Schema.optional(Schema.String),
   allowDuplicates: Schema.optional(Schema.Boolean),
   maxTokens: Schema.optional(Schema.Number),
+  dir: Schema.optional(Schema.Literals(["ltr", "rtl"])),
   idPrefix: Schema.optional(Schema.String)
 })
 export type TokenInputProps = typeof TokenInputProps.Type
@@ -72,21 +74,34 @@ const TokenInputMsg = UiSchema.TaggedEnum({
 
 const inputRef = Html.ref("TokenInputField", "input")
 
+const srOnlyStyle =
+  "position:fixed;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap;border:0"
+
+const rejectionReason = (
+  tokens: ReadonlyArray<string>,
+  maxTokens: number | undefined
+): string =>
+  maxTokens !== undefined && tokens.length >= maxTokens
+    ? `Maximum of ${maxTokens} items reached`
+    : "Item already added"
+
 /**
  * Accessible multi-value chip/tag input with Enter/comma tokenization,
- * Backspace highlight-then-delete, and keyboard chip removal.
+ * Backspace/Delete highlight-then-delete, RTL arrow navigation, screen-reader
+ * status announcements, and keyboard chip removal.
  */
 export const TokenInput = Html.component({
   name: "TokenInput",
   props: TokenInputProps,
   model: Schema.Struct({
     draft: Schema.String,
-    highlightedIndex: Schema.NullOr(Schema.Number)
+    highlightedIndex: Schema.NullOr(Schema.Number),
+    announcement: Schema.String
   }),
   message: TokenInputMsg,
   events: TokenInputEvents
 }).make({
-  init: () => ({ draft: "", highlightedIndex: null }),
+  init: () => ({ draft: "", highlightedIndex: null, announcement: "" }),
   update: {
     InputChanged: ($, { value }) => {
       if (value.includes(",") || value.includes("\n")) {
@@ -95,11 +110,18 @@ export const TokenInput = Html.component({
           allowDuplicates: $.props.allowDuplicates,
           maxTokens: $.props.maxTokens
         })
-        const changed = nextTokens.length !== $.props.tokens.length
-        const base = $.evolve({ draft: "", highlightedIndex: null })
-        return changed
-          ? base.emit(TokenInputEvents.TokensChanged({ tokens: [...nextTokens] }))
-          : base
+        if (nextTokens.length > $.props.tokens.length) {
+          return $.evolve({
+            draft: "",
+            highlightedIndex: null,
+            announcement: `Added ${nextTokens.slice($.props.tokens.length).join(", ")}`
+          }).emit(TokenInputEvents.TokensChanged({ tokens: [...nextTokens] }))
+        }
+        return $.evolve({
+          draft: value.replace(/[,\n]+/g, ""),
+          highlightedIndex: null,
+          announcement: rejectionReason($.props.tokens, $.props.maxTokens)
+        })
       }
       return $.evolve({ draft: value, highlightedIndex: null })
     },
@@ -110,16 +132,33 @@ export const TokenInput = Html.component({
         allowDuplicates: $.props.allowDuplicates,
         maxTokens: $.props.maxTokens
       })
-      const base = $.evolve({ draft: "", highlightedIndex: null })
-      return nextTokens.length !== $.props.tokens.length
-        ? base.emit(TokenInputEvents.TokensChanged({ tokens: [...nextTokens] }))
-        : base
+      if (nextTokens.length !== $.props.tokens.length) {
+        return $.evolve({
+          draft: "",
+          highlightedIndex: null,
+          announcement: `Added ${nextTokens.slice($.props.tokens.length).join(", ")}`
+        }).emit(TokenInputEvents.TokensChanged({ tokens: [...nextTokens] }))
+      }
+      return $.evolve({
+        highlightedIndex: null,
+        announcement: rejectionReason($.props.tokens, $.props.maxTokens)
+      })
     },
-    HighlightedChip: ($, { index }) =>
-      $.evolve({ highlightedIndex: index }),
+    HighlightedChip: ($, { index }) => {
+      const token = index !== null ? $.props.tokens[index] : undefined
+      return $.evolve({
+        highlightedIndex: index,
+        announcement:
+          token !== undefined ? `${token} selected, press Backspace or Delete to remove` : ""
+      })
+    },
     RemovedChip: ($, { index }) => {
+      const removed = $.props.tokens[index]
       const nextTokens = removeTokenAt($.props.tokens, index)
-      return $.evolve({ highlightedIndex: null })
+      return $.evolve({
+        highlightedIndex: null,
+        announcement: removed !== undefined ? `Removed ${removed}` : ""
+      })
         .emit(TokenInputEvents.TokensChanged({ tokens: [...nextTokens] }))
         .run(HtmlCommand.focus(inputRef, () => TokenInputMsg.FocusDone()))
     },
@@ -128,16 +167,27 @@ export const TokenInput = Html.component({
   view: (h, model) => {
     const p = h.props
     const prefix = p.idPrefix ?? "tokens"
+    const activeChipId =
+      model.highlightedIndex !== null && p.tokens[model.highlightedIndex] !== undefined
+        ? `${prefix}-chip-${model.highlightedIndex}`
+        : undefined
 
     return h.div
-      .attrs({ "data-token-input": "", role: "group", "aria-label": p.label })
+      .attrs({
+        "data-token-input": "",
+        role: "group",
+        "aria-label": p.label,
+        ...(p.dir !== undefined ? { dir: p.dir } : {})
+      })
       .children(
-        ...p.tokens.map((token, idx) =>
-          h.span
+        ...p.tokens.map((token, idx) => {
+          const isHighlighted = model.highlightedIndex === idx
+          return h.span
             .key(`${token}-${idx}`)
             .attrs({
+              id: `${prefix}-chip-${idx}`,
               "data-token-chip": "",
-              "data-highlighted": model.highlightedIndex === idx ? "true" : "false"
+              ...(isHighlighted ? { "data-highlighted": "true" } : {})
             })
             .children(
               h.span.children(token),
@@ -147,16 +197,23 @@ export const TokenInput = Html.component({
                   "aria-label": `Remove ${token}`
                 })
                 .on("click", () => TokenInputMsg.RemovedChip({ index: idx }))
-                .children("×")
+                .children(closeIcon(h))
             )
-        ),
+        }),
         h.input
           .ref(inputRef)
           .attrs({
             id: `${prefix}-input`,
             type: "text",
             "aria-label": p.label,
-            placeholder: p.placeholder
+            autocomplete: "off",
+            autocapitalize: "none",
+            autocorrect: "off",
+            spellcheck: "false",
+            ...(activeChipId !== undefined
+              ? { "aria-activedescendant": activeChipId }
+              : {}),
+            ...(p.placeholder !== undefined ? { placeholder: p.placeholder } : {})
           })
           .value(model.draft)
           .on("input", ({ value }) => TokenInputMsg.InputChanged({ value }))
@@ -164,10 +221,16 @@ export const TokenInput = Html.component({
             "keydown",
             ({ key, composing }) => {
               if (composing) return undefined
+              const isRtl = resolveDir(p.dir) === "rtl"
+              const prevKey = isRtl ? "ArrowRight" : "ArrowLeft"
+              const nextKey = isRtl ? "ArrowLeft" : "ArrowRight"
               if (key === "Enter") {
                 return model.draft.trim() !== ""
                   ? TokenInputMsg.CommittedDraft()
                   : undefined
+              }
+              if (key === "Delete" && model.highlightedIndex !== null) {
+                return TokenInputMsg.RemovedChip({ index: model.highlightedIndex })
               }
               if (key === "Backspace" && model.draft === "" && p.tokens.length > 0) {
                 if (model.highlightedIndex !== null) {
@@ -175,14 +238,14 @@ export const TokenInput = Html.component({
                 }
                 return TokenInputMsg.HighlightedChip({ index: p.tokens.length - 1 })
               }
-              if (key === "ArrowLeft" && model.draft === "" && p.tokens.length > 0) {
+              if (key === prevKey && model.draft === "" && p.tokens.length > 0) {
                 const next =
                   model.highlightedIndex === null
                     ? p.tokens.length - 1
                     : Math.max(0, model.highlightedIndex - 1)
                 return TokenInputMsg.HighlightedChip({ index: next })
               }
-              if (key === "ArrowRight" && model.highlightedIndex !== null) {
+              if (key === nextKey && model.highlightedIndex !== null) {
                 const next =
                   model.highlightedIndex >= p.tokens.length - 1
                     ? null
@@ -192,7 +255,15 @@ export const TokenInput = Html.component({
               return undefined
             },
             { preventDefault: true }
-          )
+          ),
+        h.div
+          .attrs({
+            role: "status",
+            "aria-live": "polite",
+            "aria-atomic": "true",
+            style: srOnlyStyle
+          })
+          .children(model.announcement)
       )
   }
 })

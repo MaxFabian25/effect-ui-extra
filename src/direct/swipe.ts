@@ -31,7 +31,7 @@ export interface SwipeConfig {
 }
 
 /**
- * Logarithmic rubber-band damping past a limit (iOS-style overscroll resistance).
+ * Hyperbolic rubber-band damping past a limit (iOS-style overscroll resistance).
  */
 export const rubberBand = (
   distance: number,
@@ -48,7 +48,8 @@ export const rubberBand = (
 
 /**
  * Evaluates a live pointer drag offset for a swipeable row, accounting for
- * RTL mirroring, slop, rubber-band resistance, and full-swipe threshold.
+ * RTL mirroring, smooth slop subtraction, rubber-band resistance, and
+ * full-swipe threshold.
  */
 export const evaluateSwipeDrag = (
   key: string,
@@ -57,6 +58,9 @@ export const evaluateSwipeDrag = (
 ): SwipeDraft | null => {
   const slop = config.slop ?? 8
   if (Math.abs(rawDeltaX) < slop) return null
+
+  const sign = rawDeltaX >= 0 ? 1 : -1
+  const adjustedDeltaX = sign * (Math.abs(rawDeltaX) - slop)
 
   const rtl = config.direction === "rtl"
   // In LTR: dragging right (+x) reveals "start" actions; dragging left (-x) reveals "end" actions.
@@ -67,7 +71,7 @@ export const evaluateSwipeDrag = (
   if (width <= 0) {
     return {
       key,
-      x: rubberBand(rawDeltaX, 0, Math.max(1, config.rowWidth), 0.15),
+      x: rubberBand(adjustedDeltaX, 0, Math.max(1, config.rowWidth), 0.15),
       full: false,
       side: null
     }
@@ -81,8 +85,8 @@ export const evaluateSwipeDrag = (
   const full = allowFull && abs >= fullThreshold
 
   const x = allowFull
-    ? rawDeltaX
-    : rubberBand(rawDeltaX, width, Math.max(1, config.rowWidth))
+    ? rubberBand(adjustedDeltaX, Math.max(1, config.rowWidth), Math.max(1, config.rowWidth))
+    : rubberBand(adjustedDeltaX, width, Math.max(1, config.rowWidth))
 
   return { key, x, full, side }
 }

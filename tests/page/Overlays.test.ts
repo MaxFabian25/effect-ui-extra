@@ -49,6 +49,9 @@ describe("Deferred-backed Overlays and OverlayHost on TestHost", () => {
             { startImmediately: true }
           )
           yield* TestHost.settle
+          yield* play
+            .expect(HtmlLocator.role("button", { name: "Reset" }))
+            .toHaveAttribute("data-variant", "primary")
           yield* play.click(HtmlLocator.role("button", { name: "Cancel" }))
           expect(yield* Fiber.join(f2)).toBe(false)
           yield* play.expect(HtmlLocator.role("alertdialog")).toBeAbsent()

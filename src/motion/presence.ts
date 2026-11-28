@@ -11,7 +11,13 @@ export interface PresenceState {
 }
 
 export type PresenceEvent =
-  | { readonly _tag: "SetOpen"; readonly open: boolean; readonly reducedMotion?: boolean | undefined }
+  | {
+      readonly _tag: "SetOpen"
+      readonly open: boolean
+      readonly reducedMotion?: boolean | undefined
+      /** `"instant"` (default) skips enter/exit phases; `"fade"` keeps phases so gentle opacity fades can complete. */
+      readonly reducedMotionMode?: "instant" | "fade" | undefined
+    }
   | { readonly _tag: "EnterFrame" }
   | { readonly _tag: "AnimationEnd" }
 
@@ -24,7 +30,8 @@ export const initialPresenceState = (open: boolean): PresenceState => ({
 /**
  * Pure mount/enter/exit lifecycle state machine for dialogs, popovers, toasts,
  * and drawers. Honors `reducedMotion: true` by skipping `"entering"` and
- * `"exiting"` phases immediately so zero exit delay occurs when motion is off.
+ * `"exiting"` phases immediately unless `reducedMotionMode: "fade"` is passed
+ * for gentle opacity crossfades.
  */
 export const reducePresence = (
   state: PresenceState,
@@ -32,15 +39,17 @@ export const reducePresence = (
 ): PresenceState => {
   switch (event._tag) {
     case "SetOpen": {
+      const skipPhases =
+        event.reducedMotion === true && event.reducedMotionMode !== "fade"
       if (event.open) {
         if (state.phase === "open") return state
-        if (event.reducedMotion) {
+        if (skipPhases) {
           return { phase: "open", mounted: true, dataState: "open" }
         }
         return { phase: "entering", mounted: true, dataState: "closed" }
       }
       if (state.phase === "unmounted") return state
-      if (event.reducedMotion) {
+      if (skipPhases) {
         return { phase: "unmounted", mounted: false, dataState: "closed" }
       }
       return { phase: "exiting", mounted: true, dataState: "closed" }

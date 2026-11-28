@@ -20,7 +20,7 @@ export type InlineEditEvents = typeof InlineEditEvents.Type
 const InlineEditMsg = UiSchema.TaggedEnum({
   Started: {},
   DraftChanged: { value: Schema.String },
-  Confirmed: {},
+  Confirmed: { restoreFocus: Schema.Boolean },
   Reverted: {},
   FocusDone: {}
 })
@@ -51,14 +51,16 @@ export const InlineEdit = Html.component({
       )
     },
     DraftChanged: ($, { value }) => $.evolve({ draft: value }),
-    Confirmed: ($) => {
+    Confirmed: ($, { restoreFocus }) => {
       if (!$.model.editing) return $.model
       const next = $.model.draft.trim()
-      const base = $.evolve({ editing: false })
-        .run(HtmlCommand.focus(triggerRef, () => InlineEditMsg.FocusDone()))
+      const evolved = $.evolve({ editing: false })
+      const withFocus = restoreFocus
+        ? evolved.run(HtmlCommand.focus(triggerRef, () => InlineEditMsg.FocusDone()))
+        : evolved
       return next !== $.props.value
-        ? base.emit(InlineEditEvents.Committed({ value: next }))
-        : base
+        ? withFocus.emit(InlineEditEvents.Committed({ value: next }))
+        : withFocus
     },
     Reverted: ($) => {
       if (!$.model.editing) return $.model
@@ -84,12 +86,12 @@ export const InlineEdit = Html.component({
           })
           .value(model.draft)
           .on("input", ({ value }) => InlineEditMsg.DraftChanged({ value }))
-          .on("blur", () => InlineEditMsg.Confirmed())
+          .on("blur", () => InlineEditMsg.Confirmed({ restoreFocus: false }))
           .on(
             "keydown",
             ({ key, composing }) => {
               if (composing) return undefined
-              if (key === "Enter") return InlineEditMsg.Confirmed()
+              if (key === "Enter") return InlineEditMsg.Confirmed({ restoreFocus: true })
               if (key === "Escape") return InlineEditMsg.Reverted()
               return undefined
             },
@@ -98,19 +100,20 @@ export const InlineEdit = Html.component({
       )
     }
 
+    const displayText = p.value || p.placeholder || "Edit"
     return h.button
       .ref(triggerRef)
       .attrs({
         id: `${prefix}-trigger`,
         type: "button",
         "data-inline-edit": "viewing",
-        "aria-label": `${p.label}: ${p.value || p.placeholder || "Empty"}`
+        "aria-label": `${p.label}: ${displayText}`
       })
       .disabled(p.disabled ?? false)
       .on("click", () => InlineEditMsg.Started())
       .on("keydown", ({ key }) =>
         key === "F2" ? InlineEditMsg.Started() : undefined
       )
-      .children(p.value || p.placeholder || "Edit")
+      .children(displayText)
   }
 })

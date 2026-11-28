@@ -37,9 +37,10 @@ describe("hidden='until-found' and beforematch helpers", () => {
 })
 
 describe("dimThemeColor", () => {
-  test("blends hex and rgb theme colors toward black and restores meta tags cleanly", () => {
+  test("blends hex, rgb, and oklch theme colors toward black and re-snapshots meta tags across theme changes", () => {
     expect(blendThemeColor("#ffffff", 1, 0.5)).toBe("#808080")
     expect(blendThemeColor("rgb(200, 100, 50)", 1, 0.5)).toBe("#643219")
+    expect(blendThemeColor("oklch(0.99 0.002 260)", 1, 0.5)).toMatch(/^#[0-9a-f]{6}$/)
     expect(blendThemeColor("not-a-color", 1, 0.5)).toBeUndefined()
 
     const meta = { content: "#ffffff" } as HTMLMetaElement
@@ -51,5 +52,12 @@ describe("dimThemeColor", () => {
     expect(meta.content).toBe("#808080")
     dimmer.restore()
     expect(meta.content).toBe("#ffffff")
+
+    // Theme toggled while modal closed -> next dim snapshots the new dark color
+    meta.content = "#101010"
+    dimmer.write(1)
+    expect(meta.content).toBe("#080808")
+    dimmer.restore()
+    expect(meta.content).toBe("#101010")
   })
 })

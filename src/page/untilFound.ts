@@ -9,12 +9,12 @@ export interface PanelHiddenOptions {
 
 /**
  * Returns `true` when the runtime DOM supports `hidden="until-found"` and the
- * `beforematch` event (Chromium-based browsers). Safe in SSR (`false`).
+ * `beforematch` event (Chrome/Edge 102+, Firefox 148+). Safe before `<body>`
+ * parses and in SSR (`false`).
  */
 export const supportsHiddenUntilFound = (): boolean =>
-  typeof document !== "undefined" &&
-  document.body !== null &&
-  "onbeforematch" in document.body
+  typeof HTMLElement !== "undefined" &&
+  "onbeforematch" in HTMLElement.prototype
 
 /**
  * Computes the `hidden` attribute value for collapsible, accordion, or tab

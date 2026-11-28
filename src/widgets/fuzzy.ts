@@ -12,23 +12,31 @@ export interface FuzzyMatch {
 
 interface NormalizedMap {
   readonly text: string
-  /** Maps each normalized character index back to its original UTF-16 index. */
-  readonly indexMap: ReadonlyArray<number>
+  /** Maps each normalized character index back to its original UTF-16 span `[start, end)`. */
+  readonly spanMap: ReadonlyArray<FuzzyRange>
 }
 
 const COMBINING_RE = /[\u0300-\u036f]/g
+const COMBINING_CHAR_RE = /^\p{M}$/u
 
 const normalizeWithMap = (input: string): NormalizedMap => {
   let text = ""
-  const indexMap: Array<number> = []
-  for (let i = 0; i < input.length; i++) {
-    const stripped = input[i]!.normalize("NFD").replace(COMBINING_RE, "").toLowerCase()
+  const spanMap: Array<FuzzyRange> = []
+  let i = 0
+  while (i < input.length) {
+    const start = i
+    i += 1
+    while (i < input.length && COMBINING_CHAR_RE.test(input[i]!)) {
+      i += 1
+    }
+    const cluster = input.slice(start, i)
+    const stripped = cluster.normalize("NFD").replace(COMBINING_RE, "").toLowerCase()
     for (let j = 0; j < stripped.length; j++) {
       text += stripped[j]
-      indexMap.push(i)
+      spanMap.push({ start, end: i })
     }
   }
-  return { text, indexMap }
+  return { text, spanMap }
 }
 
 /**
@@ -43,21 +51,21 @@ const isWordBoundary = (text: string, index: number): boolean => {
   return /[\s\-_/.:]/.test(prev)
 }
 
-const mergeIndices = (
-  indices: ReadonlyArray<number>
+const mergeSpans = (
+  spans: ReadonlyArray<FuzzyRange>
 ): ReadonlyArray<FuzzyRange> => {
-  if (indices.length === 0) return []
+  if (spans.length === 0) return []
   const ranges: Array<FuzzyRange> = []
-  let start = indices[0]!
-  let end = start + 1
-  for (let i = 1; i < indices.length; i++) {
-    const idx = indices[i]!
-    if (idx === end) {
-      end = idx + 1
-    } else if (idx > end) {
+  let start = spans[0]!.start
+  let end = spans[0]!.end
+  for (let i = 1; i < spans.length; i++) {
+    const s = spans[i]!
+    if (s.start <= end) {
+      end = Math.max(end, s.end)
+    } else {
       ranges.push({ start, end })
-      start = idx
-      end = idx + 1
+      start = s.start
+      end = s.end
     }
   }
   ranges.push({ start, end })
@@ -82,7 +90,7 @@ export const fuzzyMatch = (
   if (needle.length === 0) {
     return { score: 1, ranges: [] }
   }
-  const { indexMap, text: haystack } = normalizeWithMap(candidate)
+  const { spanMap, text: haystack } = normalizeWithMap(candidate)
   if (haystack.length === 0) return undefined
 
   // 1. Exact match
@@ -95,10 +103,10 @@ export const fuzzyMatch = (
 
   // 2. Prefix match
   if (haystack.startsWith(needle)) {
-    const origIndices = Array.from({ length: needle.length }, (_, i) => indexMap[i]!)
+    const origSpans = Array.from({ length: needle.length }, (_, i) => spanMap[i]!)
     return {
       score: Math.min(0.99, 0.9 + coverageBonus(needle.length, haystack.length)),
-      ranges: mergeIndices(origIndices)
+      ranges: mergeSpans(origSpans)
     }
   }
 
@@ -109,13 +117,13 @@ export const fuzzyMatch = (
     idx = haystack.indexOf(needle, idx + 1)
   ) {
     if (isWordBoundary(haystack, idx)) {
-      const origIndices = Array.from(
+      const origSpans = Array.from(
         { length: needle.length },
-        (_, i) => indexMap[idx + i]!
+        (_, i) => spanMap[idx + i]!
       )
       return {
         score: Math.min(0.89, 0.8 + coverageBonus(needle.length, haystack.length)),
-        ranges: mergeIndices(origIndices)
+        ranges: mergeSpans(origSpans)
       }
     }
   }
@@ -123,13 +131,13 @@ export const fuzzyMatch = (
   // 4. Any contiguous substring match
   const subIdx = haystack.indexOf(needle)
   if (subIdx !== -1) {
-    const origIndices = Array.from(
+    const origSpans = Array.from(
       { length: needle.length },
-      (_, i) => indexMap[subIdx + i]!
+      (_, i) => spanMap[subIdx + i]!
     )
     return {
       score: Math.min(0.79, 0.7 + coverageBonus(needle.length, haystack.length)),
-      ranges: mergeIndices(origIndices)
+      ranges: mergeSpans(origSpans)
     }
   }
 
@@ -166,7 +174,7 @@ export const fuzzyMatch = (
   )
   return {
     score,
-    ranges: mergeIndices(matchedNorm.map((i) => indexMap[i]!))
+    ranges: mergeSpans(matchedNorm.map((i) => spanMap[i]!))
   }
 }
 

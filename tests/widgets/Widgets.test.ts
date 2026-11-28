@@ -63,6 +63,11 @@ describe("fuzzyMatch, fuzzyFilter, and recoverFocusKey", () => {
     expect(accentMatch).toBeDefined()
     expect(accentMatch!.ranges).toEqual([{ start: 6, end: 10 }])
 
+    // NFD-decomposed combining mark stays grouped inside highlight range
+    const nfdMatch = fuzzyMatch("cafe", "cafe\u0301")
+    expect(nfdMatch).toBeDefined()
+    expect(nfdMatch!.ranges).toEqual([{ start: 0, end: 5 }])
+
     const subseq = fuzzyMatch("gp", "Git Push")
     expect(subseq).toBeDefined()
     expect(subseq!.ranges).toEqual([
@@ -359,6 +364,12 @@ describe("Tree", () => {
             // '*' expands all sibling branches
             yield* play.keydown(srcItem, "*")
             expect(play.root.model()!.expanded).toEqual(["src", "tests"])
+
+            // Clicking an expanded branch collapses it; clicking again re-expands it
+            yield* play.click(srcItem)
+            expect(play.root.model()!.expanded).toEqual(["tests"])
+            yield* play.click(srcItem)
+            expect(play.root.model()!.expanded).toEqual(["tests", "src"])
           })
         )
 
