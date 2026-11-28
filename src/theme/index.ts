@@ -40,3 +40,10 @@ export {
   themeContrastPairs,
   generateThemeCss
 } from "./tokens.js"
+
+export {
+  CSS_NAMED_COLORS,
+  deltaEOK,
+  isPerceptuallyDistinct,
+  resolveCssNamedColor
+} from "./compare.js"

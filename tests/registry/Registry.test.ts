@@ -9,16 +9,23 @@ import { join, resolve } from "node:path"
 import { A11yFocus, checkAccessibleNames } from "../../src/a11y/index.js"
 import { checkServer } from "../../src/page/index.js"
 import {
+  buildCustomRegistry,
+  generateIconModule,
   generatePresetCss,
+  handleMcpLine,
+  handleMcpRequest,
   listRegistryItems,
   listVisualPresets,
+  MCP_TOOL_DEFINITIONS,
   REGISTRY_ITEMS,
   resolveRegistryTree,
   runAdd,
   runCli,
   runDiff,
+  runIconPack,
   runInit,
-  runPreset
+  runPreset,
+  validateCustomRegistry
 } from "../../src/registry/index.js"
 import { auditThemeContrast, themeContrastPairs } from "../../src/theme/index.js"
 
@@ -63,16 +70,26 @@ describe("Registry catalog and CLI workflow", () => {
     expect(names.indexOf("cn")).toBeLessThan(names.indexOf("sidebar"))
     expect(names.indexOf("sidebar")).toBeLessThan(names.indexOf("block-dashboard"))
     expect(names.indexOf("code-block")).toBeLessThan(names.indexOf("block-ai-chat"))
-    expect(listRegistryItems({ category: "ai" }).length).toBe(6)
+    expect(listRegistryItems({ category: "ai" }).length).toBe(8)
     expect(listRegistryItems({ category: "blocks" }).length).toBe(3)
+    expect(REGISTRY_ITEMS.length).toBe(70)
 
     const tmp = mkdtempSync(join(tmpdir(), "effect-ui-cli-"))
     try {
-      const initRes = runInit(tmp, { preset: "mira", dir: "src/ui" })
+      const initRes = runInit(tmp, { preset: "mira", dir: "src/ui", iconPack: "lucide" })
       expect(initRes.preset).toBe("mira")
+      expect(initRes.iconPack).toBe("lucide")
       expect(existsSync(join(tmp, "effect-ui.json"))).toBe(true)
       expect(existsSync(join(tmp, "src/ui/theme.css"))).toBe(true)
+      expect(existsSync(join(tmp, "src/ui/icons.ts"))).toBe(true)
       expect(existsSync(join(tmp, "src/ui/cn.ts"))).toBe(true)
+      expect(readFileSync(join(tmp, "src/ui/icons.ts"), "utf8")).toContain("lucide:chevron-down")
+
+      // Switch icon pack to tabler
+      const iconSwitch = runIconPack(tmp, "tabler")
+      expect(iconSwitch.iconPack).toBe("tabler")
+      expect(readFileSync(join(tmp, "src/ui/icons.ts"), "utf8")).toContain("tabler:chevron-down")
+      expect(generateIconModule("inline-svg")).toContain('ICON_PACK = "inline-svg"')
 
       const addRes = runAdd(tmp, ["button", "sidebar"])
       expect(addRes.missing).toEqual([])
@@ -103,7 +120,7 @@ describe("Registry catalog and CLI workflow", () => {
     }
   })
 
-  it("compiles all 27 materialized blueprints under strict TypeScript and passes live HtmlPlay + SSR checks", async () => {
+  it("compiles all 70 materialized blueprints and icons.ts under strict TypeScript and passes live HtmlPlay + SSR checks", async () => {
     const tmp = mkdtempSync(join(tmpdir(), "effect-ui-compile-"))
     try {
       runInit(tmp, { preset: "nova", dir: "src/ui" })
@@ -223,5 +240,139 @@ describe("Registry catalog and CLI workflow", () => {
     } finally {
       rmSync(tmp, { recursive: true, force: true })
     }
-  }, 30_000)
+  }, 45_000)
+
+  it("validates and builds custom registries via API and CLI", () => {
+    const tmp = mkdtempSync(join(tmpdir(), "effect-ui-custom-reg-"))
+    try {
+      const validManifest = {
+        name: "acme-ui",
+        homepage: "https://acme.example",
+        items: [
+          {
+            name: "acme-banner",
+            title: "Acme Banner",
+            category: "primitives",
+            description: "Company announcement banner.",
+            registryDependencies: ["cn"],
+            dependencies: ["@effect/ui"],
+            files: [{ path: "acmeBanner.ts", content: "export const banner = 'ok'\n" }]
+          }
+        ]
+      }
+      const manifestPath = join(tmp, "registry.json")
+      writeFileSync(manifestPath, JSON.stringify(validManifest, null, 2), "utf8")
+
+      const validRes = validateCustomRegistry(tmp)
+      expect(validRes.valid).toBe(true)
+      expect(validRes.errors).toEqual([])
+
+      const outDir = join(tmp, "dist/registry")
+      const built = buildCustomRegistry(tmp, outDir)
+      expect(built.ok).toBe(true)
+      expect(built.itemCount).toBe(1)
+      expect(existsSync(join(outDir, "index.json"))).toBe(true)
+      expect(existsSync(join(outDir, "items/acme-banner.json"))).toBe(true)
+
+      expect(runCli(["registry", "validate"], tmp).exitCode).toBe(0)
+      expect(runCli(["registry", "build", "--out", "built"], tmp).exitCode).toBe(0)
+      expect(runCli(["icon-pack", "lucide"], tmp).exitCode).toBe(0)
+
+      // Path traversal and missing dependency fail validation
+      const badPath = join(tmp, "bad.json")
+      writeFileSync(
+        badPath,
+        JSON.stringify({
+          name: "bad-reg",
+          items: [
+            {
+              name: "escape",
+              title: "Escape",
+              category: "primitives",
+              description: "Bad path",
+              registryDependencies: ["nonexistent-item"],
+              dependencies: [],
+              files: [{ path: "../evil.ts", content: "export const x = 1" }]
+            }
+          ]
+        }),
+        "utf8"
+      )
+      const invalid = validateCustomRegistry(badPath)
+      expect(invalid.valid).toBe(false)
+      expect(invalid.errors.some((e) => e.includes("unsafe file path"))).toBe(true)
+      expect(invalid.errors.some((e) => e.includes("nonexistent-item"))).toBe(true)
+      expect(runCli(["registry", "validate", "bad.json"], tmp).exitCode).toBe(1)
+    } finally {
+      rmSync(tmp, { recursive: true, force: true })
+    }
+  })
+
+  it("serves JSON-RPC 2.0 MCP tools for registry discovery, add commands, presets, and audit checklist", () => {
+    const init = handleMcpRequest({ jsonrpc: "2.0", id: 1, method: "initialize" })
+    expect(init?.error).toBeUndefined()
+    expect((init?.result as { serverInfo: { name: string } }).serverInfo.name).toBe("effect-ui-registry")
+
+    expect(handleMcpRequest({ jsonrpc: "2.0", method: "notifications/initialized" })).toBeNull()
+    expect(handleMcpRequest({ jsonrpc: "2.0", id: 2, method: "ping" })?.result).toEqual({})
+
+    const tools = handleMcpRequest({ jsonrpc: "2.0", id: 3, method: "tools/list" })
+    expect((tools?.result as { tools: ReadonlyArray<unknown> }).tools.length).toBe(MCP_TOOL_DEFINITIONS.length)
+
+    const listCall = handleMcpRequest({
+      jsonrpc: "2.0",
+      id: 4,
+      method: "tools/call",
+      params: { name: "list_items", arguments: { category: "blocks" } }
+    })
+    const listText = (listCall?.result as { content: ReadonlyArray<{ text: string }> }).content[0]!.text
+    expect(JSON.parse(listText).count).toBe(3)
+
+    const searchCall = handleMcpRequest({
+      jsonrpc: "2.0",
+      id: 5,
+      method: "tools/call",
+      params: { name: "search_items", arguments: { query: "accordion" } }
+    })
+    expect((searchCall?.result as { content: ReadonlyArray<{ text: string }> }).content[0]!.text).toContain("accordion")
+
+    const viewCall = handleMcpRequest({
+      jsonrpc: "2.0",
+      id: 6,
+      method: "tools/call",
+      params: { name: "view_items", arguments: { names: ["dialog", "bubble"] } }
+    })
+    const viewPayload = JSON.parse((viewCall?.result as { content: ReadonlyArray<{ text: string }> }).content[0]!.text)
+    expect(viewPayload.items.length).toBe(2)
+
+    const addCall = handleMcpRequest({
+      jsonrpc: "2.0",
+      id: 7,
+      method: "tools/call",
+      params: { name: "get_add_command", arguments: { names: ["block-dashboard"] } }
+    })
+    const addPayload = JSON.parse((addCall?.result as { content: ReadonlyArray<{ text: string }> }).content[0]!.text)
+    expect(addPayload.command).toBe("bunx effect-ui add block-dashboard")
+    expect(addPayload.resolvedItems).toContain("sidebar")
+
+    const presetsCall = handleMcpRequest({
+      jsonrpc: "2.0",
+      id: 8,
+      method: "tools/call",
+      params: { name: "list_presets", arguments: {} }
+    })
+    expect(JSON.parse((presetsCall?.result as { content: ReadonlyArray<{ text: string }> }).content[0]!.text).presets.length).toBe(5)
+
+    const auditCall = handleMcpRequest({
+      jsonrpc: "2.0",
+      id: 9,
+      method: "tools/call",
+      params: { name: "get_audit_checklist", arguments: {} }
+    })
+    expect(JSON.parse((auditCall?.result as { content: ReadonlyArray<{ text: string }> }).content[0]!.text).gates.length).toBe(4)
+
+    // Parse error and unknown method
+    expect(JSON.parse(handleMcpLine("{not-json")!).error.code).toBe(-32700)
+    expect(handleMcpRequest({ jsonrpc: "2.0", id: 10, method: "nope" })?.error?.code).toBe(-32601)
+  })
 })

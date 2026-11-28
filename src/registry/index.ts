@@ -1,4 +1,5 @@
 export {
+  decodeIconPack,
   decodePresetName,
   decodeProjectUiConfig,
   DEFAULT_UI_CONFIG,
@@ -16,6 +17,8 @@ export {
   type RegistryItem,
   RegistryItemSchema
 } from "./schema.js"
+
+export { generateIconModule, type UiIconName } from "./icons.js"
 
 export {
   generatePresetCss,
@@ -44,7 +47,28 @@ export {
   runAdd,
   runCli,
   runDiff,
+  runIconPack,
   runInit,
   runPreset,
   writeProjectUiConfig
 } from "./cli.js"
+
+export {
+  buildCustomRegistry,
+  type CustomRegistryManifest,
+  CustomRegistryManifestSchema,
+  type RegistryBuildResult,
+  type RegistryValidationResult,
+  validateCustomRegistry
+} from "./customRegistry.js"
+
+export {
+  handleMcpLine,
+  handleMcpRequest,
+  type JsonRpcRequest,
+  type JsonRpcResponse,
+  MCP_PROTOCOL_VERSION,
+  MCP_TOOL_DEFINITIONS,
+  type McpToolDefinition,
+  runMcpServer
+} from "./mcp.js"

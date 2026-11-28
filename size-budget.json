@@ -1,10 +1,10 @@
 {
   "effect-ui-extra/a11y": 12032,
-  "effect-ui-extra/page": 13312,
-  "effect-ui-extra/widgets": 25344,
-  "effect-ui-extra/direct": 5120,
-  "effect-ui-extra/theme": 4352,
+  "effect-ui-extra/page": 14592,
+  "effect-ui-extra/widgets": 28928,
+  "effect-ui-extra/direct": 7424,
+  "effect-ui-extra/theme": 6144,
   "effect-ui-extra/theme/effect-ui.css": 3840,
   "effect-ui-extra/motion": 3328,
-  "effect-ui-extra/registry": 25088
+  "effect-ui-extra/registry": 37888
 }

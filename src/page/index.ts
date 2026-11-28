@@ -142,3 +142,21 @@ export {
   resolveInteractiveTapTarget,
   type TouchPoint
 } from "./iosTouchGuard.js"
+
+export {
+  findNextTabbable,
+  getTabbables,
+  isTabbable,
+  preserveFocusAcrossUpdate
+} from "./tabbable.js"
+
+export {
+  type FieldValidationEntry,
+  firstInvalidFieldName,
+  type FormValidationEvent,
+  type FormValidationState,
+  getVisibleFieldError,
+  initialFormValidationState,
+  reduceFormValidation,
+  type ValidationMode
+} from "./formValidation.js"

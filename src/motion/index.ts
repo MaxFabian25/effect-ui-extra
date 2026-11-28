@@ -59,3 +59,9 @@ export {
   type ScrollHandoffState,
   type ScrollHandoffTransition
 } from "./handoff.js"
+
+export {
+  sectorCenterAngleDeg,
+  sectorOf,
+  type SectorOptions
+} from "./sector.js"

@@ -1,11 +1,17 @@
 import { AI_AND_BLOCK_REGISTRY_ITEMS } from "./items/aiAndBlocks.js"
 import { APP_REGISTRY_ITEMS } from "./items/app.js"
 import { CORE_REGISTRY_ITEMS } from "./items/core.js"
+import { DISPLAY_REGISTRY_ITEMS } from "./items/display.js"
+import { FORM_REGISTRY_ITEMS } from "./items/forms.js"
+import { OVERLAY_REGISTRY_ITEMS } from "./items/overlays.js"
 import type { RegistryCategory, RegistryItem } from "./schema.js"
 
 export const REGISTRY_ITEMS: ReadonlyArray<RegistryItem> = [
   ...CORE_REGISTRY_ITEMS,
   ...APP_REGISTRY_ITEMS,
+  ...FORM_REGISTRY_ITEMS,
+  ...OVERLAY_REGISTRY_ITEMS,
+  ...DISPLAY_REGISTRY_ITEMS,
   ...AI_AND_BLOCK_REGISTRY_ITEMS
 ]
 
