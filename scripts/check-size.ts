@@ -32,7 +32,17 @@ const measureTarget = async (target: SizeTarget): Promise<{ readonly raw: number
     target: "browser",
     format: "esm",
     minify: true,
-    external: ["effect", "effect/*", "@effect/ui", "@effect/ui/*", "@effect/ui-kit", "@effect/ui-kit/*", "node:fs", "node:path"]
+    external: [
+      "effect",
+      "effect/*",
+      "@effect/ui",
+      "@effect/ui/*",
+      "@effect/ui-kit",
+      "@effect/ui-kit/*",
+      "node:fs",
+      "node:path",
+      "node:readline"
+    ]
   })
   if (!built.success) {
     throw new Error(`Bundle failed for ${target.key}: ${built.logs.map((l) => l.message).join("\n")}`)

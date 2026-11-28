@@ -27,37 +27,37 @@ const SUBPATHS: ReadonlyArray<SubpathSpec> = [
     subpath: "effect-ui-extra/page",
     entry: "src/page/index.ts",
     summary:
-      "Zero-FOUC SSR preferences and color scheme, CspContext nonce helpers, iOS modal touch jitter guard, Deferred-backed overlays, LiveAnnouncer, scoped ShortcutRegistry, checkServer SSR purity guard, semantic PageObserver/PageHistory with undoAgent(), InputModalityTracker, hidden=\"until-found\" helpers, and theme-color dimming."
+      "Zero-FOUC SSR preferences and color scheme, CspContext nonce helpers, iOS modal touch jitter guard, Deferred-backed overlays, LiveAnnouncer, scoped ShortcutRegistry, checkServer SSR purity guard, semantic PageObserver/PageHistory with undoAgent(), InputModalityTracker, hidden=\"until-found\" helpers, theme-color dimming, DOM tabbable walker, and Form validationMode + server-error focus helper."
   },
   {
     subpath: "effect-ui-extra/widgets",
     entry: "src/widgets/index.ts",
     summary:
-      "Headless application widgets and AI-chat controls complementing @effect/ui-kit (Command, Tree, Resizable, Listbox, PasswordInput, TimeInput, TokenInput, Pagination, SegmentedControl, InlineEdit, Rating, ColorPicker, Carousel, ImageCropper, Timeline, Waterfall, StickToBottom, TriggerMenu, InputHistory, inputHints, TreeChecked, AsyncOptions)."
+      "Headless application widgets and AI-chat controls complementing @effect/ui-kit (Command, Tree, Resizable, Listbox, PasswordInput, TimeInput, DateTimePicker, TokenInput, Pagination, SegmentedControl, InlineEdit, Rating, ColorPicker, AreaPicker, ScrollPicker, Carousel, ImageCropper, Timeline, Waterfall, StickToBottom, TriggerMenu, InputHistory, inputHints, TreeChecked, AsyncOptions, structured prompt tokens)."
   },
   {
     subpath: "effect-ui-extra/direct",
     entry: "src/direct/index.ts",
     summary:
-      "Pure 2D spatial/grid focus, CellRange and lasso selection, SwipeActions, TestClock-driven holdEffect/repeatStream, cycle-safe TreeReorder, cross-container Kanban transfer, infinite canvas Viewport/Connect, quadratic edge AutoScroll, and TimeSpan math."
+      "Pure 2D spatial/grid focus, CellRange and lasso selection, SwipeActions, TestClock-driven holdEffect/repeatStream, cycle-safe TreeReorder, cross-container Kanban transfer, infinite canvas Viewport/Connect, quadratic edge AutoScroll, TimeSpan math, NumberScale (log/custom + locale parsing), draftMove controller, 2D VirtualGrid math, and CLDR firstDayOfWeek + PlainDate helpers."
   },
   {
     subpath: "effect-ui-extra/theme",
     entry: "src/theme/index.ts",
     summary:
-      "OKLCH/sRGB/Display-P3 color engine, hue-preserving gamut clamping, WCAG 2.1 and APCA contrast auditing, theme CSS generation, and opt-in @layer effect-ui stylesheet (effect-ui-extra/theme/effect-ui.css)."
+      "OKLCH/sRGB/Display-P3 color engine, hue-preserving gamut clamping, WCAG 2.1 and APCA contrast auditing, deltaEOK perceptual distance, 148 CSS named colors, theme CSS generation, and opt-in @layer effect-ui stylesheet (effect-ui-extra/theme/effect-ui.css)."
   },
   {
     subpath: "effect-ui-extra/motion",
     entry: "src/motion/index.ts",
     summary:
-      "Closed-form analytical springs, compositor CSS linear() easing, pointer velocity tracker, momentum projection, rubber-band overscroll, snap points, draggable sheet reducer, scroll-to-drag handoff, Presence lifecycle, and Carousel reducer."
+      "Closed-form analytical springs, compositor CSS linear() easing, pointer velocity tracker, momentum projection, rubber-band overscroll, snap points, draggable sheet reducer, scroll-to-drag handoff, radial sectorOf math, Presence lifecycle, and Carousel reducer."
   },
   {
     subpath: "effect-ui-extra/registry",
     entry: "src/registry/index.ts",
     summary:
-      "shadcn-style copy-paste styled component registry, 5 WCAG-audited OKLCH visual presets (nova, vega, maia, lyra, mira), 27 Tailwind v4 + Effect UI app/AI blueprints and page blocks, and the effect-ui CLI (init, list, view, add, diff, preset)."
+      "shadcn-style copy-paste styled component registry with 64/64 shadcn base/ui parity (70 total items including cn, dialog-card, data-table, and 3 page blocks), 5 WCAG-audited OKLCH visual presets, icon-pack switching (inline-svg, lucide, tabler), custom registry validate/build, JSON-RPC 2.0 effect-ui mcp server, and effect-ui CLI."
   }
 ]
 
