@@ -1,5 +1,6 @@
 import { AI_AND_BLOCK_REGISTRY_ITEMS } from "./items/aiAndBlocks.js"
 import { APP_REGISTRY_ITEMS } from "./items/app.js"
+import { CHARTS_AND_EXTRA_BLOCKS } from "./items/chartsAndBlocks.js"
 import { CORE_REGISTRY_ITEMS } from "./items/core.js"
 import { DISPLAY_REGISTRY_ITEMS } from "./items/display.js"
 import { FORM_REGISTRY_ITEMS } from "./items/forms.js"
@@ -12,7 +13,8 @@ export const REGISTRY_ITEMS: ReadonlyArray<RegistryItem> = [
   ...FORM_REGISTRY_ITEMS,
   ...OVERLAY_REGISTRY_ITEMS,
   ...DISPLAY_REGISTRY_ITEMS,
-  ...AI_AND_BLOCK_REGISTRY_ITEMS
+  ...AI_AND_BLOCK_REGISTRY_ITEMS,
+  ...CHARTS_AND_EXTRA_BLOCKS
 ]
 
 const BY_NAME: ReadonlyMap<string, RegistryItem> = new Map(
