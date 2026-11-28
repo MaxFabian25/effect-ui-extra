@@ -164,3 +164,93 @@ export const buildCustomRegistry = (
     itemCount: manifest.items.length
   }
 }
+
+const decodeRegistryItem = Schema.decodeUnknownSync(RegistryItemSchema)
+
+export interface NamespacedRef {
+  readonly namespace: string
+  readonly name: string
+}
+
+/** Parses `@org/item-name` references; returns `undefined` for built-in unnamespaced names. */
+export const parseNamespacedItem = (spec: string): NamespacedRef | undefined => {
+  if (!spec.startsWith("@")) return undefined
+  const slash = spec.indexOf("/")
+  if (slash <= 1 || slash === spec.length - 1) return undefined
+  const namespace = spec.slice(0, slash)
+  const name = spec.slice(slash + 1)
+  if (!/^@[a-zA-Z0-9_-]+$/.test(namespace)) return undefined
+  if (!/^[a-zA-Z0-9._-]+$/.test(name) || name === "." || name === "..") return undefined
+  return { namespace, name }
+}
+
+const validateLoadedItemFiles = (item: RegistryItem): RegistryItem => {
+  for (const file of item.files) {
+    if (!isSafeRelativePath(file.path)) {
+      throw new Error(`Registry item "${item.name}" contains unsafe file path "${file.path}".`)
+    }
+  }
+  return item
+}
+
+const resolveRegistryEndpoint = (templateOrBase: string, itemName: string): string => {
+  if (templateOrBase.includes("{name}")) {
+    return templateOrBase.replaceAll("{name}", itemName)
+  }
+  const trimmed = templateOrBase.replace(/\/+$/, "")
+  return `${trimmed}/items/${itemName}.json`
+}
+
+/**
+ * Loads a `@namespace/item` blueprint synchronously from a local custom
+ * registry directory configured in `effect-ui.json`'s `registries` map.
+ */
+export const loadNamespacedItemSync = (
+  cwd: string,
+  registries: Readonly<Record<string, string>> | undefined,
+  spec: string
+): RegistryItem | undefined => {
+  const ref = parseNamespacedItem(spec)
+  if (ref === undefined) return undefined
+  const base = registries?.[ref.namespace]
+  if (base === undefined) {
+    throw new Error(`Unknown registry namespace "${ref.namespace}". Add it under "registries" in effect-ui.json.`)
+  }
+  if (/^https?:\/\//i.test(base)) {
+    throw new Error(`Remote registry "${ref.namespace}" requires async resolution (use runAddAsync or CLI).`)
+  }
+  const targetPath = resolve(cwd, resolveRegistryEndpoint(base, ref.name))
+  if (!existsSync(targetPath)) return undefined
+  const raw: unknown = JSON.parse(readFileSync(targetPath, "utf8"))
+  return validateLoadedItemFiles(decodeRegistryItem(raw))
+}
+
+/**
+ * Loads a `@namespace/item` blueprint from either a local directory or a remote
+ * HTTPS static registry (built with `effect-ui registry build` or `{name}` URL
+ * templates), decoding and validating every file path via Effect Schema.
+ */
+export const loadNamespacedItemAsync = async (
+  cwd: string,
+  registries: Readonly<Record<string, string>> | undefined,
+  spec: string,
+  fetchImpl: typeof fetch = fetch
+): Promise<RegistryItem | undefined> => {
+  const ref = parseNamespacedItem(spec)
+  if (ref === undefined) return undefined
+  const base = registries?.[ref.namespace]
+  if (base === undefined) {
+    throw new Error(`Unknown registry namespace "${ref.namespace}". Add it under "registries" in effect-ui.json.`)
+  }
+  if (!/^https?:\/\//i.test(base)) {
+    return loadNamespacedItemSync(cwd, registries, spec)
+  }
+  const url = resolveRegistryEndpoint(base, ref.name)
+  const response = await fetchImpl(url)
+  if (response.status === 404) return undefined
+  if (!response.ok) {
+    throw new Error(`Failed to fetch ${url}: HTTP ${response.status}`)
+  }
+  const raw: unknown = await response.json()
+  return validateLoadedItemFiles(decodeRegistryItem(raw))
+}
