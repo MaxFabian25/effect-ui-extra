@@ -95,3 +95,43 @@ export {
   type TransferOptions,
   type TransferResult
 } from "./transfer.js"
+
+export {
+  formatLocalizedNumber,
+  type NumberScale,
+  parseLocalizedNumber,
+  ratioToValue,
+  snapToStep,
+  valueToRatio
+} from "./scale.js"
+
+export {
+  cancelDraftMove,
+  commitDraftMove,
+  type DraftCommitResult,
+  type DraftMoveSource,
+  type DraftMoveState,
+  initialDraftMove,
+  startDraftMove,
+  syncDraftMoveCommitted,
+  updateDraftMove
+} from "./draftMove.js"
+
+export {
+  computeVirtualGrid,
+  type VirtualGridCell,
+  type VirtualGridConfig,
+  type VirtualGridLayout,
+  type VirtualGridViewport
+} from "./virtualGrid.js"
+
+export {
+  addDays,
+  comparePlainDates,
+  firstDayOfWeek,
+  formatPlainDate,
+  isValidPlainDate,
+  parsePlainDate,
+  type PlainDate,
+  type WeekdayIndex
+} from "./dateLocale.js"
