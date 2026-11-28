@@ -11,13 +11,16 @@ export const DISPLAY_REGISTRY_ITEMS: ReadonlyArray<RegistryItem> = [
     name: "accordion",
     title: "Accordion",
     category: "layout",
-    description: "Styled stacked disclosure sections for @effect/ui-kit Accordion.",
+    description: "Styled stacked disclosure sections wrapping @effect/ui-kit Accordion and AccordionItem.",
     registryDependencies: ["cn"],
-    dependencies: ["@effect/ui"],
+    dependencies: ["@effect/ui", "@effect/ui-kit"],
     files: [
       {
         path: "accordion.ts",
-        content: `import { cn } from "./cn.js"
+        content: `import type { View } from "@effect/ui"
+import type { Html } from "@effect/ui/html"
+import { Accordion, AccordionItem } from "@effect/ui-kit"
+import { cn } from "./cn.js"
 
 export const accordionItemClass = (className?: string): string =>
   cn("border-b border-border", className)
@@ -31,6 +34,59 @@ export const accordionTriggerClass = (className?: string): string =>
 
 export const accordionPanelClass = (className?: string): string =>
   cn("pb-3 text-sm text-muted-foreground", className)
+
+export interface StyledAccordionSection<Msg> {
+  readonly value: string
+  readonly title: string
+  readonly content: View.Content<Msg>
+  readonly disabled?: boolean | undefined
+}
+
+export const styledAccordion = <Msg>(
+  h: Html.H<Msg>,
+  options: {
+    readonly key?: string | undefined
+    readonly value: ReadonlyArray<string>
+    readonly multiple?: boolean | undefined
+    readonly items: ReadonlyArray<StyledAccordionSection<Msg>>
+    readonly onValueChange: (value: ReadonlyArray<string>) => Msg
+    readonly className?: string | undefined
+  }
+) =>
+  Accordion(h, {
+    key: options.key ?? "accordion",
+    props: {
+      value: options.value,
+      ...(options.multiple !== undefined ? { multiple: options.multiple } : {})
+    },
+    onEmit: {
+      Toggled: ({ value }) => options.onValueChange(value)
+    },
+    view: (acc) =>
+      acc.root(h.div.class(cn("w-full divide-y divide-border", options.className))).children(
+        ...options.items.map((item, index) =>
+          AccordionItem(h, {
+            key: item.value,
+            props: {
+              value: item.value,
+              index,
+              ...(item.disabled !== undefined ? { disabled: item.disabled } : {})
+            },
+            onEmit: {
+              Toggled: () => undefined,
+              Settled: () => undefined
+            },
+            view: (part) =>
+              part.root(h.div.class(accordionItemClass())).children(
+                part.header(h.h3.class("m-0")).children(
+                  part.trigger(h.button.attrs({ type: "button" }).class(accordionTriggerClass())).children(item.title)
+                ),
+                part.panel(h.div.class(accordionPanelClass()))?.children(item.content)
+              )
+          })
+        )
+      )
+  })
 `
       }
     ]
@@ -39,19 +95,47 @@ export const accordionPanelClass = (className?: string): string =>
     name: "collapsible",
     title: "Collapsible",
     category: "layout",
-    description: "Styled collapsible trigger and content region classes for @effect/ui-kit Collapsible.",
+    description: "Styled collapsible trigger and content region wrapping @effect/ui-kit Collapsible.",
     registryDependencies: ["cn"],
-    dependencies: ["@effect/ui"],
+    dependencies: ["@effect/ui", "@effect/ui-kit"],
     files: [
       {
         path: "collapsible.ts",
-        content: `import { cn } from "./cn.js"
+        content: `import type { View } from "@effect/ui"
+import type { Html } from "@effect/ui/html"
+import { Collapsible } from "@effect/ui-kit"
+import { cn } from "./cn.js"
 
 export const collapsibleTriggerClass = (className?: string): string =>
   cn("inline-flex items-center gap-1.5 rounded-sm px-2 py-1 text-sm font-medium text-foreground hover:bg-muted", className)
 
 export const collapsiblePanelClass = (className?: string): string =>
   cn("overflow-hidden text-sm text-muted-foreground", className)
+
+export const styledCollapsible = <Msg>(
+  h: Html.H<Msg>,
+  options: {
+    readonly key?: string | undefined
+    readonly open: boolean
+    readonly triggerLabel: string
+    readonly content: View.Content<Msg>
+    readonly onOpenChange: (open: boolean) => Msg
+    readonly className?: string | undefined
+  }
+) =>
+  Collapsible(h, {
+    key: options.key ?? "collapsible",
+    props: { open: options.open },
+    onEmit: {
+      Toggled: ({ open }) => options.onOpenChange(open),
+      Settled: () => undefined
+    },
+    view: (parts) =>
+      parts.root(h.div.class(cn("flex flex-col gap-2", options.className))).children(
+        parts.trigger(h.button.attrs({ type: "button" }).class(collapsibleTriggerClass())).children(options.triggerLabel),
+        parts.panel(h.div.class(collapsiblePanelClass()))?.children(options.content)
+      )
+  })
 `
       }
     ]
@@ -60,20 +144,23 @@ export const collapsiblePanelClass = (className?: string): string =>
     name: "tabs",
     title: "Tabs",
     category: "layout",
-    description: "Styled tab list, trigger, and panel classes for @effect/ui-kit Tabs.",
+    description: "Styled tab list, sliding indicator, and panels wrapping @effect/ui-kit Tabs.",
     registryDependencies: ["cn"],
-    dependencies: ["@effect/ui"],
+    dependencies: ["@effect/ui", "@effect/ui-kit"],
     files: [
       {
         path: "tabs.ts",
-        content: `import { cn } from "./cn.js"
+        content: `import type { View } from "@effect/ui"
+import type { Html } from "@effect/ui/html"
+import { Tabs } from "@effect/ui-kit"
+import { cn } from "./cn.js"
 
 export const tabsListClass = (className?: string): string =>
-  cn("inline-flex items-center gap-1 rounded-md bg-muted p-1 text-muted-foreground", className)
+  cn("relative inline-flex items-center gap-1 rounded-md bg-muted p-1 text-muted-foreground", className)
 
 export const tabsTriggerClass = (className?: string): string =>
   cn(
-    "inline-flex items-center justify-center rounded-sm px-3 py-1 text-sm font-medium transition-colors",
+    "relative z-10 inline-flex items-center justify-center rounded-sm px-3 py-1 text-sm font-medium transition-colors",
     "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
     "data-[active]:bg-background data-[active]:text-foreground data-[active]:shadow-sm aria-[selected=true]:bg-background aria-[selected=true]:text-foreground",
     className
@@ -81,6 +168,49 @@ export const tabsTriggerClass = (className?: string): string =>
 
 export const tabsPanelClass = (className?: string): string =>
   cn("mt-3 text-sm text-foreground", className)
+
+export interface StyledTabItem<Msg> {
+  readonly value: string
+  readonly label: string
+  readonly content: View.Content<Msg>
+  readonly disabled?: boolean | undefined
+}
+
+export const styledTabs = <Msg>(
+  h: Html.H<Msg>,
+  options: {
+    readonly key?: string | undefined
+    readonly value: string | null
+    readonly items: ReadonlyArray<StyledTabItem<Msg>>
+    readonly onSelect: (value: string) => Msg
+    readonly className?: string | undefined
+  }
+) =>
+  Tabs(h, {
+    key: options.key ?? "tabs",
+    props: {
+      value: options.value,
+      tabs: options.items.map((item) => ({
+        value: item.value,
+        ...(item.disabled !== undefined ? { disabled: item.disabled } : {})
+      }))
+    },
+    onEmit: {
+      Selected: ({ value }) => options.onSelect(value)
+    },
+    view: (parts) =>
+      parts.root(h.div.class(cn("w-full", options.className))).children(
+        parts.list(h.div.class(tabsListClass())).children(
+          ...options.items.map((item) =>
+            parts.tab({ element: h.button.key(item.value).attrs({ type: "button" }).class(tabsTriggerClass()), value: item.value }).children(item.label)
+          ),
+          parts.indicator(h.span.class("pointer-events-none absolute rounded-sm bg-background shadow-sm transition-all"))
+        ),
+        ...options.items.map((item) =>
+          parts.panel({ element: h.div.key(item.value).class(tabsPanelClass()), value: item.value })?.children(item.content)
+        )
+      )
+  })
 `
       }
     ]
@@ -230,13 +360,16 @@ export const styledSeparator = <Msg>(
     name: "scroll-area",
     title: "Scroll Area",
     category: "layout",
-    description: "Styled scroll viewport and custom scrollbar track/thumb classes for @effect/ui-kit ScrollArea.",
+    description: "Styled scroll viewport and custom scrollbars wrapping @effect/ui-kit ScrollArea.",
     registryDependencies: ["cn"],
-    dependencies: ["@effect/ui"],
+    dependencies: ["@effect/ui", "@effect/ui-kit"],
     files: [
       {
         path: "scrollArea.ts",
-        content: `import { cn } from "./cn.js"
+        content: `import type { View } from "@effect/ui"
+import type { Html } from "@effect/ui/html"
+import { ScrollArea } from "@effect/ui-kit"
+import { cn } from "./cn.js"
 
 export const scrollAreaRootClass = (className?: string): string =>
   cn("relative overflow-hidden", className)
@@ -249,6 +382,36 @@ export const scrollAreaTrackClass = (className?: string): string =>
 
 export const scrollAreaThumbClass = (className?: string): string =>
   cn("relative flex-1 rounded-full bg-border hover:bg-muted-foreground/50", className)
+
+export const styledScrollArea = <Msg>(
+  h: Html.H<Msg>,
+  options: {
+    readonly key?: string | undefined
+    readonly content: View.Content<Msg>
+    readonly className?: string | undefined
+  }
+) =>
+  ScrollArea(h, {
+    key: options.key ?? "scroll-area",
+    props: {},
+    view: (parts) =>
+      parts.root(h.div.class(scrollAreaRootClass(options.className))).children(
+        parts.viewport(h.div.class(scrollAreaViewportClass())).children(
+          parts.content(h.div).children(options.content)
+        ),
+        parts.scrollbar({
+          element: h.div.class(scrollAreaTrackClass()),
+          thumb: h.div.class(scrollAreaThumbClass()),
+          orientation: "vertical"
+        }),
+        parts.scrollbar({
+          element: h.div.class(scrollAreaTrackClass()),
+          thumb: h.div.class(scrollAreaThumbClass()),
+          orientation: "horizontal"
+        }),
+        parts.corner(h.div.class("bg-transparent"))
+      )
+  })
 `
       }
     ]
@@ -257,13 +420,15 @@ export const scrollAreaThumbClass = (className?: string): string =>
     name: "resizable",
     title: "Resizable Panes",
     category: "layout",
-    description: "Styled split-pane container and separator handle classes for Resizable from effect-ui-extra/widgets.",
+    description: "Styled split-pane container wrapping Resizable from effect-ui-extra/widgets.",
     registryDependencies: ["cn"],
     dependencies: ["@effect/ui", "effect-ui-extra"],
     files: [
       {
         path: "resizable.ts",
-        content: `import { cn } from "./cn.js"
+        content: `import type { Html } from "@effect/ui/html"
+import { Resizable, type ResizableProps } from "effect-ui-extra/widgets"
+import { cn } from "./cn.js"
 
 export const resizableGroupClass = (className?: string): string =>
   cn("flex h-full w-full overflow-hidden rounded-md border border-border", className)
@@ -274,6 +439,25 @@ export const resizableHandleClass = (className?: string): string =>
     "hover:bg-primary/60 focus-visible:outline-2 focus-visible:outline-ring",
     className
   )
+
+export const styledResizable = <Msg>(
+  h: Html.H<Msg>,
+  options: {
+    readonly key?: string | undefined
+    readonly props: ResizableProps
+    readonly onResize: (sizes: ReadonlyArray<number>) => Msg
+    readonly className?: string | undefined
+  }
+) =>
+  h.div.class(resizableGroupClass(options.className)).children(
+    Resizable(h, {
+      key: options.key ?? "resizable",
+      props: options.props,
+      onEmit: {
+        Resized: ({ sizes }) => options.onResize(sizes)
+      }
+    })
+  )
 `
       }
     ]
@@ -282,13 +466,15 @@ export const resizableHandleClass = (className?: string): string =>
     name: "pagination",
     title: "Pagination",
     category: "data",
-    description: "Styled page-button and navigation bar classes for Pagination from effect-ui-extra/widgets.",
+    description: "Styled pagination bar wrapping Pagination from effect-ui-extra/widgets.",
     registryDependencies: ["cn"],
     dependencies: ["@effect/ui", "effect-ui-extra"],
     files: [
       {
         path: "pagination.ts",
-        content: `import { cn } from "./cn.js"
+        content: `import type { Html } from "@effect/ui/html"
+import { Pagination } from "effect-ui-extra/widgets"
+import { cn } from "./cn.js"
 
 export const paginationNavClass = (className?: string): string =>
   cn("flex items-center justify-center gap-1 text-sm", className)
@@ -300,6 +486,31 @@ export const paginationButtonClass = (active: boolean, className?: string): stri
     active ? "bg-primary text-primary-foreground" : "text-foreground hover:bg-muted",
     className
   )
+
+export const styledPagination = <Msg>(
+  h: Html.H<Msg>,
+  options: {
+    readonly key?: string | undefined
+    readonly page: number
+    readonly totalPages: number
+    readonly label?: string | undefined
+    readonly onPageChange: (page: number) => Msg
+    readonly className?: string | undefined
+  }
+) =>
+  h.div.class(paginationNavClass(options.className)).children(
+    Pagination(h, {
+      key: options.key ?? "pagination",
+      props: {
+        page: options.page,
+        totalPages: options.totalPages,
+        ...(options.label !== undefined ? { label: options.label } : {})
+      },
+      onEmit: {
+        PageChanged: ({ page }) => options.onPageChange(page)
+      }
+    })
+  )
 `
       }
     ]
@@ -308,13 +519,15 @@ export const paginationButtonClass = (active: boolean, className?: string): stri
     name: "carousel",
     title: "Carousel",
     category: "layout",
-    description: "Styled slide viewport, control bar, and indicator dot classes for Carousel from effect-ui-extra/widgets.",
+    description: "Styled accessible slide carousel wrapping Carousel from effect-ui-extra/widgets.",
     registryDependencies: ["cn"],
     dependencies: ["@effect/ui", "effect-ui-extra"],
     files: [
       {
         path: "carousel.ts",
-        content: `import { cn } from "./cn.js"
+        content: `import type { Html } from "@effect/ui/html"
+import { Carousel, type CarouselProps } from "effect-ui-extra/widgets"
+import { cn } from "./cn.js"
 
 export const carouselContainerClass = (className?: string): string =>
   cn("relative flex flex-col gap-3 rounded-lg border border-border bg-surface p-4", className)
@@ -327,6 +540,26 @@ export const carouselDotClass = (active: boolean, className?: string): string =>
     "h-2.5 w-2.5 rounded-full transition-colors",
     active ? "bg-primary" : "bg-muted-foreground/30 hover:bg-muted-foreground/60",
     className
+  )
+
+export const styledCarousel = <Msg>(
+  h: Html.H<Msg>,
+  options: {
+    readonly key?: string | undefined
+    readonly props: CarouselProps
+    readonly onSlideChange: (index: number) => Msg
+    readonly className?: string | undefined
+  }
+) =>
+  h.div.class(carouselContainerClass(options.className)).children(
+    Carousel(h, {
+      key: options.key ?? "carousel",
+      props: options.props,
+      onEmit: {
+        IndexChanged: ({ index }) => options.onSlideChange(index),
+        AutoplayToggled: () => undefined
+      }
+    })
   )
 `
       }

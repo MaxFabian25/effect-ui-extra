@@ -1,7 +1,8 @@
 import { createInterface } from "node:readline"
 import { getRegistryItem, listRegistryItems, resolveRegistryTree } from "./catalog.js"
-import { listVisualPresets } from "./presets.js"
-import type { RegistryCategory } from "./schema.js"
+import { formatItemDocs } from "./cli.js"
+import { encodePresetCode, listVisualPresets } from "./presets.js"
+import { decodePresetSpec, type RegistryCategory } from "./schema.js"
 
 export interface JsonRpcRequest {
   readonly jsonrpc?: string | undefined
@@ -70,10 +71,35 @@ export const MCP_TOOL_DEFINITIONS: ReadonlyArray<McpToolDefinition> = [
   },
   {
     name: "list_presets",
-    description: "List the 5 WCAG-audited OKLCH visual presets (vega, nova, maia, lyra, mira).",
+    description: "List all 8 WCAG-audited OKLCH visual presets (vega, nova, maia, lyra, mira, luma, rhea, sera).",
     inputSchema: {
       type: "object",
       properties: {}
+    }
+  },
+  {
+    name: "compose_preset",
+    description: "Compose a shareable v1 preset code combining style, baseColor, accent, and radius.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        style: { type: "string", enum: ["vega", "nova", "maia", "lyra", "mira", "luma", "rhea", "sera"] },
+        baseColor: { type: "string", enum: ["neutral", "slate", "zinc", "stone", "gray"] },
+        accent: { type: "string", enum: ["default", "blue", "emerald", "amber", "rose", "violet"] },
+        radius: { type: "string", enum: ["none", "sm", "md", "lg", "full"] }
+      },
+      required: ["style"]
+    }
+  },
+  {
+    name: "get_item_docs",
+    description: "Return exported symbols, file paths, dependencies, and install command for a registry item.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        name: { type: "string" }
+      },
+      required: ["name"]
     }
   },
   {
@@ -173,6 +199,28 @@ const callTool = (name: string, args: Record<string, unknown>) => {
       }))
       return textResult({ presets })
     }
+    case "compose_preset": {
+      try {
+        const spec = decodePresetSpec({
+          style: typeof args.style === "string" ? args.style : "nova",
+          baseColor: typeof args.baseColor === "string" ? args.baseColor : "neutral",
+          accent: typeof args.accent === "string" ? args.accent : "default",
+          radius: typeof args.radius === "string" ? args.radius : "md"
+        })
+        const code = encodePresetCode(spec)
+        return textResult({ code, spec, applyCommand: `bunx effect-ui preset apply ${code}` })
+      } catch (err) {
+        return textResult({ error: err instanceof Error ? err.message : String(err) }, true)
+      }
+    }
+    case "get_item_docs": {
+      const target = typeof args.name === "string" ? args.name : ""
+      const docs = formatItemDocs(target)
+      if (docs === undefined) {
+        return textResult({ error: `Unknown registry item: ${target}` }, true)
+      }
+      return textResult({ name: target, docs })
+    }
     case "get_add_command": {
       const names = readStringArray(args.names)
       if (names === undefined || names.length === 0) {
@@ -250,7 +298,7 @@ export const handleMcpRequest = (raw: unknown): JsonRpcResponse | null => {
           capabilities: { tools: {} },
           serverInfo: {
             name: "effect-ui-registry",
-            version: "0.4.0"
+            version: "0.5.0"
           }
         }
       }

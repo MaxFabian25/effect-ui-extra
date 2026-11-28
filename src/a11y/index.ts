@@ -2,6 +2,13 @@ export * as A11yFocus from "./focus.js"
 export { auditPattern, checkPattern } from "./checkPattern.js"
 export { auditDirection, checkDirection, type DirectionAuditResult } from "./checkDirection.js"
 export {
+  auditMarkup,
+  checkMarkup,
+  type MarkupViolation,
+  MarkupViolationError,
+  type MarkupViolationRule
+} from "./markup.js"
+export {
   AccessibleNameError,
   type AccessibleNameViolation,
   auditAccessibleNames,

@@ -6,10 +6,14 @@ import { TestClock } from "effect/testing"
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join, resolve } from "node:path"
-import { A11yFocus, checkAccessibleNames } from "../../src/a11y/index.js"
+import { A11yFocus, checkAccessibleNames, checkMarkup } from "../../src/a11y/index.js"
 import { checkServer } from "../../src/page/index.js"
 import {
   buildCustomRegistry,
+  composeVisualPreset,
+  decodePresetCode,
+  encodePresetCode,
+  generateCustomPresetCss,
   generateIconModule,
   generatePresetCss,
   handleMcpLine,
@@ -20,12 +24,16 @@ import {
   REGISTRY_ITEMS,
   resolveRegistryTree,
   runAdd,
+  runAddAsync,
+  runApply,
   runCli,
   runDiff,
   runIconPack,
+  runInfo,
   runInit,
   runPreset,
-  validateCustomRegistry
+  validateCustomRegistry,
+  writeProjectUiConfig
 } from "../../src/registry/index.js"
 import { auditThemeContrast, themeContrastPairs } from "../../src/theme/index.js"
 
@@ -41,9 +49,9 @@ const runPlay = <A, E>(eff: Effect.Effect<A, E, any>) =>
   Effect.runPromise(eff.pipe(Effect.provide(playLayer)) as Effect.Effect<A, E, never>)
 
 describe("Visual presets WCAG 2.1 AA audit", () => {
-  it("audits all 5 visual presets (light and dark) with zero contrast failures", () => {
+  it("audits all 8 visual presets and composed accent/baseColor presets with zero contrast failures", () => {
     const presets = listVisualPresets()
-    expect(presets.length).toBe(5)
+    expect(presets.length).toBe(8)
 
     for (const preset of presets) {
       const lightFailures = auditThemeContrast(themeContrastPairs(preset.light))
@@ -59,6 +67,17 @@ describe("Visual presets WCAG 2.1 AA audit", () => {
       expect(css).toContain("@theme inline")
       expect(css).toContain("--color-chart-1: var(--eui-chart-1);")
     }
+
+    // Composable preset code round-trip and contrast audit across accents
+    for (const accent of ["blue", "emerald", "amber", "rose", "violet"] as const) {
+      const spec = { style: "luma" as const, baseColor: "slate" as const, accent, radius: "lg" as const }
+      const code = encodePresetCode(spec)
+      expect(decodePresetCode(code)).toEqual(spec)
+      const composed = composeVisualPreset(spec)
+      expect(auditThemeContrast(themeContrastPairs(composed.light))).toEqual([])
+      expect(auditThemeContrast(themeContrastPairs(composed.dark))).toEqual([])
+      expect(generateCustomPresetCss(code)).toContain(code)
+    }
   })
 })
 
@@ -71,8 +90,8 @@ describe("Registry catalog and CLI workflow", () => {
     expect(names.indexOf("sidebar")).toBeLessThan(names.indexOf("block-dashboard"))
     expect(names.indexOf("code-block")).toBeLessThan(names.indexOf("block-ai-chat"))
     expect(listRegistryItems({ category: "ai" }).length).toBe(8)
-    expect(listRegistryItems({ category: "blocks" }).length).toBe(3)
-    expect(REGISTRY_ITEMS.length).toBe(70)
+    expect(listRegistryItems({ category: "blocks" }).length).toBe(9)
+    expect(REGISTRY_ITEMS.length).toBe(82)
 
     const tmp = mkdtempSync(join(tmpdir(), "effect-ui-cli-"))
     try {
@@ -112,6 +131,26 @@ describe("Registry catalog and CLI workflow", () => {
 
       // CLI entrypoints
       expect(runCli(["list", "--category", "ai"], tmp).exitCode).toBe(0)
+      expect(runCli(["search", "chart-pie"], tmp).stdout).toContain("chart-pie")
+      expect(runCli(["docs", "tabs"], tmp).stdout).toContain("styledTabs")
+      expect(runCli(["info"], tmp).stdout).toContain("Modified".toLowerCase().slice(0, 8))
+      expect(runInfo(tmp).modifiedCount).toBe(1)
+
+      // apply skips locally modified button.ts unless force=true
+      const softApply = runApply(tmp)
+      expect(softApply.skippedModified).toContain("src/ui/button.ts")
+      const forceApply = runApply(tmp, { force: true })
+      expect(forceApply.updatedFiles).toContain("src/ui/button.ts")
+
+      // Preset code encode/decode/apply via CLI
+      const encoded = runCli(["preset", "encode", "--style", "sera", "--base", "slate", "--accent", "emerald", "--radius", "lg"], tmp)
+      expect(encoded.exitCode).toBe(0)
+      const code = encoded.stdout.trim()
+      expect(code).toBe("v1-sera-slate-emerald-lg")
+      expect(runCli(["preset", "decode", code], tmp).exitCode).toBe(0)
+      expect(runCli(["preset", "apply", code], tmp).exitCode).toBe(0)
+      expect(readFileSync(join(tmp, "src/ui/theme.css"), "utf8")).toContain(code)
+
       expect(runCli(["view", "data-table"], tmp).exitCode).toBe(0)
       expect(runCli(["add", "does-not-exist"], tmp).exitCode).toBe(1)
       expect(runCli(["preset", "list"], tmp).exitCode).toBe(0)
@@ -120,7 +159,7 @@ describe("Registry catalog and CLI workflow", () => {
     }
   })
 
-  it("compiles all 70 materialized blueprints and icons.ts under strict TypeScript and passes live HtmlPlay + SSR checks", async () => {
+  it("compiles all 82 materialized blueprints and icons.ts under strict TypeScript and passes live HtmlPlay + SSR + markup checks", async () => {
     const tmp = mkdtempSync(join(tmpdir(), "effect-ui-compile-"))
     try {
       runInit(tmp, { preset: "nova", dir: "src/ui" })
@@ -181,12 +220,26 @@ describe("Registry catalog and CLI workflow", () => {
       const { DashboardBlock } = await import(join(tmp, "src/ui/blocks/dashboard.ts"))
       const { AuthBlock } = await import(join(tmp, "src/ui/blocks/auth.ts"))
       const { AiChatBlock } = await import(join(tmp, "src/ui/blocks/aiChat.ts"))
+      const { SettingsBlock } = await import(join(tmp, "src/ui/blocks/settings.ts"))
+      const { SignupBlock } = await import(join(tmp, "src/ui/blocks/signup.ts"))
+      const { OtpBlock } = await import(join(tmp, "src/ui/blocks/otp.ts"))
+      const { SidebarInsetBlock } = await import(join(tmp, "src/ui/blocks/sidebarInset.ts"))
+      const { SidebarIconsBlock } = await import(join(tmp, "src/ui/blocks/sidebarIcons.ts"))
+      const { CalendarPresetsBlock } = await import(join(tmp, "src/ui/blocks/calendarPresets.ts"))
 
       await runPlay(
         Effect.gen(function*() {
           yield* checkServer(DashboardBlock, {})
           yield* checkServer(AuthBlock, {})
           yield* checkServer(AiChatBlock, {})
+          const settingsRendered = yield* checkServer(SettingsBlock, {})
+          yield* checkServer(SignupBlock, {})
+          yield* checkServer(OtpBlock, {})
+          yield* checkServer(SidebarInsetBlock, {})
+          yield* checkServer(SidebarIconsBlock, {})
+          yield* checkServer(CalendarPresetsBlock, {})
+
+          yield* checkMarkup(settingsRendered.html)
 
           // Interactive DataTable sort + filter + selection
           yield* Effect.scoped(
@@ -242,7 +295,7 @@ describe("Registry catalog and CLI workflow", () => {
     }
   }, 45_000)
 
-  it("validates and builds custom registries via API and CLI", () => {
+  it("validates, builds, and consumes local and remote namespaced custom registries via API and CLI", async () => {
     const tmp = mkdtempSync(join(tmpdir(), "effect-ui-custom-reg-"))
     try {
       const validManifest = {
@@ -277,6 +330,42 @@ describe("Registry catalog and CLI workflow", () => {
       expect(runCli(["registry", "validate"], tmp).exitCode).toBe(0)
       expect(runCli(["registry", "build", "--out", "built"], tmp).exitCode).toBe(0)
       expect(runCli(["icon-pack", "lucide"], tmp).exitCode).toBe(0)
+
+      // Consume @acme/acme-banner from the local built registry
+      runInit(tmp, { preset: "nova", dir: "src/ui" })
+      writeProjectUiConfig(tmp, {
+        preset: "nova",
+        dir: "src/ui",
+        cssPath: "src/ui/theme.css",
+        iconPack: "inline-svg",
+        installed: ["cn"],
+        registries: {
+          "@acme": "./built",
+          "@remote": "https://acme.example/r/{name}.json"
+        }
+      })
+      const localInstall = runAdd(tmp, ["@acme/acme-banner"])
+      expect(localInstall.missing).toEqual([])
+      expect(existsSync(join(tmp, "src/ui/acmeBanner.ts"))).toBe(true)
+
+      // Consume @remote/remote-pill via mocked HTTPS fetch
+      const remoteItem = {
+        name: "remote-pill",
+        title: "Remote Pill",
+        category: "primitives",
+        description: "Fetched over HTTPS.",
+        registryDependencies: ["cn"],
+        dependencies: ["@effect/ui"],
+        files: [{ path: "remotePill.ts", content: "export const pill = 'remote'\n" }]
+      }
+      const remoteInstall = await runAddAsync(tmp, ["@remote/remote-pill"], {
+        fetchImpl: (async (url: string | URL | Request) => {
+          expect(String(url)).toBe("https://acme.example/r/remote-pill.json")
+          return new Response(JSON.stringify(remoteItem), { status: 200 })
+        }) as typeof fetch
+      })
+      expect(remoteInstall.missing).toEqual([])
+      expect(existsSync(join(tmp, "src/ui/remotePill.ts"))).toBe(true)
 
       // Path traversal and missing dependency fail validation
       const badPath = join(tmp, "bad.json")
@@ -326,7 +415,7 @@ describe("Registry catalog and CLI workflow", () => {
       params: { name: "list_items", arguments: { category: "blocks" } }
     })
     const listText = (listCall?.result as { content: ReadonlyArray<{ text: string }> }).content[0]!.text
-    expect(JSON.parse(listText).count).toBe(3)
+    expect(JSON.parse(listText).count).toBe(9)
 
     const searchCall = handleMcpRequest({
       jsonrpc: "2.0",
@@ -361,7 +450,23 @@ describe("Registry catalog and CLI workflow", () => {
       method: "tools/call",
       params: { name: "list_presets", arguments: {} }
     })
-    expect(JSON.parse((presetsCall?.result as { content: ReadonlyArray<{ text: string }> }).content[0]!.text).presets.length).toBe(5)
+    expect(JSON.parse((presetsCall?.result as { content: ReadonlyArray<{ text: string }> }).content[0]!.text).presets.length).toBe(8)
+
+    const composeCall = handleMcpRequest({
+      jsonrpc: "2.0",
+      id: 81,
+      method: "tools/call",
+      params: { name: "compose_preset", arguments: { style: "rhea", baseColor: "stone", accent: "violet", radius: "lg" } }
+    })
+    expect(JSON.parse((composeCall?.result as { content: ReadonlyArray<{ text: string }> }).content[0]!.text).code).toBe("v1-rhea-stone-violet-lg")
+
+    const docsCall = handleMcpRequest({
+      jsonrpc: "2.0",
+      id: 82,
+      method: "tools/call",
+      params: { name: "get_item_docs", arguments: { name: "chart-radar" } }
+    })
+    expect(JSON.parse((docsCall?.result as { content: ReadonlyArray<{ text: string }> }).content[0]!.text).docs).toContain("radarChart")
 
     const auditCall = handleMcpRequest({
       jsonrpc: "2.0",

@@ -14,9 +14,48 @@ export const PresetNameSchema = Schema.Literals([
   "nova",
   "maia",
   "lyra",
-  "mira"
+  "mira",
+  "luma",
+  "rhea",
+  "sera"
 ])
 export type PresetName = typeof PresetNameSchema.Type
+
+export const BaseColorSchema = Schema.Literals([
+  "neutral",
+  "slate",
+  "zinc",
+  "stone",
+  "gray"
+])
+export type BaseColor = typeof BaseColorSchema.Type
+
+export const AccentColorSchema = Schema.Literals([
+  "default",
+  "blue",
+  "emerald",
+  "amber",
+  "rose",
+  "violet"
+])
+export type AccentColor = typeof AccentColorSchema.Type
+
+export const RadiusScaleSchema = Schema.Literals([
+  "none",
+  "sm",
+  "md",
+  "lg",
+  "full"
+])
+export type RadiusScale = typeof RadiusScaleSchema.Type
+
+export const PresetSpecSchema = Schema.Struct({
+  style: PresetNameSchema,
+  baseColor: BaseColorSchema,
+  accent: AccentColorSchema,
+  radius: RadiusScaleSchema
+})
+export type PresetSpec = typeof PresetSpecSchema.Type
 
 export const IconPackSchema = Schema.Literals([
   "lucide",
@@ -48,7 +87,9 @@ export const ProjectUiConfigSchema = Schema.Struct({
   dir: Schema.String,
   cssPath: Schema.String,
   iconPack: IconPackSchema,
-  installed: Schema.Array(Schema.String)
+  installed: Schema.Array(Schema.String),
+  presetCode: Schema.optional(Schema.String),
+  registries: Schema.optional(Schema.Record(Schema.String, Schema.String))
 })
 export type ProjectUiConfig = typeof ProjectUiConfigSchema.Type
 
@@ -64,3 +105,4 @@ export const decodeProjectUiConfig = Schema.decodeUnknownSync(ProjectUiConfigSch
 export const encodeProjectUiConfig = Schema.encodeSync(ProjectUiConfigSchema)
 export const decodePresetName = Schema.decodeUnknownSync(PresetNameSchema)
 export const decodeIconPack = Schema.decodeUnknownSync(IconPackSchema)
+export const decodePresetSpec = Schema.decodeUnknownSync(PresetSpecSchema)
