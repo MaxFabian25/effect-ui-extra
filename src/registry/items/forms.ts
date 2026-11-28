@@ -353,13 +353,15 @@ export const styledRadioGroup = <Msg>(
     name: "select",
     title: "Select",
     category: "primitives",
-    description: "Styled trigger, popup, and option classes for @effect/ui-kit Select.",
+    description: "Styled dropdown select wrapping @effect/ui-kit Select with trigger, popup, and check indicator.",
     registryDependencies: ["cn"],
-    dependencies: ["@effect/ui"],
+    dependencies: ["@effect/ui", "@effect/ui-kit"],
     files: [
       {
         path: "select.ts",
-        content: `import { cn } from "./cn.js"
+        content: `import type { Html } from "@effect/ui/html"
+import { Select } from "@effect/ui-kit"
+import { cn } from "./cn.js"
 
 export const selectTriggerClass = (className?: string): string =>
   cn(
@@ -381,6 +383,61 @@ export const selectItemClass = (className?: string): string =>
     "data-[highlighted]:bg-accent data-[highlighted]:text-accent-foreground data-[selected]:font-medium data-[disabled]:opacity-50",
     className
   )
+
+export interface StyledSelectOption {
+  readonly value: string
+  readonly label: string
+  readonly disabled?: boolean | undefined
+}
+
+export const styledSelect = <Msg>(
+  h: Html.H<Msg>,
+  options: {
+    readonly key?: string | undefined
+    readonly open: boolean
+    readonly value: string | null
+    readonly placeholder?: string | undefined
+    readonly items: ReadonlyArray<StyledSelectOption>
+    readonly onOpenChange: (open: boolean) => Msg
+    readonly onSelect: (value: string | null) => Msg
+    readonly className?: string | undefined
+  }
+) =>
+  Select(h, {
+    key: options.key ?? "select",
+    props: {
+      open: options.open,
+      value: options.value,
+      items: options.items
+    },
+    onEmit: {
+      RequestedOpen: () => options.onOpenChange(true),
+      RequestedClose: () => options.onOpenChange(false),
+      Settled: () => undefined,
+      Picked: ({ value }) => options.onSelect(typeof value === "string" ? value : null)
+    },
+    view: (parts) =>
+      h.div.class(cn("relative w-full", options.className)).children(
+        parts.trigger(h.button.attrs({ type: "button" }).class(selectTriggerClass())).children(
+          parts.value(h.span).children(
+            options.items.find((i) => i.value === options.value)?.label ?? options.placeholder ?? "Select..."
+          ),
+          parts.icon(h.span.attrs({ "aria-hidden": "true" }).class("text-muted-foreground")).children("▾")
+        ),
+        parts.positioner(h.div).children(
+          parts.popup(h.div.class(selectPopupClass())).children(
+            parts.list(h.div).children(
+              ...options.items.map((item) =>
+                parts.item({ element: h.div.key(item.value).class(selectItemClass()), value: item.value }).children(
+                  parts.itemText(h.div).children(item.label),
+                  parts.itemIndicator({ element: h.span.attrs({ "aria-hidden": "true" }), value: item.value })?.children("✓")
+                )
+              )
+            )
+          )
+        )
+      )
+  })
 `
       }
     ]
@@ -450,13 +507,15 @@ export const styledNativeSelect = <Msg>(
     name: "combobox",
     title: "Combobox",
     category: "primitives",
-    description: "Styled input, chip container, popup, and item classes for @effect/ui-kit Combobox.",
+    description: "Styled searchable combobox wrapping @effect/ui-kit Combobox with input, popup, and empty state.",
     registryDependencies: ["cn", "input", "select"],
-    dependencies: ["@effect/ui"],
+    dependencies: ["@effect/ui", "@effect/ui-kit"],
     files: [
       {
         path: "combobox.ts",
-        content: `import { cn } from "./cn.js"
+        content: `import type { Html } from "@effect/ui/html"
+import { Combobox } from "@effect/ui-kit"
+import { cn } from "./cn.js"
 import { inputClass } from "./input.js"
 import { selectItemClass, selectPopupClass } from "./select.js"
 
@@ -475,6 +534,71 @@ export const comboboxChipClass = (className?: string): string =>
 export const comboboxPopupClass = (className?: string): string => selectPopupClass(className)
 
 export const comboboxItemClass = (className?: string): string => selectItemClass(className)
+
+export interface StyledComboboxOption {
+  readonly value: string
+  readonly label: string
+  readonly disabled?: boolean | undefined
+}
+
+export const styledCombobox = <Msg>(
+  h: Html.H<Msg>,
+  options: {
+    readonly key?: string | undefined
+    readonly open: boolean
+    readonly value: string | null
+    readonly inputValue: string
+    readonly placeholder?: string | undefined
+    readonly emptyText?: string | undefined
+    readonly items: ReadonlyArray<StyledComboboxOption>
+    readonly onOpenChange: (open: boolean) => Msg
+    readonly onInputValueChange: (value: string) => Msg
+    readonly onSelect: (value: string | null) => Msg
+    readonly className?: string | undefined
+  }
+) =>
+  Combobox(h, {
+    key: options.key ?? "combobox",
+    props: {
+      open: options.open,
+      value: options.value,
+      inputValue: options.inputValue,
+      items: options.items
+    },
+    onEmit: {
+      RequestedOpen: () => options.onOpenChange(true),
+      RequestedClose: () => options.onOpenChange(false),
+      RequestedInputValue: ({ inputValue }) => options.onInputValueChange(inputValue),
+      Picked: ({ value }) => options.onSelect(typeof value === "string" ? value : null),
+      Highlighted: () => undefined,
+      Settled: () => undefined
+    },
+    view: (parts) =>
+      h.div.class(cn("relative w-full", options.className)).children(
+        parts.inputGroup(h.div.class("relative flex items-center")).children(
+          parts.input(
+            h.input.attrs({
+              type: "text",
+              ...(options.placeholder !== undefined ? { placeholder: options.placeholder } : {})
+            }).class(comboboxInputClass("pr-8"))
+          ),
+          parts.trigger(h.button.attrs({ type: "button", "aria-label": "Toggle options" }).class("absolute right-2 text-muted-foreground")).children("▾")
+        ),
+        parts.positioner(h.div).children(
+          parts.popup(h.div.class(comboboxPopupClass())).children(
+            parts.list(h.div).children(
+              ...parts.items.map((item) =>
+                parts.item({ element: h.div.key(item.value).class(comboboxItemClass()), value: item.value }).children(
+                  h.span.children(item.label),
+                  parts.itemIndicator({ element: h.span.attrs({ "aria-hidden": "true" }), value: item.value })?.children("✓")
+                )
+              )
+            ),
+            parts.empty(h.div.class("px-2.5 py-2 text-xs text-muted-foreground")).children(options.emptyText ?? "No matches.")
+          )
+        )
+      )
+  })
 `
       }
     ]
@@ -483,23 +607,58 @@ export const comboboxItemClass = (className?: string): string => selectItemClass
     name: "input-otp",
     title: "Input OTP",
     category: "primitives",
-    description: "Styled segmented one-time passcode slot classes for @effect/ui-kit OTPField.",
+    description: "Styled segmented one-time passcode input wrapping @effect/ui-kit OTPField with Redacted state.",
     registryDependencies: ["cn"],
-    dependencies: ["@effect/ui"],
+    dependencies: ["effect", "@effect/ui", "@effect/ui-kit"],
     files: [
       {
         path: "inputOtp.ts",
-        content: `import { cn } from "./cn.js"
+        content: `import type { Html } from "@effect/ui/html"
+import { OTPField } from "@effect/ui-kit"
+import type * as Redacted from "effect/Redacted"
+import { cn } from "./cn.js"
 
 export const otpGroupClass = (className?: string): string =>
   cn("inline-flex items-center gap-2", className)
 
 export const otpSlotClass = (className?: string): string =>
   cn(
-    "flex h-10 w-10 items-center justify-center rounded-md border border-input bg-background font-mono text-base font-semibold text-foreground",
-    "data-[active]:outline-2 data-[active]:outline-offset-1 data-[active]:outline-ring data-[invalid]:border-destructive",
+    "flex h-10 w-10 items-center justify-center rounded-md border border-input bg-background text-center font-mono text-base font-semibold text-foreground",
+    "focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring data-[invalid]:border-destructive",
     className
   )
+
+export const styledInputOtp = <Msg>(
+  h: Html.H<Msg>,
+  options: {
+    readonly key?: string | undefined
+    readonly value: Redacted.Redacted<string>
+    readonly length?: number | undefined
+    readonly onUpdate: (value: Redacted.Redacted<string>) => Msg
+    readonly onComplete?: ((value: Redacted.Redacted<string>) => Msg) | undefined
+    readonly className?: string | undefined
+  }
+) => {
+  const length = Math.max(1, options.length ?? 6)
+  return OTPField(h, {
+    key: options.key ?? "input-otp",
+    props: { value: options.value, length },
+    onEmit: {
+      Updated: ({ value }) => options.onUpdate(value),
+      Completed: ({ value }) => (options.onComplete ? options.onComplete(value) : undefined),
+      Rejected: () => undefined
+    },
+    view: (parts) =>
+      parts.root(h.div.class(otpGroupClass(options.className))).children(
+        ...Array.from({ length }, (_, index) =>
+          parts.input({
+            element: h.input.key(String(index)).attrs({ "aria-label": \`Digit \${index + 1}\` }).class(otpSlotClass()),
+            index
+          })
+        )
+      )
+  })
+}
 `
       }
     ]
@@ -508,13 +667,15 @@ export const otpSlotClass = (className?: string): string =>
     name: "slider",
     title: "Slider",
     category: "primitives",
-    description: "Styled track, range fill, and thumb classes for @effect/ui-kit Slider.",
+    description: "Styled range slider wrapping @effect/ui-kit Slider with track, indicator, and accessible thumb.",
     registryDependencies: ["cn"],
-    dependencies: ["@effect/ui"],
+    dependencies: ["@effect/ui", "@effect/ui-kit"],
     files: [
       {
         path: "slider.ts",
-        content: `import { cn } from "./cn.js"
+        content: `import type { Html } from "@effect/ui/html"
+import { Slider } from "@effect/ui-kit"
+import { cn } from "./cn.js"
 
 export const sliderRootClass = (className?: string): string =>
   cn("relative flex w-full touch-none select-none items-center py-2", className)
@@ -531,6 +692,48 @@ export const sliderThumbClass = (className?: string): string =>
     "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring data-[dragging]:scale-110",
     className
   )
+
+export const styledSlider = <Msg>(
+  h: Html.H<Msg>,
+  options: {
+    readonly key?: string | undefined
+    readonly label: string
+    readonly value: number
+    readonly min?: number | undefined
+    readonly max?: number | undefined
+    readonly step?: number | undefined
+    readonly onMove: (value: number) => Msg
+    readonly onCommit?: ((value: number) => Msg) | undefined
+    readonly className?: string | undefined
+  }
+) =>
+  Slider(h, {
+    key: options.key ?? "slider",
+    props: {
+      value: options.value,
+      ...(options.min !== undefined ? { min: options.min } : {}),
+      ...(options.max !== undefined ? { max: options.max } : {}),
+      ...(options.step !== undefined ? { step: options.step } : {})
+    },
+    onEmit: {
+      Moved: ({ value }) => options.onMove(typeof value === "number" ? value : (value[0] ?? 0)),
+      Committed: ({ value }) =>
+        options.onCommit ? options.onCommit(typeof value === "number" ? value : (value[0] ?? 0)) : undefined
+    },
+    view: (parts) =>
+      parts.root(h.div.class(sliderRootClass(options.className))).children(
+        parts.control(h.div.class("relative flex w-full items-center")).children(
+          parts.track(h.div.class(sliderTrackClass())).children(
+            parts.indicator(h.div.class(sliderIndicatorClass())),
+            parts.thumb({
+              element: h.div.class(sliderThumbClass()),
+              input: h.input.attrs({ "aria-label": options.label }),
+              index: 0
+            })
+          )
+        )
+      )
+  })
 `
       }
     ]
@@ -539,13 +742,16 @@ export const sliderThumbClass = (className?: string): string =>
     name: "calendar",
     title: "Calendar",
     category: "data",
-    description: "Styled month header, weekday grid, and day cell classes for @effect/ui-kit Calendar.",
+    description: "Styled interactive month calendar wrapping @effect/ui-kit Calendar.",
     registryDependencies: ["cn"],
-    dependencies: ["@effect/ui"],
+    dependencies: ["effect", "@effect/ui", "@effect/ui-kit"],
     files: [
       {
         path: "calendar.ts",
-        content: `import { cn } from "./cn.js"
+        content: `import type { Html } from "@effect/ui/html"
+import { Calendar } from "@effect/ui-kit"
+import * as DateTime from "effect/DateTime"
+import { cn } from "./cn.js"
 
 export const calendarRootClass = (className?: string): string =>
   cn("inline-flex flex-col gap-3 rounded-lg border border-border bg-surface p-3 text-foreground", className)
@@ -554,7 +760,7 @@ export const calendarHeaderClass = (className?: string): string =>
   cn("flex items-center justify-between gap-2 text-sm font-semibold", className)
 
 export const calendarGridClass = (className?: string): string =>
-  cn("grid grid-cols-7 gap-1 text-center text-xs", className)
+  cn("border-collapse text-center text-xs", className)
 
 export const calendarDayClass = (className?: string): string =>
   cn(
@@ -564,6 +770,66 @@ export const calendarDayClass = (className?: string): string =>
     "data-[outside-month]:text-muted-foreground/50 data-[disabled]:pointer-events-none data-[disabled]:opacity-40",
     className
   )
+
+export const styledCalendar = <Msg>(
+  h: Html.H<Msg>,
+  options: {
+    readonly key?: string | undefined
+    readonly month: DateTime.Utc
+    readonly today: DateTime.Utc
+    readonly value: DateTime.Utc | null
+    readonly firstDayOfWeek?: 0 | 1 | 2 | 3 | 4 | 5 | 6 | undefined
+    readonly onPick: (date: DateTime.Utc) => Msg
+    readonly onMonthChange: (month: DateTime.Utc) => Msg
+    readonly className?: string | undefined
+  }
+) =>
+  Calendar(h, {
+    key: options.key ?? "calendar",
+    props: {
+      month: options.month,
+      today: options.today,
+      value: options.value,
+      ...(options.firstDayOfWeek !== undefined ? { firstDayOfWeek: options.firstDayOfWeek } : {})
+    },
+    onEmit: {
+      Picked: ({ date }) => options.onPick(date),
+      RequestedMonth: ({ month }) => options.onMonthChange(month)
+    },
+    view: (parts) => {
+      const m = parts.months[0]
+      return parts.root(h.div.class(calendarRootClass(options.className))).children(
+        h.div.class(calendarHeaderClass()).children(
+          parts.previous(h.button.attrs({ type: "button", "aria-label": "Previous month" }).class("inline-flex h-7 w-7 items-center justify-center rounded-sm hover:bg-muted")).children("‹"),
+          m.heading(h.div.class("text-sm font-semibold")).children(m.title),
+          parts.next(h.button.attrs({ type: "button", "aria-label": "Next month" }).class("inline-flex h-7 w-7 items-center justify-center rounded-sm hover:bg-muted")).children("›")
+        ),
+        m.grid(h.table.class(calendarGridClass())).children(
+          h.thead.children(
+            h.tr.children(
+              ...parts.weekdays.map((wd, idx) =>
+                parts.weekday({ element: h.th.key(String(idx)).class("h-7 w-8 text-xs font-medium text-muted-foreground"), index: idx }).children(wd.short)
+              )
+            )
+          ),
+          h.tbody.children(
+            ...m.weeks.map((week, wi) =>
+              h.tr.key(String(wi)).children(
+                ...week.map((date) => {
+                  const iso = DateTime.formatIsoDateUtc(date)
+                  return m.cell({ element: h.td.key(iso).class("p-0.5"), date }).children(
+                    m.day({ element: h.button.key(iso).attrs({ type: "button" }).class(calendarDayClass()), date }).children(
+                      String(DateTime.toPartsUtc(date).day)
+                    )
+                  )
+                })
+              )
+            )
+          )
+        )
+      )
+    }
+  })
 `
       }
     ]
