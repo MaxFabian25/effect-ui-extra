@@ -63,3 +63,4 @@ export const DEFAULT_UI_CONFIG: ProjectUiConfig = {
 export const decodeProjectUiConfig = Schema.decodeUnknownSync(ProjectUiConfigSchema)
 export const encodeProjectUiConfig = Schema.encodeSync(ProjectUiConfigSchema)
 export const decodePresetName = Schema.decodeUnknownSync(PresetNameSchema)
+export const decodeIconPack = Schema.decodeUnknownSync(IconPackSchema)
